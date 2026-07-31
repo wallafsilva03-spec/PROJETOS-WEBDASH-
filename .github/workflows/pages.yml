@@ -4,11 +4,14 @@ name: Publicar no GitHub Pages
 # banco Supabase). A documentação é regerada a partir de site/schema-data.js
 # para garantir que docs/SCHEMA.md e a página nunca divirjam.
 
+# O deploy só acontece na branch padrão do repositório — sem fixar o nome,
+# porque este projeto ainda não usa `main`. O job de build roda em qualquer
+# branch, servindo de verificação.
 on:
   push:
-    branches: [main, master]
     paths:
       - 'site/**'
+      - 'docs/SCHEMA.md'
       - 'scripts/generate-schema-md.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -55,6 +58,8 @@ jobs:
 
   deploy:
     needs: build
+    # Publica apenas a partir da branch padrão.
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages

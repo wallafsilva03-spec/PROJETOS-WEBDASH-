@@ -1,0 +1,408 @@
+'use client';
+
+import * as React from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { Activity, AlertTriangle, Gauge, Repeat, Timer, TrendingUp } from 'lucide-react';
+
+import { PageHeader } from '@/components/layout/page-header';
+import { KpiCard } from '@/components/dashboard/kpi-card';
+import { ExportMenu } from '@/components/projects/export-menu';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton, SkeletonCards } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { useExecutiveData, useDashboardKpis } from '@/hooks/use-analytics';
+import { useProjects } from '@/hooks/use-projects';
+import { CHART_COLORS, HEALTH_META, PROJECT_STATUS_META } from '@/lib/constants';
+import { PROJECT_COLUMNS } from '@/lib/report-columns';
+import { formatCompactCurrency, formatNumber, formatPercent } from '@/lib/format';
+import { humanizeEnum } from '@/lib/format';
+import type { HealthStatus, ProjectStatus } from '@/types/database';
+
+const chartTooltip = {
+  contentStyle: {
+    background: 'hsl(var(--popover))',
+    border: '1px solid hsl(var(--border))',
+    borderRadius: 8,
+    fontSize: 12,
+  },
+};
+
+const AXIS = { stroke: 'hsl(var(--muted-foreground))', fontSize: 11 };
+
+export function ExecutivoView() {
+  const executive = useExecutiveData();
+  const kpis = useDashboardKpis();
+  const critical = useProjects({ health: ['critico', 'atrasado'], sort: 'due_date' });
+  const allProjects = useProjects({ sort: 'due_date' });
+
+  const data = executive.data;
+
+  const statusChart = React.useMemo(
+    () =>
+      (data?.byStatus ?? []).map((row) => ({
+        name: PROJECT_STATUS_META[row.chave as ProjectStatus]?.label ?? humanizeEnum(row.chave),
+        total: Number(row.total),
+        progresso: Number(row.progresso_medio ?? 0),
+      })),
+    [data],
+  );
+
+  const healthChart = React.useMemo(
+    () =>
+      (data?.health ?? []).map((row) => ({
+        name: HEALTH_META[row.chave as HealthStatus]?.label ?? humanizeEnum(row.chave),
+        value: Number(row.total),
+      })),
+    [data],
+  );
+
+  const departmentChart = React.useMemo(
+    () =>
+      (data?.byDepartment ?? []).map((row) => ({
+        name: row.chave,
+        total: Number(row.total),
+        atrasados: Number(row.atrasados ?? 0),
+        progresso: Number(row.progresso_medio ?? 0),
+        orcamento: Number(row.orcamento ?? 0),
+      })),
+    [data],
+  );
+
+  const priorityChart = React.useMemo(
+    () =>
+      (data?.byPriority ?? []).map((row) => ({
+        subject: humanizeEnum(row.chave),
+        total: Number(row.total),
+      })),
+    [data],
+  );
+
+  if (executive.isError) {
+    return <ErrorState onRetry={() => executive.refetch()} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Modo Diretoria"
+        title="Dashboard Executivo"
+        description="Visão consolidada do portfólio: fluxo, saúde, distribuição e projetos críticos."
+        actions={
+          <ExportMenu
+            rows={allProjects.data ?? []}
+            columns={PROJECT_COLUMNS}
+            filename="portfolio-executivo"
+            title="Relatório Executivo de Portfólio"
+            subtitle="Grupo Moreno · visão consolidada da diretoria"
+          />
+        }
+      />
+
+      {executive.isLoading || kpis.isLoading ? (
+        <SkeletonCards count={4} />
+      ) : (
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            index={0}
+            label="Lead Time médio"
+            value={data?.flow?.lead_time_dias ? `${data.flow.lead_time_dias}d` : '—'}
+            icon={Timer}
+            tone="brand"
+            hint="Da criação à conclusão da tarefa"
+          />
+          <KpiCard
+            index={1}
+            label="Cycle Time médio"
+            value={data?.flow?.cycle_time_dias ? `${data.flow.cycle_time_dias}d` : '—'}
+            icon={Repeat}
+            tone="lime"
+            hint="Do início efetivo à entrega"
+          />
+          <KpiCard
+            index={2}
+            label="Velocidade"
+            value={data?.flow?.velocidade_semanal ? `${data.flow.velocidade_semanal}/sem` : '—'}
+            icon={Activity}
+            tone="green"
+            hint={`${formatNumber(data?.flow?.entregas_12_semanas)} entregas em 12 semanas`}
+          />
+          <KpiCard
+            index={3}
+            label="Indicador geral"
+            value={formatPercent(kpis.data?.indicador_geral)}
+            icon={Gauge}
+            tone="brand"
+            progress={kpis.data?.indicador_geral ?? 0}
+            hint="Execução média do portfólio"
+          />
+        </section>
+      )}
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Projetos por status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {executive.isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : !statusChart.length ? (
+              <EmptyState icon={TrendingUp} title="Sem dados" className="border-0 bg-transparent" />
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statusChart} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="name" {...AXIS} />
+                    <YAxis allowDecimals={false} {...AXIS} />
+                    <Tooltip {...chartTooltip} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="total" name="Projetos" radius={[6, 6, 0, 0]}>
+                      {statusChart.map((_, index) => (
+                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Saúde do portfólio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {executive.isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : !healthChart.length ? (
+              <EmptyState icon={Gauge} title="Sem projetos ativos" className="border-0 bg-transparent" />
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={healthChart}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={52}
+                      outerRadius={82}
+                      paddingAngle={3}
+                    >
+                      {healthChart.map((_, index) => (
+                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip {...chartTooltip} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Projetos por departamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {executive.isLoading ? (
+              <Skeleton className="h-72 w-full" />
+            ) : !departmentChart.length ? (
+              <EmptyState icon={TrendingUp} title="Sem dados" className="border-0 bg-transparent" />
+            ) : (
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={departmentChart}
+                    layout="vertical"
+                    margin={{ top: 8, right: 16, bottom: 0, left: 24 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} {...AXIS} />
+                    <YAxis type="category" dataKey="name" width={120} {...AXIS} />
+                    <Tooltip {...chartTooltip} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="total" name="Total" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} />
+                    <Bar dataKey="atrasados" name="Atrasados" fill="hsl(var(--chart-6))" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Distribuição por prioridade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {executive.isLoading ? (
+              <Skeleton className="h-72 w-full" />
+            ) : !priorityChart.length ? (
+              <EmptyState icon={AlertTriangle} title="Sem dados" className="border-0 bg-transparent" />
+            ) : (
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={priorityChart} outerRadius="72%">
+                    <PolarGrid stroke="hsl(var(--border))" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Radar
+                      name="Projetos"
+                      dataKey="total"
+                      stroke="hsl(var(--chart-2))"
+                      fill="hsl(var(--chart-2))"
+                      fillOpacity={0.45}
+                    />
+                    <Tooltip {...chartTooltip} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Desempenho por gestor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {executive.isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : !data?.byManager.length ? (
+              <EmptyState icon={TrendingUp} title="Sem dados" className="border-0 bg-transparent" />
+            ) : (
+              <ul className="space-y-3">
+                {data.byManager.map((row) => (
+                  <li key={row.chave} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate font-medium">{row.chave}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {row.total} projeto(s) · {row.concluidos ?? 0} concluído(s)
+                        {Number(row.atrasados) > 0 && (
+                          <Badge variant="destructive" className="ml-2 text-[10px]">
+                            {row.atrasados} atrasado(s)
+                          </Badge>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress value={Number(row.progresso_medio ?? 0)} className="h-1.5 flex-1" />
+                      <span className="w-11 text-right text-xs font-semibold">
+                        {formatPercent(Number(row.progresso_medio ?? 0))}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="size-4 text-destructive" aria-hidden />
+              Projetos críticos e atrasados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {critical.isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : !critical.data?.length ? (
+              <EmptyState
+                icon={Gauge}
+                title="Portfólio saudável"
+                description="Nenhum projeto crítico ou atrasado no momento."
+                className="border-0 bg-transparent"
+              />
+            ) : (
+              <ul className="divide-y">
+                {critical.data.slice(0, 8).map((project) => (
+                  <li key={project.id} className="flex items-center gap-3 py-2.5">
+                    <span
+                      className={`size-2.5 shrink-0 rounded-full ${HEALTH_META[project.health].dot}`}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{project.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {project.code} · {project.owner_name ?? 'Sem gestor'} ·{' '}
+                        {project.days_late > 0 ? `${project.days_late} dia(s) de atraso` : 'em risco'}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold">{formatPercent(project.progress)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {departmentChart.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Orçamento por departamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="py-2 font-medium">Departamento</th>
+                    <th scope="col" className="py-2 font-medium">Projetos</th>
+                    <th scope="col" className="py-2 font-medium">Atrasados</th>
+                    <th scope="col" className="py-2 font-medium">Progresso médio</th>
+                    <th scope="col" className="py-2 text-right font-medium">Orçamento</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {departmentChart.map((row) => (
+                    <tr key={row.name}>
+                      <td className="py-2.5 font-medium">{row.name}</td>
+                      <td className="py-2.5">{row.total}</td>
+                      <td className="py-2.5">
+                        {row.atrasados > 0 ? (
+                          <Badge variant="destructive">{row.atrasados}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                      <td className="py-2.5">{formatPercent(row.progresso)}</td>
+                      <td className="py-2.5 text-right font-medium">{formatCompactCurrency(row.orcamento)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

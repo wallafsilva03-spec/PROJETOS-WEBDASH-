@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design tokens — Paleta institucional Grupo Moreno
+ * FORTALECER (verde #0E8F46) · CONECTAR (verde-limão #8CC63F) · CRESCER (azul #1B3F94)
+ */
+@layer base {
+  :root {
+    --background: 210 40% 99%;
+    --foreground: 222 47% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 13%;
+
+    /* CRESCER — azul institucional */
+    --primary: 222 69% 34%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 20%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 18% 44%;
+
+    /* CONECTAR — verde-limão */
+    --accent: 86 54% 51%;
+    --accent-foreground: 146 90% 12%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* FORTALECER — verde institucional */
+    --success: 146 82% 31%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 47%;
+    --warning-foreground: 30 90% 12%;
+
+    --info: 222 69% 34%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 214 28% 89%;
+    --input: 214 28% 89%;
+    --ring: 222 69% 34%;
+
+    --sidebar: 222 78% 18%;
+    --sidebar-foreground: 210 40% 97%;
+    --sidebar-muted: 214 30% 74%;
+    --sidebar-accent: 86 54% 51%;
+    --sidebar-border: 222 60% 26%;
+
+    --chart-1: 222 69% 34%;
+    --chart-2: 146 82% 31%;
+    --chart-3: 86 54% 51%;
+    --chart-4: 222 69% 53%;
+    --chart-5: 38 92% 47%;
+    --chart-6: 0 72% 55%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 40% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 36% 11%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 36% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 222 69% 60%;
+    --primary-foreground: 222 80% 10%;
+
+    --secondary: 222 28% 18%;
+    --secondary-foreground: 210 40% 94%;
+
+    --muted: 222 28% 16%;
+    --muted-foreground: 215 20% 66%;
+
+    --accent: 86 54% 55%;
+    --accent-foreground: 146 90% 10%;
+
+    --destructive: 0 68% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 146 62% 45%;
+    --success-foreground: 146 90% 8%;
+
+    --warning: 38 92% 58%;
+    --warning-foreground: 30 90% 10%;
+
+    --info: 222 69% 60%;
+    --info-foreground: 222 80% 10%;
+
+    --border: 222 24% 22%;
+    --input: 222 24% 22%;
+    --ring: 222 69% 60%;
+
+    --sidebar: 222 42% 10%;
+    --sidebar-foreground: 210 40% 94%;
+    --sidebar-muted: 215 20% 62%;
+    --sidebar-accent: 86 54% 55%;
+    --sidebar-border: 222 26% 20%;
+
+    --chart-1: 222 69% 62%;
+    --chart-2: 146 62% 48%;
+    --chart-3: 86 54% 57%;
+    --chart-4: 200 70% 58%;
+    --chart-5: 38 92% 58%;
+    --chart-6: 0 72% 62%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  ::selection {
+    @apply bg-moreno-lime-200 text-moreno-green-900;
+  }
+
+  /* Foco visível consistente — requisito WCAG 2.4.7 */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .brand-bar {
+    @apply h-1 w-full rounded-full bg-gradient-brand;
+  }
+
+  .glass {
+    @apply border border-white/10 bg-white/70 backdrop-blur-xl dark:bg-card/70;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

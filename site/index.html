@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebDash · Gestão de Projetos — Grupo Moreno</title>
+    <meta
+      name="description"
+      content="Plataforma corporativa de gestão de projetos do Grupo Moreno, com backend 100% Supabase. Documentação completa do banco: 20 tabelas, views, functions, triggers e RLS."
+    />
+    <meta name="theme-color" content="#1B3F94" />
+    <meta property="og:title" content="WebDash · Gestão de Projetos — Grupo Moreno" />
+    <meta
+      property="og:description"
+      content="Portfólio, Kanban, Gantt, roadmap executivo e KPIs em tempo real. Backend exclusivamente Supabase."
+    />
+    <meta property="og:type" content="website" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M6 4H28L48 96H32Z' fill='%230E8F46'/%3E%3Cpath d='M58 4H78L54 96H44Z' fill='%238CC63F'/%3E%3Cpath d='M86 12C96 40 92 74 74 96H62C80 70 86 40 86 12Z' fill='%231B3F94'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* ================================================================
+         Paleta institucional Grupo Moreno
+         FORTALECER #0E8F46 · CONECTAR #8CC63F · CRESCER #1B3F94
+         ================================================================ */
+      :root {
+        --green: #0e8f46;
+        --lime: #8cc63f;
+        --blue: #1b3f94;
+
+        --bg: #fbfcfe;
+        --surface: #ffffff;
+        --surface-2: #f1f5f9;
+        --text: #14203a;
+        --muted: #5b6883;
+        --border: #dfe5ee;
+        --accent: var(--blue);
+        --shadow: 0 1px 3px rgb(20 32 58 / 0.07), 0 8px 24px -12px rgb(20 32 58 / 0.14);
+        --radius: 14px;
+      }
+
+      [data-theme='dark'] {
+        --bg: #0b1220;
+        --surface: #121a2b;
+        --surface-2: #1a2436;
+        --text: #e8eefb;
+        --muted: #9aa8c2;
+        --border: #26314a;
+        --accent: #5b83e8;
+        --shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #0b1220;
+          --surface: #121a2b;
+          --surface-2: #1a2436;
+          --text: #e8eefb;
+          --muted: #9aa8c2;
+          --border: #26314a;
+          --accent: #5b83e8;
+          --shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: var(--accent); }
+
+      code, .mono {
+        font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+        font-size: 0.88em;
+      }
+
+      .wrap { width: min(1140px, calc(100% - 2.5rem)); margin-inline: auto; }
+
+      .skip {
+        position: absolute; left: -9999px;
+        background: var(--blue); color: #fff; padding: 0.6rem 1rem; border-radius: 8px; z-index: 100;
+      }
+      .skip:focus { left: 1rem; top: 1rem; }
+
+      :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+      /* ------------------------------------------------------------ nav */
+      header.topbar {
+        position: sticky; top: 0; z-index: 50;
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar .wrap { display: flex; align-items: center; gap: 1rem; height: 66px; }
+      .brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: inherit; }
+      .brand svg { width: 30px; height: 30px; flex-shrink: 0; }
+      .brand b { font-size: 0.98rem; letter-spacing: -0.01em; display: block; line-height: 1.2; }
+      .brand span { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      nav.links { margin-left: auto; display: flex; gap: 0.25rem; align-items: center; }
+      nav.links a {
+        padding: 0.45rem 0.7rem; border-radius: 8px; font-size: 0.87rem;
+        font-weight: 500; color: var(--muted); text-decoration: none;
+      }
+      nav.links a:hover { background: var(--surface-2); color: var(--text); }
+      @media (max-width: 860px) { nav.links a.hide-sm { display: none; } }
+
+      .btn {
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.55rem 1rem; border-radius: 10px; border: 1px solid var(--border);
+        background: var(--surface); color: var(--text);
+        font: inherit; font-size: 0.87rem; font-weight: 600;
+        cursor: pointer; text-decoration: none;
+      }
+      .btn:hover { background: var(--surface-2); }
+      .btn-brand {
+        border: 0; color: #fff;
+        background: linear-gradient(120deg, var(--green), var(--lime) 52%, var(--blue));
+        box-shadow: 0 8px 22px -10px rgb(27 63 148 / 0.7);
+      }
+      .btn-brand:hover { filter: brightness(1.08); }
+      .icon-btn { padding: 0.45rem; width: 36px; height: 36px; justify-content: center; }
+
+      /* ----------------------------------------------------------- hero */
+      .hero { padding: 4.5rem 0 3rem; position: relative; overflow: hidden; }
+      .hero::before {
+        content: ''; position: absolute; inset: -30% 40% 40% -20%;
+        background: radial-gradient(circle, rgb(14 143 70 / 0.16), transparent 65%);
+        pointer-events: none;
+      }
+      .hero::after {
+        content: ''; position: absolute; inset: -20% -20% 30% 45%;
+        background: radial-gradient(circle, rgb(27 63 148 / 0.18), transparent 65%);
+        pointer-events: none;
+      }
+      .hero > .wrap { position: relative; }
+      .eyebrow {
+        display: inline-block; font-size: 0.72rem; font-weight: 700;
+        letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue);
+        background: color-mix(in srgb, var(--blue) 10%, transparent);
+        padding: 0.3rem 0.7rem; border-radius: 999px;
+      }
+      [data-theme='dark'] .eyebrow { color: #8fb0f5; }
+      h1 {
+        font-size: clamp(2.2rem, 5.5vw, 3.6rem); line-height: 1.08;
+        letter-spacing: -0.03em; margin: 1.1rem 0 0.9rem; max-width: 18ch; text-wrap: balance;
+      }
+      .lead { font-size: 1.1rem; color: var(--muted); max-width: 62ch; margin: 0 0 1.6rem; }
+
+      .pills { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0 0 2rem; }
+      .pills li {
+        padding: 0.35rem 0.9rem; border-radius: 8px; color: #fff;
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em;
+      }
+
+      .cta { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+
+      /* ---------------------------------------------------------- stats */
+      .stats {
+        display: grid; gap: 1rem; margin: 3rem 0 0;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+      .stat {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+        position: relative; overflow: hidden;
+      }
+      .stat::before {
+        content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+        background: linear-gradient(90deg, var(--green), var(--lime), var(--blue));
+      }
+      .stat b { display: block; font-size: 1.9rem; letter-spacing: -0.02em; line-height: 1.15; }
+      .stat span { font-size: 0.78rem; color: var(--muted); }
+
+      /* -------------------------------------------------------- section */
+      section { padding: 3.5rem 0; }
+      section > .wrap > h2 {
+        font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -0.02em; margin: 0 0 0.4rem;
+      }
+      .section-lead { color: var(--muted); max-width: 68ch; margin: 0 0 2rem; }
+
+      .grid { display: grid; gap: 1rem; }
+      .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+      .card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 1.3rem; box-shadow: var(--shadow);
+      }
+      .card h3 { margin: 0.6rem 0 0.4rem; font-size: 1.02rem; letter-spacing: -0.01em; }
+      .card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+      .card .ic {
+        width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+        background: linear-gradient(120deg, rgb(14 143 70 / 0.14), rgb(27 63 148 / 0.14));
+        font-size: 1.1rem;
+      }
+
+      /* -------------------------------------------------------- palette */
+      .swatches { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .swatch { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+      .swatch .fill { height: 88px; }
+      .swatch .info { padding: 0.9rem 1rem; }
+      .swatch b { display: block; font-size: 0.94rem; }
+      .swatch .hex { color: var(--muted); }
+      .swatch p { margin: 0.35rem 0 0; font-size: 0.82rem; color: var(--muted); }
+
+      /* --------------------------------------------------------- schema */
+      .toolbar {
+        display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;
+        margin-bottom: 1.4rem; position: sticky; top: 66px; z-index: 20;
+        background: var(--bg); padding: 0.9rem 0; border-bottom: 1px solid var(--border);
+      }
+      .search {
+        flex: 1 1 260px; min-width: 200px;
+        padding: 0.6rem 0.9rem; border-radius: 10px;
+        border: 1px solid var(--border); background: var(--surface);
+        color: var(--text); font: inherit; font-size: 0.9rem;
+      }
+      .chip {
+        padding: 0.42rem 0.8rem; border-radius: 999px; border: 1px solid var(--border);
+        background: var(--surface); color: var(--muted);
+        font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      }
+      .chip[aria-pressed='true'] { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+      details.table-doc {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius); margin-bottom: 0.7rem; overflow: hidden;
+      }
+      details.table-doc[open] { box-shadow: var(--shadow); }
+      details.table-doc > summary {
+        cursor: pointer; padding: 0.95rem 1.2rem; list-style: none;
+        display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+      }
+      details.table-doc > summary::-webkit-details-marker { display: none; }
+      details.table-doc > summary:hover { background: var(--surface-2); }
+      summary .tname { font-weight: 700; font-size: 0.98rem; }
+      summary .tdesc { color: var(--muted); font-size: 0.84rem; flex: 1 1 260px; }
+      .tag {
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        padding: 0.17rem 0.5rem; border-radius: 999px; white-space: nowrap;
+        background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+      }
+      .tag.green { background: rgb(14 143 70 / 0.13); color: #0b7a3b; border-color: transparent; }
+      .tag.lime { background: rgb(140 198 63 / 0.2); color: #59811f; border-color: transparent; }
+      .tag.blue { background: rgb(27 63 148 / 0.13); color: #1b3f94; border-color: transparent; }
+      [data-theme='dark'] .tag.green { color: #6ddc9b; }
+      [data-theme='dark'] .tag.lime { color: #bce06f; }
+      [data-theme='dark'] .tag.blue { color: #8fb0f5; }
+
+      .table-body { padding: 0 1.2rem 1.2rem; }
+      .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: 0.86rem; }
+      thead th {
+        text-align: left; padding: 0.55rem 0.7rem; border-bottom: 2px solid var(--border);
+        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted);
+        position: sticky; top: 0; background: var(--surface);
+      }
+      tbody td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+      tbody tr:last-child td { border-bottom: 0; }
+      tbody tr:hover { background: var(--surface-2); }
+      td .colname { font-weight: 600; }
+      td .type { color: var(--muted); }
+      .note { color: var(--muted); font-size: 0.82rem; }
+
+      .rls {
+        margin-top: 0.9rem; padding: 0.75rem 0.9rem; border-radius: 10px;
+        background: rgb(27 63 148 / 0.07); border-left: 3px solid var(--blue);
+        font-size: 0.85rem;
+      }
+      [data-theme='dark'] .rls { background: rgb(91 131 232 / 0.12); border-left-color: var(--accent); }
+      .idx { margin-top: 0.7rem; font-size: 0.82rem; color: var(--muted); }
+
+      .empty { padding: 2.5rem; text-align: center; color: var(--muted); }
+
+      /* -------------------------------------------------------- diagram */
+      .diagram {
+        background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 1.2rem; overflow-x: auto; box-shadow: var(--shadow);
+      }
+      .diagram svg { max-width: none; height: auto; }
+      .diagram-fallback { color: var(--muted); font-size: 0.88rem; }
+
+      /* ---------------------------------------------------------- steps */
+      ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.8rem; }
+      ol.steps li {
+        counter-increment: s; position: relative; padding: 1rem 1.1rem 1rem 3.3rem;
+        background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      }
+      ol.steps li::before {
+        content: counter(s); position: absolute; left: 1.1rem; top: 1rem;
+        width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+        background: linear-gradient(120deg, var(--green), var(--blue)); color: #fff;
+        font-size: 0.78rem; font-weight: 700;
+      }
+      ol.steps b { display: block; margin-bottom: 0.15rem; }
+      ol.steps p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+      pre {
+        background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.8rem 1rem; overflow-x: auto; margin: 0.6rem 0 0; font-size: 0.82rem;
+      }
+
+      .callout {
+        border: 1px solid var(--border); border-left: 3px solid var(--lime);
+        background: rgb(140 198 63 / 0.09); border-radius: 10px; padding: 1rem 1.15rem;
+        font-size: 0.9rem; margin-top: 1.4rem;
+      }
+
+      footer {
+        border-top: 1px solid var(--border); padding: 2.5rem 0; margin-top: 2rem;
+        color: var(--muted); font-size: 0.85rem;
+      }
+      footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { transition: none !important; animation: none !important; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topbar">
+      <div class="wrap">
+        <a class="brand" href="#topo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M6 4H28L48 96H32Z" fill="#0E8F46" />
+            <path d="M58 4H78L54 96H44Z" fill="#8CC63F" />
+            <path d="M86 12C96 40 92 74 74 96H62C80 70 86 40 86 12Z" fill="#1B3F94" />
+          </svg>
+          <span>
+            <b>Grupo Moreno</b>
+            <span>Gestão de Projetos</span>
+          </span>
+        </a>
+
+        <nav class="links" aria-label="Seções">
+          <a class="hide-sm" href="#recursos">Recursos</a>
+          <a class="hide-sm" href="#arquitetura">Arquitetura</a>
+          <a href="#banco">Banco de dados</a>
+          <a class="hide-sm" href="#instalacao">Instalação</a>
+          <button class="btn icon-btn" id="theme-toggle" aria-label="Alternar tema claro/escuro">◐</button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo">
+      <!-- ============================================================ -->
+      <div class="hero" id="topo">
+        <div class="wrap">
+          <span class="eyebrow">Plataforma interna · Grupo Moreno</span>
+          <h1>Todo o portfólio corporativo em um só lugar.</h1>
+          <p class="lead">
+            Sistema de gestão de projetos no padrão Monday, ClickUp e Jira — Kanban, Gantt com caminho
+            crítico, roadmap executivo, capacidade da equipe e indicadores de saúde atualizados em tempo
+            real para todos os times. Backend construído <strong>exclusivamente sobre Supabase</strong>.
+          </p>
+
+          <ul class="pills">
+            <li style="background: #0e8f46">FORTALECER</li>
+            <li style="background: #8cc63f">CONECTAR</li>
+            <li style="background: #1b3f94">CRESCER</li>
+          </ul>
+
+          <div class="cta">
+            <a class="btn btn-brand" href="#banco">Explorar o banco de dados</a>
+            <a class="btn" href="#instalacao">Como instalar</a>
+          </div>
+
+          <div class="stats" id="stats"></div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <section id="recursos">
+        <div class="wrap">
+          <h2>O que a plataforma entrega</h2>
+          <p class="section-lead">
+            Dezesseis telas cobrindo do chão de fábrica do projeto até a visão da diretoria.
+          </p>
+
+          <div class="grid grid-3">
+            <article class="card">
+              <div class="ic">📊</div>
+              <h3>Dashboard</h3>
+              <p>
+                Projetos ativos, atrasados, em risco e próximos do vencimento, tarefas, horas planejadas
+                × realizadas, eficiência, indicador geral e usuários online.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">🗂️</div>
+              <h3>Kanban com drag &amp; drop</h3>
+              <p>
+                Cinco colunas — backlog, planejamento, desenvolvimento, homologação e concluído — com
+                reordenação transacional e atualização otimista.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">📅</div>
+              <h3>Gantt e cronograma</h3>
+              <p>
+                Dependências FS, SS, FF e SF, caminho crítico destacado, marcos, linha de hoje e
+                recálculo automático ao mover qualquer tarefa.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">🗺️</div>
+              <h3>Roadmap executivo</h3>
+              <p>
+                Projetos por linha, meses na horizontal, marcos posicionados na data e percentual de
+                conclusão dentro da barra.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">👥</div>
+              <h3>Capacidade da equipe</h3>
+              <p>
+                Horas planejadas contra capacidade semanal, disponibilidade, sobrecarga e tarefas
+                atrasadas por pessoa.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">📈</div>
+              <h3>Dashboard executivo</h3>
+              <p>
+                Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por departamento,
+                prioridade e gestor, e projetos críticos.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">🛡️</div>
+              <h3>Heatmap de riscos</h3>
+              <p>
+                Matriz 5 × 5 de probabilidade por impacto, com severidade calculada no banco como coluna
+                gerada.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">⚡</div>
+              <h3>Tempo real</h3>
+              <p>
+                Qualquer alteração feita por qualquer pessoa aparece imediatamente para todos, sem
+                recarregar a página.
+              </p>
+            </article>
+            <article class="card">
+              <div class="ic">📄</div>
+              <h3>Relatórios</h3>
+              <p>
+                Portfólio, cronograma e capacidade exportáveis em Excel, CSV e PDF com cabeçalho
+                institucional.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section id="arquitetura" style="background: var(--surface-2)">
+        <div class="wrap">
+          <h2>Arquitetura</h2>
+          <p class="section-lead">
+            Sem servidor próprio: o frontend conversa diretamente com o Supabase, e toda a regra de
+            negócio e de acesso vive no banco.
+          </p>
+
+          <div class="grid grid-2">
+            <article class="card">
+              <h3>Frontend</h3>
+              <p>
+                Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · shadcn/ui sobre Radix ·
+                Framer Motion · TanStack Query · React Hook Form · Zod · dnd-kit · Recharts · date-fns.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Backend — só Supabase</h3>
+              <p>
+                PostgreSQL · Authentication · Realtime · Storage · Row Level Security · Database
+                Functions · Triggers · Views. Nenhum Node, Nest ou Express no caminho.
+              </p>
+            </article>
+          </div>
+
+          <h3 style="margin: 2rem 0 0.4rem; font-size: 1.05rem">Inteligência que roda dentro do banco</h3>
+          <div class="grid grid-3" style="margin-top: 1rem">
+            <article class="card">
+              <h3>Progresso ponderado</h3>
+              <p>
+                Um trigger recalcula o percentual do projeto a cada mudança de tarefa, ponderando pelas
+                horas estimadas de cada uma.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Saúde automática</h3>
+              <p>
+                O previsto para hoje é medido em dias úteis do cronograma; o desvio contra o executado
+                classifica o projeto como adiantado, no prazo, em risco, atrasado ou crítico.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Cronograma que se ajusta</h3>
+              <p>
+                Adiar uma tarefa empurra as sucessoras conforme o tipo de dependência e a folga,
+                preservando a duração e com proteção contra ciclos.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section id="banco">
+        <div class="wrap">
+          <h2>Banco de dados</h2>
+          <p class="section-lead">
+            Estrutura completa do Supabase. Use a busca para encontrar uma tabela, coluna ou tipo, ou
+            filtre por domínio. Clique em qualquer tabela para ver todas as colunas e a regra de acesso.
+          </p>
+
+          <h3 style="font-size: 1.05rem; margin: 0 0 0.8rem">Relacionamentos</h3>
+          <div class="diagram" id="diagram">
+            <p class="diagram-fallback">Carregando diagrama…</p>
+          </div>
+
+          <h3 style="font-size: 1.05rem; margin: 2.2rem 0 0">Tabelas</h3>
+
+          <div class="toolbar">
+            <input
+              type="search"
+              id="search"
+              class="search"
+              placeholder="Buscar tabela, coluna ou tipo…"
+              aria-label="Buscar no schema"
+            />
+            <div id="chips" role="group" aria-label="Filtrar por domínio" style="display: flex; flex-wrap: wrap; gap: 0.4rem"></div>
+          </div>
+
+          <div id="tables"></div>
+
+          <h3 style="font-size: 1.05rem; margin: 2.5rem 0 0.8rem">Tipos enumerados</h3>
+          <div class="scroll-x">
+            <table id="enums">
+              <thead>
+                <tr><th>Tipo</th><th>Valores</th><th>Uso</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size: 1.05rem; margin: 2.5rem 0 0.4rem">Views</h3>
+          <p class="note" style="margin: 0 0 0.8rem">
+            Todas criadas com <code>security_invoker = on</code>: a RLS do usuário logado continua valendo.
+          </p>
+          <div class="scroll-x">
+            <table id="views">
+              <thead>
+                <tr><th>View</th><th>O que entrega</th><th>Usada em</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size: 1.05rem; margin: 2.5rem 0 0.8rem">Functions</h3>
+          <div class="scroll-x">
+            <table id="functions">
+              <thead>
+                <tr><th>Função</th><th>Categoria</th><th>Descrição</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size: 1.05rem; margin: 2.5rem 0 0.8rem">Triggers</h3>
+          <div class="scroll-x">
+            <table id="triggers">
+              <thead>
+                <tr><th>Tabela</th><th>Trigger</th><th>Momento</th><th>Efeito</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="grid grid-2" style="margin-top: 2.5rem">
+            <article class="card">
+              <h3 style="margin-top: 0">Realtime</h3>
+              <p id="realtime-list" style="line-height: 2"></p>
+            </article>
+            <article class="card">
+              <h3 style="margin-top: 0">Storage</h3>
+              <div id="storage-list"></div>
+            </article>
+          </div>
+
+          <div class="callout">
+            <strong>Perfis de acesso.</strong> As permissões não são checadas no frontend — são políticas
+            de Row Level Security dentro do Postgres. Um colaborador que não pertence à equipe de um
+            projeto simplesmente não recebe aquelas linhas, independentemente do que a interface peça.
+            <div id="roles-list" style="margin-top: 0.8rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section id="instalacao" style="background: var(--surface-2)">
+        <div class="wrap">
+          <h2>Instalação</h2>
+          <p class="section-lead">Do clone ao primeiro login em cinco passos.</p>
+
+          <ol class="steps">
+            <li>
+              <b>Instale as dependências</b>
+              <p>Node 20 ou superior.</p>
+              <pre><code>npm install</code></pre>
+            </li>
+            <li>
+              <b>Crie o projeto no Supabase</b>
+              <p>Copie a URL e a chave anônima em Project Settings → API para o arquivo de ambiente.</p>
+              <pre><code>cp .env.example .env.local</code></pre>
+            </li>
+            <li>
+              <b>Aplique as migrations</b>
+              <p>Na ordem numérica, pelo CLI ou colando no SQL Editor do painel.</p>
+              <pre><code>supabase link --project-ref SEU-PROJECT-REF
+supabase db push</code></pre>
+            </li>
+            <li>
+              <b>Rode a aplicação</b>
+              <p>O primeiro usuário que se cadastrar vira administrador automaticamente.</p>
+              <pre><code>npm run dev</code></pre>
+            </li>
+            <li>
+              <b>Opcional: massa de demonstração</b>
+              <p>Já logado, execute no SQL Editor para criar projetos, tarefas, marcos e riscos de exemplo.</p>
+              <pre><code>select public.seed_demo_projects();</code></pre>
+            </li>
+          </ol>
+
+          <div class="callout">
+            <strong>Sobre esta página.</strong> O GitHub Pages serve apenas arquivos estáticos, e a
+            aplicação depende de sessão de servidor e rotas dinâmicas. Por isso o que está publicado aqui
+            é a apresentação do sistema e a documentação do banco — a aplicação em si roda em Vercel ou
+            em ambiente próprio, seguindo os passos acima.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>© <span id="year"></span> Grupo Moreno · Plataforma interna de gestão de projetos</span>
+        <span class="mono" id="footer-meta"></span>
+      </div>
+    </footer>
+
+    <script src="./schema-data.js"></script>
+    <script>
+      (function () {
+        'use strict';
+
+        var schema = window.SCHEMA;
+
+        /* ------------------------------------------------------- tema */
+        var toggle = document.getElementById('theme-toggle');
+        var stored = null;
+        try { stored = localStorage.getItem('webdash-theme'); } catch (e) {}
+        if (stored) document.documentElement.setAttribute('data-theme', stored);
+
+        toggle.addEventListener('click', function () {
+          var current = document.documentElement.getAttribute('data-theme');
+          if (!current) {
+            current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          var next = current === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          try { localStorage.setItem('webdash-theme', next); } catch (e) {}
+          renderDiagram();
+        });
+
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        /* ------------------------------------------------------ stats */
+        var totalColumns = schema.tables.reduce(function (sum, t) { return sum + t.columns.length; }, 0);
+        var stats = [
+          { value: schema.tables.length, label: 'tabelas normalizadas' },
+          { value: totalColumns, label: 'colunas documentadas' },
+          { value: schema.views.length, label: 'views analíticas' },
+          { value: schema.functions.length, label: 'database functions' },
+          { value: schema.realtime.length, label: 'tabelas em tempo real' },
+          { value: 4, label: 'perfis de acesso' },
+        ];
+        document.getElementById('stats').innerHTML = stats
+          .map(function (s) {
+            return '<div class="stat"><b>' + s.value + '</b><span>' + s.label + '</span></div>';
+          })
+          .join('');
+
+        document.getElementById('footer-meta').textContent =
+          schema.tables.length + ' tabelas · ' + schema.views.length + ' views · ' + schema.meta.engine;
+
+        /* ---------------------------------------------------- helpers */
+        function esc(value) {
+          return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function flagTag(flag) {
+          var tone = '';
+          if (flag === 'PK') tone = ' blue';
+          else if (flag === 'FK') tone = ' lime';
+          else if (flag === 'CALCULADO' || flag === 'GENERATED') tone = ' green';
+          return '<span class="tag' + tone + '">' + esc(flag) + '</span>';
+        }
+
+        /* ----------------------------------------------------- filtros */
+        var activeDomain = 'todos';
+        var term = '';
+
+        var chips = [{ id: 'todos', label: 'Todos' }].concat(
+          schema.domains.map(function (d) { return { id: d.id, label: d.label }; }),
+        );
+
+        document.getElementById('chips').innerHTML = chips
+          .map(function (c) {
+            return (
+              '<button class="chip" type="button" data-domain="' + c.id + '" aria-pressed="' +
+              (c.id === 'todos') + '">' + esc(c.label) + '</button>'
+            );
+          })
+          .join('');
+
+        document.getElementById('chips').addEventListener('click', function (event) {
+          var button = event.target.closest('[data-domain]');
+          if (!button) return;
+          activeDomain = button.getAttribute('data-domain');
+          Array.prototype.forEach.call(this.querySelectorAll('.chip'), function (chip) {
+            chip.setAttribute('aria-pressed', String(chip.getAttribute('data-domain') === activeDomain));
+          });
+          renderTables();
+        });
+
+        var search = document.getElementById('search');
+        var searchTimer;
+        search.addEventListener('input', function () {
+          clearTimeout(searchTimer);
+          var value = this.value;
+          searchTimer = setTimeout(function () {
+            term = value.trim().toLowerCase();
+            renderTables();
+          }, 160);
+        });
+
+        /* ---------------------------------------------------- tabelas */
+        function matches(table) {
+          if (activeDomain !== 'todos' && table.domain !== activeDomain) return false;
+          if (!term) return true;
+
+          if (table.name.toLowerCase().indexOf(term) !== -1) return true;
+          if (table.description.toLowerCase().indexOf(term) !== -1) return true;
+
+          return table.columns.some(function (column) {
+            return (
+              column.name.toLowerCase().indexOf(term) !== -1 ||
+              String(column.type).toLowerCase().indexOf(term) !== -1
+            );
+          });
+        }
+
+        function domainLabel(id) {
+          var found = schema.domains.filter(function (d) { return d.id === id; })[0];
+          return found ? found.label : id;
+        }
+
+        function renderTables() {
+          var visible = schema.tables.filter(matches);
+          var host = document.getElementById('tables');
+
+          if (!visible.length) {
+            host.innerHTML =
+              '<div class="card empty">Nenhuma tabela encontrada para <strong>' + esc(term) + '</strong>.</div>';
+            return;
+          }
+
+          host.innerHTML = visible
+            .map(function (table) {
+              var rows = table.columns
+                .map(function (column) {
+                  var flags = (column.flags || []).map(flagTag).join(' ') || '<span class="note">—</span>';
+                  var ref = column.ref
+                    ? '<code>' + esc(column.ref) + '</code>' +
+                      (column.onDelete ? '<br><span class="note">ON DELETE ' + esc(column.onDelete) + '</span>' : '')
+                    : '<span class="note">—</span>';
+                  var notes = [];
+                  if (column.default) notes.push('default <code>' + esc(column.default) + '</code>');
+                  if (column.note) notes.push(esc(column.note));
+
+                  return (
+                    '<tr>' +
+                    '<td><span class="colname">' + esc(column.name) + '</span></td>' +
+                    '<td><code class="type">' + esc(column.type) + '</code></td>' +
+                    '<td>' + flags + '</td>' +
+                    '<td>' + ref + '</td>' +
+                    '<td class="note">' + (notes.join('. ') || '—') + '</td>' +
+                    '</tr>'
+                  );
+                })
+                .join('');
+
+              var indexes = table.indexes && table.indexes.length
+                ? '<p class="idx"><strong>Índices e restrições:</strong> ' +
+                  table.indexes.map(function (i) { return '<code>' + esc(i) + '</code>'; }).join(', ') + '</p>'
+                : '';
+
+              // Abre já expandido quando a busca reduziu bastante o resultado.
+              var open = term && visible.length <= 3 ? ' open' : '';
+
+              return (
+                '<details class="table-doc"' + open + '>' +
+                '<summary>' +
+                '<span class="tname mono">' + esc(table.name) + '</span>' +
+                '<span class="tag">' + esc(domainLabel(table.domain)) + '</span>' +
+                '<span class="tag">' + table.columns.length + ' colunas</span>' +
+                '<span class="tdesc">' + esc(table.description) + '</span>' +
+                '</summary>' +
+                '<div class="table-body">' +
+                '<div class="scroll-x"><table><thead><tr>' +
+                '<th>Coluna</th><th>Tipo</th><th>Restrições</th><th>Referência</th><th>Observação</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+                indexes +
+                '<p class="rls"><strong>Acesso (RLS):</strong> ' + esc(table.rls) + '</p>' +
+                '</div>' +
+                '</details>'
+              );
+            })
+            .join('');
+        }
+
+        /* ------------------------------------------- tabelas auxiliares */
+        function fillTable(id, rows) {
+          document.querySelector('#' + id + ' tbody').innerHTML = rows
+            .map(function (cells) {
+              return '<tr>' + cells.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+            })
+            .join('');
+        }
+
+        fillTable(
+          'enums',
+          schema.enums.map(function (item) {
+            return [
+              '<code>' + esc(item.name) + '</code>',
+              item.values.map(function (v) { return '<span class="tag">' + esc(v) + '</span>'; }).join(' '),
+              '<span class="note">' + esc(item.description) + '</span>',
+            ];
+          }),
+        );
+
+        fillTable(
+          'views',
+          schema.views.map(function (view) {
+            return [
+              '<code>' + esc(view.name) + '</code>',
+              '<span class="note">' + esc(view.description) + '</span>',
+              '<span class="note">' + esc(view.usedBy) + '</span>',
+            ];
+          }),
+        );
+
+        fillTable(
+          'functions',
+          schema.functions.map(function (fn) {
+            return [
+              '<code>' + esc(fn.name) + '</code>',
+              '<span class="tag">' + esc(fn.kind) + '</span>',
+              '<span class="note">' + esc(fn.description) + '</span>',
+            ];
+          }),
+        );
+
+        fillTable(
+          'triggers',
+          schema.triggers.map(function (trigger) {
+            return [
+              '<code>' + esc(trigger.table) + '</code>',
+              '<code>' + esc(trigger.name) + '</code>',
+              '<span class="tag">' + esc(trigger.when) + '</span>',
+              '<span class="note">' + esc(trigger.description) + '</span>',
+            ];
+          }),
+        );
+
+        document.getElementById('realtime-list').innerHTML = schema.realtime
+          .map(function (table) { return '<span class="tag blue">' + esc(table) + '</span>'; })
+          .join(' ');
+
+        document.getElementById('storage-list').innerHTML = schema.storage
+          .map(function (bucket) {
+            return (
+              '<p style="margin:0 0 .8rem"><code>' + esc(bucket.bucket) + '</code> ' +
+              '<span class="tag">' + esc(bucket.visibility) + '</span> ' +
+              '<span class="tag">' + esc(bucket.limit) + '</span><br>' +
+              '<span class="note">' + esc(bucket.policies) + '</span></p>'
+            );
+          })
+          .join('');
+
+        document.getElementById('roles-list').innerHTML = schema.roles
+          .map(function (role) {
+            return (
+              '<p style="margin:0 0 .35rem"><strong>' + esc(role.role) + '</strong> — ' +
+              '<span class="note">' + esc(role.scope) + '</span></p>'
+            );
+          })
+          .join('');
+
+        /* ---------------------------------------------------- diagrama */
+        function diagramSource() {
+          var lines = ['erDiagram'];
+          schema.tables.forEach(function (table) {
+            table.columns.forEach(function (column) {
+              if (!column.ref || column.ref.indexOf('auth.') === 0) return;
+              var target = column.ref.split('(')[0];
+              var cardinality = (column.flags || []).indexOf('NOT NULL') !== -1 ? '||--o{' : '|o--o{';
+              lines.push('  ' + target + ' ' + cardinality + ' ' + table.name + ' : "' + column.name + '"');
+            });
+          });
+          return lines.join('\n');
+        }
+
+        var mermaidReady = false;
+
+        function renderDiagram() {
+          var host = document.getElementById('diagram');
+          if (!mermaidReady || !window.mermaid) return;
+
+          var dark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+            (!document.documentElement.getAttribute('data-theme') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+          window.mermaid.initialize({
+            startOnLoad: false,
+            theme: dark ? 'dark' : 'base',
+            themeVariables: {
+              primaryColor: dark ? '#1a2436' : '#eef3fb',
+              primaryBorderColor: '#1B3F94',
+              lineColor: '#8CC63F',
+              primaryTextColor: dark ? '#e8eefb' : '#14203a',
+              fontFamily: 'Inter, system-ui, sans-serif',
+            },
+          });
+
+          window.mermaid
+            .render('er-' + Date.now(), diagramSource())
+            .then(function (result) { host.innerHTML = result.svg; })
+            .catch(function () { showDiagramFallback(host); });
+        }
+
+        function showDiagramFallback(host) {
+          var relations = [];
+          schema.tables.forEach(function (table) {
+            table.columns.forEach(function (column) {
+              if (!column.ref) return;
+              relations.push(
+                '<li><code>' + esc(table.name) + '.' + esc(column.name) + '</code> → <code>' +
+                esc(column.ref) + '</code></li>',
+              );
+            });
+          });
+          host.innerHTML =
+            '<p class="diagram-fallback">Diagrama indisponível offline. Relacionamentos:</p>' +
+            '<ul class="note" style="columns:2;column-gap:2rem">' + relations.join('') + '</ul>';
+        }
+
+        var mermaidScript = document.createElement('script');
+        mermaidScript.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        mermaidScript.onload = function () {
+          mermaidReady = true;
+          renderDiagram();
+        };
+        mermaidScript.onerror = function () {
+          showDiagramFallback(document.getElementById('diagram'));
+        };
+        document.head.appendChild(mermaidScript);
+
+        renderTables();
+      })();
+    </script>
+  </body>
+</html>

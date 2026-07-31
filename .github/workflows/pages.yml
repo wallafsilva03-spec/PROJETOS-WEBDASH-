@@ -1,0 +1,64 @@
+name: Publicar no GitHub Pages
+
+# Publica o conteúdo de `site/` (apresentação da plataforma + documentação do
+# banco Supabase). A documentação é regerada a partir de site/schema-data.js
+# para garantir que docs/SCHEMA.md e a página nunca divirjam.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'site/**'
+      - 'scripts/generate-schema-md.mjs'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Uma publicação por vez; não cancela a que já está em andamento.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Conferir se a documentação está sincronizada
+        run: |
+          node scripts/generate-schema-md.mjs
+          if ! git diff --quiet -- docs/SCHEMA.md; then
+            echo "::warning::docs/SCHEMA.md estava desatualizado; rode 'npm run docs:schema' e faça commit."
+          fi
+
+      - name: Preparar artefato
+        run: |
+          mkdir -p _site
+          cp -r site/* _site/
+          cp docs/SCHEMA.md _site/SCHEMA.md
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

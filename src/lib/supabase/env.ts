@@ -43,13 +43,23 @@ export function requireSupabaseEnv(): SupabaseEnv {
     throw new SupabaseConfigError(`Configuração do Supabase ausente: ${faltando.join(' e ')}. ${AJUDA}`);
   }
 
+  // Trocar os dois campos de lugar é o engano mais comum: no painel do Supabase
+  // a URL e a chave ficam lado a lado.
+  if (url.startsWith('sb_publishable_') || url.startsWith('sb_secret_') || url.startsWith('eyJ')) {
+    throw new SupabaseConfigError(
+      'NEXT_PUBLIC_SUPABASE_URL recebeu uma chave em vez de um endereço. ' +
+        'Esse campo é a Project URL, algo como https://abcdefghijklmnopqrst.supabase.co. ' +
+        'A chave vai em NEXT_PUBLIC_SUPABASE_ANON_KEY. ' + AJUDA,
+    );
+  }
+
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     throw new SupabaseConfigError(
       `NEXT_PUBLIC_SUPABASE_URL não é uma URL válida (valor recebido: "${url}"). ` +
-        'Use o endereço completo do projeto, como https://abcdefgh.supabase.co. ' + AJUDA,
+        'Use o endereço completo do projeto, como https://abcdefghijklmnopqrst.supabase.co. ' + AJUDA,
     );
   }
 
@@ -59,15 +69,34 @@ export function requireSupabaseEnv(): SupabaseEnv {
     );
   }
 
-  // A anon key é um JWT: três blocos separados por ponto, começando com "eyJ".
-  // Errar a chave é comum — o campo vizinho no painel é a service_role.
-  if (!anonKey.startsWith('eyJ') || anonKey.split('.').length !== 3) {
+  // O Supabase tem dois formatos de chave pública em circulação:
+  //   - novo: "sb_publishable_..."
+  //   - legado: JWT "eyJ..." com três blocos separados por ponto (a antiga anon)
+  // Ambos são aceitos pelo supabase-js e podem ir para o navegador.
+  const isPublishable = anonKey.startsWith('sb_publishable_');
+  const isLegacyAnonJwt = anonKey.startsWith('eyJ') && anonKey.split('.').length === 3;
+
+  // As chaves privadas ignoram toda a RLS. Enviá-las ao navegador exporia o
+  // banco inteiro, então é melhor falhar aqui do que publicar.
+  if (anonKey.startsWith('sb_secret_')) {
     throw new SupabaseConfigError(
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY não parece uma chave válida. ' +
-        'Copie o valor completo do campo "anon public" em Project Settings → API — ' +
-        'ele começa com "eyJ" e tem três blocos separados por ponto. ' +
-        'Não use a chave service_role: ela ignora todas as regras de acesso do banco. ' +
-        AJUDA,
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY recebeu a chave secreta (sb_secret_...). ' +
+        'Ela ignora todas as regras de acesso do banco e nunca deve ir para o navegador. ' +
+        'Use a chave "publishable" (sb_publishable_...).',
+    );
+  }
+
+  if (!isPublishable && !isLegacyAnonJwt) {
+    // Uma URL neste campo é o engano mais comum: os dois valores ficam lado a lado no painel.
+    const pareceUrl = anonKey.startsWith('http');
+    throw new SupabaseConfigError(
+      pareceUrl
+        ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY recebeu uma URL. Esse campo é a chave; ' +
+          'a URL vai em NEXT_PUBLIC_SUPABASE_URL. ' + AJUDA
+        : 'NEXT_PUBLIC_SUPABASE_ANON_KEY não parece uma chave válida. ' +
+          'Em Project Settings → API, copie a chave pública: ela começa com ' +
+          '"sb_publishable_" nos projetos novos, ou com "eyJ" nos mais antigos. ' +
+          AJUDA,
     );
   }
 

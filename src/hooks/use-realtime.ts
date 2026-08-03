@@ -30,7 +30,13 @@ interface Subscription {
 
 /**
  * Assina alterações no Postgres e invalida as queries informadas.
- * Um único canal por conjunto de tabelas mantém o consumo de conexões baixo.
+ *
+ * O nome do canal recebe um sufixo único por instância do hook. O Supabase
+ * reaproveita o canal quando o nome se repete, e registrar `postgres_changes`
+ * num canal já inscrito lança "cannot add postgres_changes callbacks after
+ * subscribe()", derrubando a página. Isso acontecia sempre que uma tela
+ * montava o mesmo hook duas vezes — como a executiva, que consulta o
+ * portfólio para os projetos críticos e de novo para a exportação.
  */
 export function useRealtime(
   channelName: string,
@@ -38,6 +44,8 @@ export function useRealtime(
   invalidateKeys: ReadonlyArray<readonly unknown[]> = [],
 ) {
   const queryClient = useQueryClient();
+  const instanceId = React.useId().replace(/[^a-zA-Z0-9]/g, '');
+  const uniqueChannelName = `${channelName}-${instanceId}`;
 
   // Mantém as referências estáveis para não recriar o canal a cada render.
   const subsRef = React.useRef(subscriptions);
@@ -52,7 +60,7 @@ export function useRealtime(
 
   React.useEffect(() => {
     const supabase = createClient();
-    const channel = supabase.channel(channelName);
+    const channel = supabase.channel(uniqueChannelName);
 
     subsRef.current.forEach(({ table, filter }) => {
       channel.on(
@@ -71,7 +79,7 @@ export function useRealtime(
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [channelName, signature, queryClient]);
+  }, [uniqueChannelName, signature, queryClient]);
 }
 
 /** Mantém o registro de presença vivo para o indicador "usuários online". */

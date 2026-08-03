@@ -15,9 +15,17 @@ export default async function ExecutivoPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single();
+  // Sem sessão legível no servidor, seguir adiante quebraria a página inteira.
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
 
   // A RLS já limita os dados; o guard evita expor a tela a quem não é gestão.
+  // Perfil ainda não criado é tratado como sem permissão, não como erro.
   if (profile?.role !== 'administrador' && profile?.role !== 'gerente') {
     redirect('/dashboard');
   }

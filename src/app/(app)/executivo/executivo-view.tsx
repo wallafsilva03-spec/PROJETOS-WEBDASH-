@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Bar,
   BarChart,
@@ -18,9 +19,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Activity, AlertTriangle, Gauge, Repeat, Timer, TrendingUp } from 'lucide-react';
+import { Activity, AlertTriangle, FlaskConical, Gauge, Repeat, Timer, TrendingUp } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +36,7 @@ import { CHART_COLORS, HEALTH_META, PROJECT_STATUS_META } from '@/lib/constants'
 import { PROJECT_COLUMNS } from '@/lib/report-columns';
 import { formatCompactCurrency, formatNumber, formatPercent } from '@/lib/format';
 import { humanizeEnum } from '@/lib/format';
+import { DEMO_CRITICAL, DEMO_EXECUTIVE, DEMO_KPIS } from './demo-data';
 import type { HealthStatus, ProjectStatus } from '@/types/database';
 
 const chartTooltip = {
@@ -47,6 +50,19 @@ const chartTooltip = {
 
 const AXIS = { stroke: 'hsl(var(--muted-foreground))', fontSize: 11 };
 
+/** Selo aplicado a cada bloco enquanto a tela mostra números fictícios. */
+function SeloFicticio() {
+  return (
+    <Badge
+      variant="soft"
+      className="bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100"
+    >
+      <FlaskConical className="size-3" />
+      Fictício
+    </Badge>
+  );
+}
+
 export function ExecutivoView() {
   const executive = useExecutiveData();
   const kpis = useDashboardKpis();
@@ -55,44 +71,57 @@ export function ExecutivoView() {
 
   const data = executive.data;
 
+  // Portfólio ainda sem projetos: a tela vira demonstração, com dados fictícios
+  // sempre identificados como tais.
+  const semDados =
+    !executive.isLoading &&
+    !executive.isError &&
+    (data?.byStatus.length ?? 0) === 0 &&
+    (data?.byDepartment.length ?? 0) === 0 &&
+    (data?.byManager.length ?? 0) === 0;
+
+  const fonte = semDados ? DEMO_EXECUTIVE : data;
+  const indicadorGeral = semDados ? DEMO_KPIS.indicador_geral : kpis.data?.indicador_geral;
+  const criticos = semDados ? DEMO_CRITICAL : critical.data;
+
   const statusChart = React.useMemo(
     () =>
-      (data?.byStatus ?? []).map((row) => ({
+      (fonte?.byStatus ?? []).map((row) => ({
         name: PROJECT_STATUS_META[row.chave as ProjectStatus]?.label ?? humanizeEnum(row.chave),
         total: Number(row.total),
         progresso: Number(row.progresso_medio ?? 0),
       })),
-    [data],
+    [fonte],
   );
 
   const healthChart = React.useMemo(
     () =>
-      (data?.health ?? []).map((row) => ({
+      (fonte?.health ?? []).map((row) => ({
         name: HEALTH_META[row.chave as HealthStatus]?.label ?? humanizeEnum(row.chave),
         value: Number(row.total),
       })),
-    [data],
+    [fonte],
   );
 
   const departmentChart = React.useMemo(
     () =>
-      (data?.byDepartment ?? []).map((row) => ({
+      (fonte?.byDepartment ?? []).map((row) => ({
         name: row.chave,
         total: Number(row.total),
         atrasados: Number(row.atrasados ?? 0),
         progresso: Number(row.progresso_medio ?? 0),
         orcamento: Number(row.orcamento ?? 0),
       })),
-    [data],
+    [fonte],
   );
 
   const priorityChart = React.useMemo(
     () =>
-      (data?.byPriority ?? []).map((row) => ({
+      (fonte?.byPriority ?? []).map((row) => ({
         subject: humanizeEnum(row.chave),
         total: Number(row.total),
       })),
-    [data],
+    [fonte],
   );
 
   if (executive.isError) {
@@ -102,9 +131,13 @@ export function ExecutivoView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Modo Diretoria"
+        eyebrow={semDados ? 'Modo Diretoria · demonstração' : 'Modo Diretoria'}
         title="Dashboard Executivo"
-        description="Visão consolidada do portfólio: fluxo, saúde, distribuição e projetos críticos."
+        description={
+          semDados
+            ? 'Ainda não há projetos cadastrados. Os números abaixo são fictícios e servem apenas para mostrar o formato do relatório.'
+            : 'Visão consolidada do portfólio: fluxo, saúde, distribuição e projetos críticos.'
+        }
         actions={
           <ExportMenu
             rows={allProjects.data ?? []}
@@ -116,6 +149,28 @@ export function ExecutivoView() {
         }
       />
 
+      {semDados && (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 sm:flex-row sm:items-center dark:border-amber-500/60 dark:bg-amber-950/40"
+        >
+          <FlaskConical className="size-6 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-amber-900 dark:text-amber-100">
+              Dados fictícios — nenhum projeto cadastrado ainda
+            </p>
+            <p className="text-sm text-amber-800 dark:text-amber-200/90">
+              Todos os números, gráficos e nomes desta tela são inventados, apenas para demonstrar o
+              formato do relatório. Não use para tomar decisão. Assim que o primeiro projeto for criado,
+              a tela passa a mostrar os dados reais automaticamente.
+            </p>
+          </div>
+          <Button variant="brand" asChild className="shrink-0">
+            <Link href="/projetos?novo=1">Cadastrar projeto</Link>
+          </Button>
+        </div>
+      )}
+
       {executive.isLoading || kpis.isLoading ? (
         <SkeletonCards count={4} />
       ) : (
@@ -123,7 +178,7 @@ export function ExecutivoView() {
           <KpiCard
             index={0}
             label="Lead Time médio"
-            value={data?.flow?.lead_time_dias ? `${data.flow.lead_time_dias}d` : '—'}
+            value={fonte?.flow?.lead_time_dias ? `${fonte.flow.lead_time_dias}d` : '—'}
             icon={Timer}
             tone="brand"
             hint="Da criação à conclusão da tarefa"
@@ -131,7 +186,7 @@ export function ExecutivoView() {
           <KpiCard
             index={1}
             label="Cycle Time médio"
-            value={data?.flow?.cycle_time_dias ? `${data.flow.cycle_time_dias}d` : '—'}
+            value={fonte?.flow?.cycle_time_dias ? `${fonte.flow.cycle_time_dias}d` : '—'}
             icon={Repeat}
             tone="lime"
             hint="Do início efetivo à entrega"
@@ -139,18 +194,18 @@ export function ExecutivoView() {
           <KpiCard
             index={2}
             label="Velocidade"
-            value={data?.flow?.velocidade_semanal ? `${data.flow.velocidade_semanal}/sem` : '—'}
+            value={fonte?.flow?.velocidade_semanal ? `${fonte.flow.velocidade_semanal}/sem` : '—'}
             icon={Activity}
             tone="green"
-            hint={`${formatNumber(data?.flow?.entregas_12_semanas)} entregas em 12 semanas`}
+            hint={`${formatNumber(fonte?.flow?.entregas_12_semanas)} entregas em 12 semanas`}
           />
           <KpiCard
             index={3}
             label="Indicador geral"
-            value={formatPercent(kpis.data?.indicador_geral)}
+            value={formatPercent(indicadorGeral)}
             icon={Gauge}
             tone="brand"
-            progress={kpis.data?.indicador_geral ?? 0}
+            progress={indicadorGeral ?? 0}
             hint="Execução média do portfólio"
           />
         </section>
@@ -159,7 +214,10 @@ export function ExecutivoView() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Projetos por status</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Projetos por status
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {executive.isLoading ? (
@@ -189,7 +247,10 @@ export function ExecutivoView() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Saúde do portfólio</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Saúde do portfólio
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {executive.isLoading ? (
@@ -225,7 +286,10 @@ export function ExecutivoView() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Projetos por departamento</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Projetos por departamento
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {executive.isLoading ? (
@@ -256,7 +320,10 @@ export function ExecutivoView() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Distribuição por prioridade</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Distribuição por prioridade
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {executive.isLoading ? (
@@ -288,16 +355,19 @@ export function ExecutivoView() {
       <section className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Desempenho por gestor</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Desempenho por gestor
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {executive.isLoading ? (
               <Skeleton className="h-64 w-full" />
-            ) : !data?.byManager.length ? (
+            ) : !fonte?.byManager.length ? (
               <EmptyState icon={TrendingUp} title="Sem dados" className="border-0 bg-transparent" />
             ) : (
               <ul className="space-y-3">
-                {data.byManager.map((row) => (
+                {fonte.byManager.map((row) => (
                   <li key={row.chave} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate font-medium">{row.chave}</span>
@@ -328,12 +398,13 @@ export function ExecutivoView() {
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertTriangle className="size-4 text-destructive" aria-hidden />
               Projetos críticos e atrasados
+              {semDados && <SeloFicticio />}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {critical.isLoading ? (
+            {!semDados && critical.isLoading ? (
               <Skeleton className="h-64 w-full" />
-            ) : !critical.data?.length ? (
+            ) : !criticos?.length ? (
               <EmptyState
                 icon={Gauge}
                 title="Portfólio saudável"
@@ -342,7 +413,7 @@ export function ExecutivoView() {
               />
             ) : (
               <ul className="divide-y">
-                {critical.data.slice(0, 8).map((project) => (
+                {criticos.slice(0, 8).map((project) => (
                   <li key={project.id} className="flex items-center gap-3 py-2.5">
                     <span
                       className={`size-2.5 shrink-0 rounded-full ${HEALTH_META[project.health].dot}`}
@@ -367,7 +438,10 @@ export function ExecutivoView() {
       {departmentChart.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Orçamento por departamento</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Orçamento por departamento
+              {semDados && <SeloFicticio />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

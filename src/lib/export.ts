@@ -52,14 +52,41 @@ export async function exportToExcel<T>(
   filename: string,
   sheetName = 'Relatório',
 ) {
-  const XLSX = await import('xlsx');
+  const ExcelJS = await import('exceljs');
 
-  const sheet = XLSX.utils.aoa_to_sheet([columns.map((c) => c.header), ...toMatrix(rows, columns)]);
-  sheet['!cols'] = columns.map((column) => ({ wch: Math.max(column.header.length + 4, (column.width ?? 2) * 10) }));
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'WebDash · Grupo Moreno';
+  workbook.created = new Date();
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, sheetName.slice(0, 31));
-  XLSX.writeFile(workbook, `${filename}-${stamp()}.xlsx`);
+  // O Excel rejeita > 31 caracteres e os caracteres : \ / ? * [ ] no nome da aba.
+  const sheet = workbook.addWorksheet(sheetName.replace(/[:\\/?*[\]]/g, '-').slice(0, 31), {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+
+  sheet.columns = columns.map((column, index) => ({
+    header: column.header,
+    key: `c${index}`,
+    width: Math.max(column.header.length + 4, (column.width ?? 2) * 10),
+  }));
+
+  toMatrix(rows, columns).forEach((line) => sheet.addRow(line));
+
+  // Cabeçalho no azul institucional Grupo Moreno.
+  const header = sheet.getRow(1);
+  header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B3F94' } };
+  header.alignment = { vertical: 'middle', horizontal: 'left' };
+  header.height = 22;
+
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  download(
+    new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+    `${filename}-${stamp()}.xlsx`,
+  );
 }
 
 export async function exportToPdf<T>(

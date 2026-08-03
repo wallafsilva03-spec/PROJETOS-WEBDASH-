@@ -212,4 +212,4 @@ select cron.schedule('alertas-diarios', '0 8 * * *', $$select public.generate_de
 - Acessibilidade: navegação por teclado, `aria-*`, foco visível, contraste, `prefers-reduced-motion`
   e link "pular para o conteúdo".
 - Dark mode e light mode com tokens de cor da marca.
-- Code splitting: `xlsx`, `jspdf` e `recharts` carregados sob demanda.
+- Code splitting: `exceljs`, `jspdf` e `recharts` carregados sob demanda.

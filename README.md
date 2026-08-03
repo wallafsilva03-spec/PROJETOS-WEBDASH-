@@ -26,6 +26,9 @@ Database Functions · Triggers · Views
 
 ## Instalação
 
+> **Primeira vez?** O passo a passo completo, com roteiro de teste e solução dos
+> problemas mais comuns, está em **[docs/COMO-RODAR.md](docs/COMO-RODAR.md)**.
+
 ### 1. Dependências
 
 ```bash
@@ -48,7 +51,11 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ### 3. Banco de dados
 
-Aplique as migrations **na ordem numérica**. Com o Supabase CLI:
+**Caminho mais rápido:** abra o **SQL Editor** do Supabase, cole todo o conteúdo de
+[`supabase/setup.sql`](supabase/setup.sql) e execute. Esse arquivo único reúne as 7
+migrations e os cadastros básicos, e é seguro executar mais de uma vez.
+
+Ou aplique as migrations separadamente, na ordem numérica, com o Supabase CLI:
 
 ```bash
 supabase link --project-ref SEU-PROJECT-REF
@@ -160,8 +167,13 @@ src/
 ├── lib/                   supabase, formatação, validações Zod, exportação
 └── types/                 tipagem do banco
 supabase/
-├── migrations/            SQL versionado
+├── migrations/            SQL versionado (aplicado pelo CLI)
+├── setup.sql              tudo em um arquivo, para colar no SQL Editor
 └── seed.sql               cadastros básicos
+docs/
+├── COMO-RODAR.md          passo a passo e roteiro de teste
+└── SCHEMA.md              referência completa das tabelas
+site/                      página publicada no GitHub Pages
 ```
 
 ---
@@ -174,6 +186,9 @@ npm run build      # build de produção
 npm run start      # servir o build
 npm run lint       # ESLint
 npm run typecheck  # TypeScript sem emitir
+
+npm run db:setup-sql  # regera supabase/setup.sql a partir das migrations
+npm run docs:schema   # regera docs/SCHEMA.md a partir de site/schema-data.js
 ```
 
 ---

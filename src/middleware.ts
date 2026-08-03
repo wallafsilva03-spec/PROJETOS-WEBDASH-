@@ -1,38 +1,52 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+import { readSupabaseEnv } from '@/lib/supabase/env';
+
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 const PUBLIC_ROUTES = ['/login', '/cadastro', '/recuperar-senha', '/auth'];
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const response = NextResponse.next({ request });
+  const { pathname } = request.nextUrl;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { env, error } = readSupabaseEnv();
 
-  // Sem credenciais configuradas não há sessão para renovar — deixa passar
-  // para que a tela de setup consiga explicar o que falta.
-  if (!url || !anonKey) return response;
+  // Sem credenciais válidas não há sessão para renovar. O middleware roda em
+  // toda requisição: se lançasse exceção aqui, o site inteiro devolveria 500.
+  // Deixa passar e registra o motivo, para a tela de login explicar o que falta.
+  if (!env) {
+    console.error(`[middleware] ${error}`);
+    return response;
+  }
 
-  const supabase = createServerClient(url, anonKey, {
+  let refreshed = response;
+
+  const supabase = createServerClient(env.url, env.anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet: CookieToSet[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        refreshed = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => refreshed.cookies.set(name, value, options));
       },
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch (cause) {
+    // Instabilidade de rede ou projeto Supabase indisponível: não vale derrubar
+    // a navegação inteira. As páginas protegidas seguem checando a sessão.
+    console.error('[middleware] falha ao validar a sessão:', (cause as Error).message);
+    return refreshed;
+  }
 
-  const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
   if (!user && !isPublic) {
@@ -49,7 +63,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  return response;
+  return refreshed;
 }
 
 export const config = {

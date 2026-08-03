@@ -1,19 +1,32 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 
 import { Providers } from '@/components/providers';
 import '@/styles/globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
+/**
+ * Fontes servidas pelo próprio projeto (src/fonts), não pelo Google.
+ * `next/font/google` baixa os arquivos durante o build, e ambientes de CI sem
+ * acesso a fonts.gstatic.com falham. Com os arquivos versionados no
+ * repositório o build fica offline e determinístico.
+ *
+ * São variáveis (um arquivo cobre toda a faixa de peso) e trazem o subconjunto
+ * latin, cuja faixa U+00C0–U+00FF cobre toda a acentuação do português.
+ */
+const inter = localFont({
+  src: './../fonts/inter-latin.woff2',
   variable: '--font-sans',
   display: 'swap',
+  weight: '100 900',
+  fallback: ['system-ui', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
 });
 
-const mono = JetBrains_Mono({
-  subsets: ['latin'],
+const mono = localFont({
+  src: './../fonts/jetbrains-mono-latin.woff2',
   variable: '--font-mono',
   display: 'swap',
+  weight: '100 800',
+  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
 });
 
 export const metadata: Metadata = {

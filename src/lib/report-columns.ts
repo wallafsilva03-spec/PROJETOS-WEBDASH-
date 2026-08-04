@@ -1,7 +1,14 @@
 import type { ExportColumn } from '@/lib/export';
 import { formatDate, formatHours, formatPercent } from '@/lib/format';
-import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, TASK_STATUS_META } from '@/lib/constants';
-import type { GanttTask, ProjectOverview, WorkloadRow } from '@/types/database';
+import {
+  HEALTH_META,
+  PRIORITY_META,
+  PROJECT_STATUS_META,
+  STAGE_STATUS_META,
+  TASK_STATUS_META,
+  VIABILITY_META,
+} from '@/lib/constants';
+import type { GanttTask, ProjectOverview, ProjectStageView, WorkloadRow } from '@/types/database';
 
 /** Colunas padronizadas do relatório de portfólio. */
 export const PROJECT_COLUMNS: ExportColumn<ProjectOverview>[] = [
@@ -22,7 +29,36 @@ export const PROJECT_COLUMNS: ExportColumn<ProjectOverview>[] = [
   { header: 'Horas estimadas', accessor: (p) => formatHours(p.tasks_estimated_hours) },
   { header: 'Horas realizadas', accessor: (p) => formatHours(p.actual_hours) },
   { header: 'Orçamento', accessor: (p) => Number(p.budget).toFixed(2) },
+  { header: 'Retorno esperado', accessor: (p) => Number(p.expected_return).toFixed(2) },
+  { header: 'Retorno realizado', accessor: (p) => Number(p.actual_return).toFixed(2) },
+  { header: 'Benefício líquido', accessor: (p) => Number(p.net_benefit).toFixed(2) },
+  { header: 'ROI', accessor: (p) => formatPercent(p.roi_percent, 1) },
+  { header: 'Payback (meses)', accessor: (p) => p.payback_months ?? '—' },
+  {
+    header: 'Viabilidade',
+    accessor: (p) => (VIABILITY_META[p.viability] ?? VIABILITY_META.sem_dados).label,
+  },
+  { header: 'Prazo consumido', accessor: (p) => formatPercent(p.time_elapsed_percent) },
+  { header: 'Conclusão projetada', accessor: (p) => formatDate(p.forecast_end_date) },
+  { header: 'Desvio da projeção (dias)', accessor: (p) => p.forecast_delay_days ?? '—' },
+  { header: 'Etapas', accessor: (p) => `${p.stages_done}/${p.stages_total}` },
   { header: 'Riscos abertos', accessor: (p) => p.open_risks },
+];
+
+export const STAGE_COLUMNS: ExportColumn<ProjectStageView>[] = [
+  { header: 'Projeto', accessor: (s) => s.project_code },
+  { header: 'Ordem', accessor: (s) => s.position },
+  { header: 'Etapa', accessor: (s) => s.name, width: 3 },
+  { header: 'Situação', accessor: (s) => STAGE_STATUS_META[s.status].label },
+  { header: 'Responsável', accessor: (s) => s.owner_name ?? '—' },
+  { header: 'Início previsto', accessor: (s) => formatDate(s.start_date) },
+  { header: 'Início real', accessor: (s) => formatDate(s.actual_start_date) },
+  { header: 'Término previsto', accessor: (s) => formatDate(s.end_date) },
+  { header: 'Término real', accessor: (s) => formatDate(s.actual_end_date) },
+  { header: 'Andamento', accessor: (s) => formatPercent(s.progress) },
+  { header: 'Previsto', accessor: (s) => formatPercent(s.expected_progress) },
+  { header: 'Dias de atraso', accessor: (s) => s.dias_atraso },
+  { header: 'Observações', accessor: (s) => s.progress_notes ?? '—', width: 4 },
 ];
 
 export const TASK_COLUMNS: ExportColumn<GanttTask>[] = [

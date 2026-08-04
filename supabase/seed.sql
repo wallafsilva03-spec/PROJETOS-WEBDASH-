@@ -57,11 +57,13 @@ begin
   -- Projeto 1 -------------------------------------------------------
   insert into public.projects (code, name, description, department_id, client_id, owner_id,
                                status, priority, complexity, category, start_date, due_date,
-                               budget, planned_hours, created_by)
+                               budget, planned_hours, created_by,
+                               expected_return, return_period_months, financial_notes)
   values ('PRJ-001', 'Portal Corporativo Grupo Moreno',
           'Unificação dos sistemas internos em um portal único com SSO.',
           v_dep_ti, v_client, v_user, 'em_desenvolvimento', 'alta', 'alta', 'Transformação Digital',
-          current_date - 30, current_date + 45, 250000, 640, v_user)
+          current_date - 30, current_date + 45, 250000, 640, v_user,
+          620000, 24, 'Economia de licenças duplicadas e horas de suporte no primeiro biênio.')
   on conflict (code) do nothing
   returning id into v_proj;
 
@@ -105,14 +107,33 @@ begin
     (v_proj, 'Termo de abertura assinado', 10, v_user),
     (v_proj, 'Ambiente de homologação provisionado', 20, v_user);
 
+  insert into public.project_stages (project_id, name, description, progress_notes, status, owner_id,
+                                     start_date, end_date, actual_start_date, actual_end_date,
+                                     progress, weight, position, created_by)
+  values
+    (v_proj, 'Diagnóstico', 'Mapeamento dos sistemas legados e das integrações existentes.',
+     'Concluída com 12 sistemas mapeados e 4 integrações críticas identificadas.',
+     'concluida', v_user, current_date - 30, current_date - 18, current_date - 30, current_date - 19,
+     100, 1, 1, v_user),
+    (v_proj, 'Arquitetura', 'Definição do modelo de dados e do provedor de identidade.',
+     'Modelo de dados aprovado; provedor de SSO em avaliação final com a segurança da informação.',
+     'em_andamento', v_user, current_date - 17, current_date + 5, current_date - 17, null,
+     60, 2, 2, v_user),
+    (v_proj, 'Construção', 'Desenvolvimento do portal e das integrações.',
+     null, 'nao_iniciada', v_user, current_date + 6, current_date + 32, null, null, 0, 3, 3, v_user),
+    (v_proj, 'Homologação e go-live', 'Testes com key users, treinamento e virada.',
+     null, 'nao_iniciada', v_user, current_date + 33, current_date + 45, null, null, 0, 1, 4, v_user);
+
   -- Projeto 2 -------------------------------------------------------
   insert into public.projects (code, name, description, department_id, client_id, owner_id,
                                status, priority, complexity, category, start_date, due_date,
-                               budget, planned_hours, created_by)
+                               budget, planned_hours, created_by,
+                               expected_return, return_period_months, financial_notes)
   values ('PRJ-002', 'Otimização da malha logística',
           'Redesenho das rotas de distribuição com foco em redução de custo.',
           v_dep_ope, v_client, v_user, 'planejamento', 'critica', 'muito_alta', 'Eficiência Operacional',
-          current_date - 10, current_date + 90, 480000, 900, v_user)
+          current_date - 10, current_date + 90, 480000, 900, v_user,
+          1350000, 36, 'Redução de 11% no custo de frete próprio, medida pelo painel de logística.')
   returning id into v_proj;
 
   insert into public.project_members (project_id, user_id, role_in_project) values (v_proj, v_user, 'gestor');
@@ -124,6 +145,21 @@ begin
      current_date - 10, current_date + 10, 100, 35, 10, v_user),
     (v_proj, 'Simulação de cenários',        'backlog', 'alta', v_user,
      current_date + 11, current_date + 45, 160, 0, 10, v_user);
+
+  insert into public.project_stages (project_id, name, description, progress_notes, status, owner_id,
+                                     start_date, end_date, actual_start_date, actual_end_date,
+                                     progress, weight, position, created_by)
+  values
+    (v_proj, 'Diagnóstico da malha', 'Coleta de dados de rotas, custos e ocupação da frota.',
+     'Base de 18 meses consolidada; falta validar o custo por quilômetro com o financeiro.',
+     'em_andamento', v_user, current_date - 10, current_date + 10, current_date - 10, null,
+     35, 2, 1, v_user),
+    (v_proj, 'Modelagem de cenários', 'Simulação das alternativas de roteirização.',
+     null, 'nao_iniciada', v_user, current_date + 11, current_date + 45, null, null, 0, 3, 2, v_user),
+    (v_proj, 'Piloto regional', 'Aplicação do novo desenho em uma regional.',
+     null, 'nao_iniciada', v_user, current_date + 46, current_date + 75, null, null, 0, 2, 3, v_user),
+    (v_proj, 'Rollout', 'Extensão do modelo para toda a malha.',
+     null, 'nao_iniciada', v_user, current_date + 76, current_date + 90, null, null, 0, 1, 4, v_user);
 
   return 'Massa de demonstração criada com sucesso.';
 end;

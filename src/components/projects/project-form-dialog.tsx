@@ -23,6 +23,7 @@ import {
   PROJECT_STATUS_OPTIONS,
 } from '@/lib/constants';
 import { projectSchema, type ProjectInput } from '@/lib/validations';
+import { formatCurrency, formatDelta } from '@/lib/format';
 import { useClients, useDepartments, useProfiles, useTags } from '@/hooks/use-catalogs';
 import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,10 @@ export function ProjectFormDialog({
       due_date: project?.due_date ?? inDays(30),
       budget: project?.budget ?? 0,
       planned_hours: project?.planned_hours ?? 0,
+      expected_return: project?.expected_return ?? 0,
+      actual_return: project?.actual_return ?? 0,
+      return_period_months: project?.return_period_months ?? 12,
+      financial_notes: project?.financial_notes ?? '',
       tags: currentTagIds,
     }),
     [project, currentTagIds],
@@ -99,6 +104,25 @@ export function ProjectFormDialog({
 
   const selectedTags = watch('tags') ?? [];
 
+  // Prévia da viabilidade com os valores digitados, antes mesmo de salvar.
+  const [budget, expectedReturn, periodMonths] = watch([
+    'budget',
+    'expected_return',
+    'return_period_months',
+  ]);
+
+  const preview = React.useMemo(() => {
+    const investment = Number(budget) || 0;
+    const gain = Number(expectedReturn) || 0;
+    const months = Number(periodMonths) || 0;
+
+    return {
+      roi: investment > 0 ? ((gain - investment) / investment) * 100 : null,
+      net: gain - investment,
+      payback: investment > 0 && gain > 0 && months > 0 ? investment / (gain / months) : null,
+    };
+  }, [budget, expectedReturn, periodMonths]);
+
   function toggleTag(tagId: string) {
     setValue(
       'tags',
@@ -112,6 +136,7 @@ export function ProjectFormDialog({
       ...values,
       description: values.description || null,
       category: values.category || null,
+      financial_notes: values.financial_notes || null,
     };
 
     if (isEditing && project) {
@@ -313,6 +338,83 @@ export function ProjectFormDialog({
               <Input id="planned_hours" type="number" step="0.5" min="0" {...register('planned_hours')} />
             </Field>
           </div>
+
+          {/* Viabilidade econômica — retorno financeiro do projeto */}
+          <fieldset className="space-y-4 rounded-lg border p-4">
+            <legend className="px-1 text-sm font-semibold">Viabilidade econômica</legend>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              O retorno esperado é comparado ao orçamento para calcular ROI, benefício líquido e payback.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field
+                label="Retorno esperado (R$)"
+                htmlFor="expected_return"
+                error={errors.expected_return?.message}
+                hint="Receita nova, ganho ou economia gerada."
+              >
+                <Input id="expected_return" type="number" step="0.01" min="0" {...register('expected_return')} />
+              </Field>
+              <Field
+                label="Horizonte (meses)"
+                htmlFor="return_period_months"
+                error={errors.return_period_months?.message}
+                hint="Período considerado para o retorno."
+              >
+                <Input
+                  id="return_period_months"
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="240"
+                  {...register('return_period_months')}
+                />
+              </Field>
+              <Field
+                label="Retorno já realizado (R$)"
+                htmlFor="actual_return"
+                error={errors.actual_return?.message}
+                hint="Valor comprovado até hoje."
+              >
+                <Input id="actual_return" type="number" step="0.01" min="0" {...register('actual_return')} />
+              </Field>
+            </div>
+
+            <Field
+              label="Premissas do cálculo"
+              htmlFor="financial_notes"
+              error={errors.financial_notes?.message}
+              hint="De onde vem o retorno e como ele será medido."
+            >
+              <Textarea
+                id="financial_notes"
+                rows={2}
+                placeholder="Ex.: economia de 11% no frete próprio, medida pelo painel de logística."
+                {...register('financial_notes')}
+              />
+            </Field>
+
+            <dl className="grid gap-2 rounded-md bg-secondary/60 p-3 text-xs sm:grid-cols-3">
+              <div className="flex justify-between gap-2 sm:block">
+                <dt className="text-muted-foreground">ROI estimado</dt>
+                <dd className={cn('font-semibold', preview.roi !== null && preview.roi < 0 && 'text-destructive')}>
+                  {preview.roi === null ? '—' : formatDelta(preview.roi)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2 sm:block">
+                <dt className="text-muted-foreground">Benefício líquido</dt>
+                <dd className={cn('font-semibold', preview.net < 0 && 'text-destructive')}>
+                  {formatCurrency(preview.net)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2 sm:block">
+                <dt className="text-muted-foreground">Payback</dt>
+                <dd className="font-semibold">
+                  {preview.payback === null ? '—' : `${preview.payback.toFixed(1)} meses`}
+                </dd>
+              </div>
+            </dl>
+          </fieldset>
 
           {Boolean(tags.data?.length) && (
             <Field label="Tags" hint="Clique para marcar ou desmarcar.">

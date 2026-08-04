@@ -6,7 +6,7 @@
 **Motor:** Supabase (PostgreSQL 15+)  
 **Migrations:** `supabase/migrations`
 
-O banco tem **20 tabelas**, **13 views**, **20 functions** e **12 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
+O banco tem **21 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
 
 ## Sumário
 
@@ -63,6 +63,9 @@ erDiagram
   profiles |o--o{ checklist_items : "done_by"
   profiles |o--o{ checklist_items : "created_by"
   projects ||--o{ milestones : "project_id"
+  projects ||--o{ project_stages : "project_id"
+  profiles |o--o{ project_stages : "owner_id"
+  profiles |o--o{ project_stages : "created_by"
   projects ||--o{ comments : "project_id"
   tasks |o--o{ comments : "task_id"
   comments |o--o{ comments : "parent_id"
@@ -208,6 +211,10 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `actual_end_date` | `date` | CALCULADO | — | Preenchido ao concluir. |
 | `budget` | `numeric(14,2)` | NOT NULL | — | default `0` |
 | `cost` | `numeric(14,2)` | NOT NULL | — | default `0` |
+| `expected_return` | `numeric(14,2)` | NOT NULL | — | default `0`. Retorno financeiro esperado no horizonte de return_period_months. Base do ROI e do payback. |
+| `actual_return` | `numeric(14,2)` | NOT NULL | — | default `0`. Retorno já realizado e comprovado. |
+| `return_period_months` | `integer` | NOT NULL | — | default `12`. Horizonte do retorno, de 1 a 240 meses. |
+| `financial_notes` | `text` | — | — | Premissas da viabilidade: de onde vem o retorno e como será medido. |
 | `planned_hours` | `numeric(10,2)` | NOT NULL | — | default `0`. Estimativa macro; as horas por tarefa ficam em tasks. |
 | `progress` | `numeric(5,2)` | NOT NULL, CALCULADO | — | default `0`. Recalculado por recalc_project_progress(), ponderado por horas estimadas. |
 | `position` | `integer` | NOT NULL | — | default `0` |
@@ -335,6 +342,34 @@ Marcos do projeto, exibidos no roadmap executivo e na timeline.
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
 **RLS:** Leitura para quem enxerga o projeto; escrita para quem o gerencia.
+
+#### `project_stages`
+
+Etapas (fases) do projeto. Guardam início e término planejados, datas reais, percentual de avanço e o texto de andamento escrito pelo responsável. Alimentam o organograma de etapas e a linha do tempo.
+
+| Coluna | Tipo | Restrições | Referência | Observação |
+| ------ | ---- | ---------- | ---------- | ---------- |
+| `id` | `uuid` | PK | — | default `gen_random_uuid()` |
+| `project_id` | `uuid` | NOT NULL, FK | `projects(id)` ON DELETE CASCADE | — |
+| `name` | `text` | NOT NULL | — | De 2 a 160 caracteres. |
+| `description` | `text` | — | — | O que a etapa entrega. |
+| `progress_notes` | `text` | — | — | Andamento: o que já foi feito, o que está em curso e o que trava. |
+| `status` | `stage_status` | NOT NULL | — | default `'nao_iniciada'` |
+| `owner_id` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Responsável — pode registrar o andamento mesmo sem gerenciar o projeto. |
+| `start_date` | `date` | NOT NULL | — | default `current_date`. Início planejado. |
+| `end_date` | `date` | NOT NULL | — | CHECK garante end_date >= start_date. |
+| `actual_start_date` | `date` | CALCULADO | — | Carimbado quando a etapa entra em andamento. |
+| `actual_end_date` | `date` | CALCULADO | — | Carimbado ao concluir; limpo se a etapa for reaberta. |
+| `progress` | `numeric(5,2)` | NOT NULL | — | default `0`. Forçado a 100 quando concluída e a 0 quando não iniciada. |
+| `weight` | `numeric(6,2)` | NOT NULL | — | default `1`. Peso da etapa no avanço consolidado do projeto. |
+| `position` | `integer` | NOT NULL | — | default `0`. Ordem no organograma; preenchida sozinha na inclusão. |
+| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | — |
+| `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
+| `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
+
+**Índices e restrições:** `idx_project_stages_project (project_id, position)`, `idx_project_stages_owner`, `idx_project_stages_dates`
+
+**RLS:** Leitura para quem enxerga o projeto. Cria e exclui quem gerencia o projeto. Edita quem gerencia ou o responsável pela etapa.
 
 ### Colaboração
 
@@ -511,6 +546,7 @@ Trilha de auditoria preenchida por trigger genérico em projects, tasks, project
 | `dependency_type` | `FS`, `SS`, `FF`, `SF` | Tipo de dependência no Gantt: Finish-Start, Start-Start, Finish-Finish, Start-Finish. |
 | `risk_status` | `identificado`, `em_mitigacao`, `mitigado`, `aceito`, `materializado` | Ciclo de vida do risco. |
 | `milestone_status` | `pendente`, `em_andamento`, `concluido`, `atrasado` | Situação do marco. |
+| `stage_status` | `nao_iniciada`, `em_andamento`, `pausada`, `concluida`, `cancelada` | Situação da etapa do projeto no organograma de execução. |
 | `notification_type` | `comentario`, `mencao`, `tarefa_atribuida`, `tarefa_status`, `prazo_hoje`, `prazo_amanha`, `projeto_atrasado`, `projeto_risco`, `checklist`, `arquivo`, `sistema` | Categoria da notificação em tempo real. |
 | `audit_action` | `INSERT`, `UPDATE`, `DELETE` | Operação registrada na auditoria. |
 
@@ -533,6 +569,9 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | `v_roadmap` | Projetos com seus marcos, prontos para o roadmap executivo. | Roadmap. |
 | `v_activity_feed` | Atividades com nome e avatar do autor e código do projeto. | Centro de atividades. |
 | `v_risk_heatmap` | Riscos em aberto agrupados por probabilidade e impacto. | Heatmap de riscos. |
+| `v_project_360` | Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio) e o resumo das etapas. | Portfólio, cards de projeto, detalhe do projeto e relatórios. |
+| `v_project_stages` | Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso e sinalização de etapa atrasada. | Organograma de etapas, linha do tempo e relatório de etapas. |
+| `v_exec_financials` | Orçamento, custo, retorno esperado e realizado, benefício líquido e ROI por departamento. | Dashboard executivo. |
 
 ## Functions
 
@@ -547,6 +586,12 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | `business_days(date, date)` | Cálculo | Dias úteis (segunda a sexta) entre duas datas, inclusive. |
 | `expected_progress(date, date)` | Cálculo | Percentual que deveria estar executado hoje, medido em dias úteis. |
 | `calc_health(...)` | Cálculo | Saúde do projeto a partir do desvio entre executado e previsto e dos dias de atraso. |
+| `time_elapsed_percent(date, date, date)` | Cálculo | Percentual do prazo já consumido em dias corridos. Passa de 100% depois da data de entrega. |
+| `forecast_end_date(date, date, numeric, date)` | Cálculo | Data de conclusão projetada mantendo o ritmo atual de execução. |
+| `schedule_index(numeric, numeric)` | Cálculo | Executado ÷ previsto. 1 significa exatamente no ritmo do cronograma. |
+| `project_roi(numeric, numeric)` | Viabilidade | Retorno sobre investimento em %, nulo quando não há investimento informado. |
+| `payback_months(numeric, numeric, integer)` | Viabilidade | Meses necessários para o retorno pagar o investimento. |
+| `viability_rating(numeric, numeric, numeric)` | Viabilidade | Classifica o projeto em sem_dados, sem_retorno, inviavel, atencao, viavel ou estrategico. |
 | `recalc_project_progress(uuid)` | Cálculo | Recalcula o progresso do projeto ponderado por horas estimadas das tarefas raiz. |
 | `reschedule_successors(uuid, int)` | Cronograma | Empurra as tarefas sucessoras conforme o tipo de dependência e o lag, preservando a duração. Protegida contra ciclos. |
 | `critical_path(uuid)` | Cronograma | CTE recursiva que devolve a maior cadeia de dependências do projeto. |
@@ -571,16 +616,17 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | `tasks` | `task_reschedule` | AFTER UPDATE | Reagenda as sucessoras quando as datas mudam. |
 | `tasks` | `task_notify` | AFTER INSERT/UPDATE | Notifica atribuição e mudança de status; alimenta o feed. |
 | `checklist_items` | `checklist_done` | BEFORE UPDATE | Carimba quem concluiu o item e quando. |
+| `project_stages` | `stage_intelligence` | BEFORE INSERT/UPDATE | Ordena a etapa nova, sincroniza status × progresso e carimba as datas reais de início e término. |
 | `comments` | `comment_notify` | AFTER INSERT | Notifica a equipe e registra a atividade. |
 | `comment_mentions` | `mention_notify` | AFTER INSERT | Notificação direta para o mencionado. |
-| `9 tabelas sensíveis` | `audit_changes` | AFTER INSERT/UPDATE/DELETE | Grava quem alterou, quando, valor antigo, valor novo e campos modificados. |
+| `10 tabelas sensíveis` | `audit_changes` | AFTER INSERT/UPDATE/DELETE | Grava quem alterou, quando, valor antigo, valor novo e campos modificados. |
 | `6 tabelas` | `set_updated_at` | BEFORE UPDATE | Mantém updated_at. |
 
 ## Realtime
 
 Tabelas publicadas em `supabase_realtime`, todas com `REPLICA IDENTITY FULL`:
 
-`projects` · `tasks` · `checklist_items` · `comments` · `attachments` · `notifications` · `activity_log` · `project_members` · `milestones` · `risks` · `time_entries` · `task_dependencies` · `user_presence`
+`projects` · `tasks` · `checklist_items` · `comments` · `attachments` · `notifications` · `activity_log` · `project_members` · `milestones` · `project_stages` · `risks` · `time_entries` · `task_dependencies` · `user_presence`
 
 ## Storage
 

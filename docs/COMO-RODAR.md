@@ -23,7 +23,7 @@ No painel do Supabase, abra **SQL Editor** → **New query**.
 Cole **todo** o conteúdo do arquivo [`supabase/setup.sql`](../supabase/setup.sql)
 e clique em **Run**.
 
-Esse arquivo único reúne as 7 migrations mais os cadastros básicos: cria as 20
+Esse arquivo único reúne as 8 migrations mais os cadastros básicos: cria as 21
 tabelas, os tipos, as views, as functions, os triggers, as políticas de acesso,
 a publicação de tempo real e os buckets de arquivos. Rodar mais de uma vez é
 seguro — tudo usa `if not exists` / `or replace`.

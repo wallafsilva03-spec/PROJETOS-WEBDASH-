@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { FileSpreadsheet, FolderKanban, ListChecks, Users } from 'lucide-react';
+import { FileSpreadsheet, FolderKanban, Layers, ListChecks, Users } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/misc';
 import { useProjects } from '@/hooks/use-projects';
 import { useGantt } from '@/hooks/use-tasks';
+import { useStages } from '@/hooks/use-project-details';
 import { useWorkload } from '@/hooks/use-analytics';
 import { useDepartments } from '@/hooks/use-catalogs';
-import { PROJECT_COLUMNS, TASK_COLUMNS, WORKLOAD_COLUMNS } from '@/lib/report-columns';
+import { PROJECT_COLUMNS, STAGE_COLUMNS, TASK_COLUMNS, WORKLOAD_COLUMNS } from '@/lib/report-columns';
 import { formatNumber } from '@/lib/format';
 
 const ALL = '__all__';
@@ -30,6 +31,7 @@ export function RelatoriosView() {
     sort: 'due_date',
   });
   const gantt = useGantt();
+  const stages = useStages();
   const workload = useWorkload();
 
   const projectRows = React.useMemo(() => projects.data ?? [], [projects.data]);
@@ -41,6 +43,11 @@ export function RelatoriosView() {
     return rows;
   }, [gantt.data, projectRows, hideDoneTasks]);
 
+  const stageRows = React.useMemo(() => {
+    const projectIds = new Set(projectRows.map((project) => project.id));
+    return (stages.data ?? []).filter((stage) => projectIds.has(stage.project_id));
+  }, [stages.data, projectRows]);
+
   const workloadRows = workload.data ?? [];
 
   const reports = [
@@ -48,7 +55,7 @@ export function RelatoriosView() {
       icon: FolderKanban,
       title: 'Portfólio de projetos',
       description:
-        'Status, saúde, prioridade, execução prevista × realizada, horas, orçamento e riscos de cada projeto.',
+        'Status, saúde, execução prevista × realizada, horas, orçamento, viabilidade econômica (ROI e payback), conclusão por tempo e riscos.',
       rows: projectRows,
       columns: PROJECT_COLUMNS,
       filename: 'portfolio-projetos',
@@ -63,6 +70,16 @@ export function RelatoriosView() {
       columns: TASK_COLUMNS,
       filename: 'cronograma-tarefas',
       reportTitle: 'Cronograma de Tarefas',
+    },
+    {
+      icon: Layers,
+      title: 'Etapas dos projetos',
+      description:
+        'Cada etapa com início previsto e real, término, andamento, desvio do previsto e observações do responsável.',
+      rows: stageRows,
+      columns: STAGE_COLUMNS,
+      filename: 'etapas-projetos',
+      reportTitle: 'Etapas dos Projetos',
     },
     {
       icon: Users,
@@ -109,7 +126,7 @@ export function RelatoriosView() {
         </label>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {reports.map((report) => (
           <Card key={report.filename} className="flex flex-col">
             <CardHeader>

@@ -16,6 +16,7 @@ type Table =
   | 'activity_log'
   | 'project_members'
   | 'milestones'
+  | 'project_stages'
   | 'risks'
   | 'time_entries'
   | 'task_dependencies'

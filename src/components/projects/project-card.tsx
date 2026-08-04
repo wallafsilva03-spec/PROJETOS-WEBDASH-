@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CalendarDays, CheckCircle2, Clock, ShieldAlert, Users } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock, Layers, ShieldAlert, TrendingUp, Users } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressWithDelta } from '@/components/ui/progress';
 import { Hint } from '@/components/ui/misc';
-import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META } from '@/lib/constants';
-import { formatDate, formatDaysLabel, formatPercent } from '@/lib/format';
+import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, VIABILITY_META } from '@/lib/constants';
+import { formatDate, formatDaysLabel, formatDelta, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
 
@@ -18,6 +18,8 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
   const health = HEALTH_META[project.health];
   const priority = PRIORITY_META[project.priority];
   const isFinished = project.status === 'concluido' || project.status === 'cancelado';
+  const viability = VIABILITY_META[project.viability] ?? VIABILITY_META.sem_dados;
+  const hasReturn = project.expected_return > 0;
 
   return (
     <motion.article
@@ -65,6 +67,14 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
                 </Badge>
               </Hint>
             )}
+            {hasReturn && (
+              <Hint label={`${viability.label} — ${viability.description}`}>
+                <Badge variant="soft" className={viability.className}>
+                  <TrendingUp className="size-3" />
+                  ROI {formatDelta(project.roi_percent)}
+                </Badge>
+              </Hint>
+            )}
           </div>
 
           <div className="mt-4 space-y-1.5">
@@ -107,6 +117,15 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
               <dt className="sr-only">Equipe</dt>
               <dd className="truncate">{project.owner_name ?? 'Sem responsável'}</dd>
             </div>
+            {project.stages_total > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Layers className="size-3.5 shrink-0" aria-hidden />
+                <dt className="sr-only">Etapas</dt>
+                <dd className={cn(project.stages_late > 0 && 'font-medium text-destructive')}>
+                  {project.stages_done}/{project.stages_total} etapas
+                </dd>
+              </div>
+            )}
           </dl>
         </Link>
       </Card>

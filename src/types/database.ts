@@ -22,6 +22,17 @@ export type HealthStatus = 'adiantado' | 'no_prazo' | 'em_risco' | 'atrasado' | 
 export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF';
 export type RiskStatus = 'identificado' | 'em_mitigacao' | 'mitigado' | 'aceito' | 'materializado';
 export type MilestoneStatus = 'pendente' | 'em_andamento' | 'concluido' | 'atrasado';
+export type StageStatus = 'nao_iniciada' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
+
+/** Classificação de viabilidade devolvida por `public.viability_rating()`. */
+export type ViabilityRating =
+  | 'sem_dados'
+  | 'sem_retorno'
+  | 'inviavel'
+  | 'atencao'
+  | 'viavel'
+  | 'estrategico';
+
 export type NotificationType =
   | 'comentario'
   | 'mencao'
@@ -99,6 +110,13 @@ export interface Project {
   actual_end_date: string | null;
   budget: number;
   cost: number;
+  /** Retorno financeiro esperado no horizonte de `return_period_months`. */
+  expected_return: number;
+  /** Retorno financeiro já realizado. */
+  actual_return: number;
+  return_period_months: number;
+  /** Premissas do cálculo de viabilidade econômica. */
+  financial_notes: string | null;
   planned_hours: number;
   progress: number;
   position: number;
@@ -108,7 +126,7 @@ export interface Project {
   updated_at: string;
 }
 
-/** Linha da view `v_project_overview` — projeto + métricas calculadas. */
+/** Linha da view `v_project_360` — projeto + métricas calculadas. */
 export interface ProjectOverview extends Omit<Project, 'position' | 'created_by'> {
   department_name: string | null;
   department_color: string | null;
@@ -134,6 +152,75 @@ export interface ProjectOverview extends Omit<Project, 'position' | 'created_by'
   business_days_remaining: number;
   business_days_total: number;
   efficiency: number | null;
+
+  /* --------------------------------------------- Viabilidade econômica */
+  /** Retorno esperado menos orçamento. */
+  net_benefit: number;
+  /** Retorno realizado menos custo já incorrido. */
+  net_benefit_real: number;
+  /** ROI planejado: (retorno esperado − orçamento) ÷ orçamento. */
+  roi_percent: number | null;
+  /** ROI realizado: (retorno realizado − custo) ÷ custo. */
+  roi_real_percent: number | null;
+  /** Meses para o retorno pagar o investimento. */
+  payback_months: number | null;
+  viability: ViabilityRating;
+
+  /* ----------------------------------------------- Conclusão por tempo */
+  /** Percentual do prazo já consumido — passa de 100% após a data de entrega. */
+  time_elapsed_percent: number;
+  /** Executado ÷ previsto. 1 = exatamente no ritmo do cronograma. */
+  schedule_index: number | null;
+  /** Data de conclusão projetada mantendo o ritmo atual. */
+  forecast_end_date: string | null;
+  /** Dias de antecipação (negativo) ou atraso (positivo) na projeção. */
+  forecast_delay_days: number | null;
+
+  /* ------------------------------------------------------------ Etapas */
+  stages_total: number;
+  stages_done: number;
+  stages_running: number;
+  stages_late: number;
+  /** Avanço das etapas ponderado pelo peso de cada uma. */
+  stages_progress: number | null;
+}
+
+export interface ProjectStage {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  /** Andamento escrito pelo responsável da etapa. */
+  progress_notes: string | null;
+  status: StageStatus;
+  owner_id: string | null;
+  start_date: string;
+  end_date: string;
+  actual_start_date: string | null;
+  actual_end_date: string | null;
+  progress: number;
+  weight: number;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Linha da view `v_project_stages` — etapa + métricas de prazo. */
+export interface ProjectStageView
+  extends Omit<ProjectStage, 'created_by'> {
+  project_code: string;
+  project_name: string;
+  owner_name: string | null;
+  owner_avatar: string | null;
+  duracao_dias: number;
+  duracao_dias_uteis: number;
+  expected_progress: number;
+  progress_delta: number;
+  time_elapsed_percent: number;
+  dias_restantes: number;
+  dias_atraso: number;
+  atrasada: boolean;
 }
 
 export interface Task {
@@ -381,6 +468,19 @@ export interface GroupCount {
   orcamento?: number | null;
   owner_id?: string | null;
   concluidos?: number | null;
+}
+
+/** Linha da view `v_exec_financials` — retorno consolidado por departamento. */
+export interface ExecFinancialRow {
+  chave: string;
+  cor: string;
+  total: number;
+  orcamento: number;
+  custo: number;
+  retorno_esperado: number;
+  retorno_realizado: number;
+  beneficio_liquido: number;
+  roi_percent: number | null;
 }
 
 export interface FlowMetrics {

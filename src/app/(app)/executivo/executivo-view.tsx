@@ -34,8 +34,9 @@ import { useExecutiveData, useDashboardKpis } from '@/hooks/use-analytics';
 import { useProjects } from '@/hooks/use-projects';
 import { CHART_COLORS, HEALTH_META, PROJECT_STATUS_META } from '@/lib/constants';
 import { PROJECT_COLUMNS } from '@/lib/report-columns';
-import { formatCompactCurrency, formatNumber, formatPercent } from '@/lib/format';
+import { formatCompactCurrency, formatDelta, formatNumber, formatPercent } from '@/lib/format';
 import { humanizeEnum } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { DEMO_CRITICAL, DEMO_EXECUTIVE, DEMO_KPIS } from './demo-data';
 import type { HealthStatus, ProjectStatus } from '@/types/database';
 
@@ -114,6 +115,22 @@ export function ExecutivoView() {
       })),
     [fonte],
   );
+
+  /** Viabilidade econômica consolidada — só departamentos com retorno informado. */
+  const financeiro = React.useMemo(() => {
+    const linhas = (fonte?.financials ?? []).filter((row) => Number(row.retorno_esperado) > 0);
+    const orcamento = linhas.reduce((total, row) => total + Number(row.orcamento ?? 0), 0);
+    const retorno = linhas.reduce((total, row) => total + Number(row.retorno_esperado ?? 0), 0);
+
+    return {
+      linhas,
+      orcamento,
+      retorno,
+      beneficio: retorno - orcamento,
+      roi: orcamento > 0 ? ((retorno - orcamento) / orcamento) * 100 : null,
+      retornoMaximo: Math.max(...linhas.map((row) => Number(row.retorno_esperado ?? 0)), 0),
+    };
+  }, [fonte]);
 
   const priorityChart = React.useMemo(
     () =>
@@ -351,6 +368,104 @@ export function ExecutivoView() {
           </CardContent>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            Retorno financeiro do portfólio
+            {semDados && <SeloFicticio />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {executive.isLoading ? (
+            <Skeleton className="h-56 w-full" />
+          ) : !financeiro.linhas.length ? (
+            <EmptyState
+              icon={TrendingUp}
+              title="Sem retorno informado"
+              description="Preencha o retorno esperado na edição dos projetos para avaliar a viabilidade econômica do portfólio."
+              className="border-0 bg-transparent"
+            />
+          ) : (
+            <div className="space-y-4">
+              <dl className="grid gap-3 sm:grid-cols-4">
+                <div className="rounded-lg bg-secondary/60 p-3">
+                  <dt className="text-xs text-muted-foreground">Investimento</dt>
+                  <dd className="font-display text-xl font-semibold">
+                    {formatCompactCurrency(financeiro.orcamento)}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-secondary/60 p-3">
+                  <dt className="text-xs text-muted-foreground">Retorno esperado</dt>
+                  <dd className="font-display text-xl font-semibold">
+                    {formatCompactCurrency(financeiro.retorno)}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-secondary/60 p-3">
+                  <dt className="text-xs text-muted-foreground">Benefício líquido</dt>
+                  <dd
+                    className={cn(
+                      'font-display text-xl font-semibold',
+                      financeiro.beneficio < 0 && 'text-destructive',
+                    )}
+                  >
+                    {formatCompactCurrency(financeiro.beneficio)}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-secondary/60 p-3">
+                  <dt className="text-xs text-muted-foreground">ROI do portfólio</dt>
+                  <dd
+                    className={cn(
+                      'font-display text-xl font-semibold',
+                      (financeiro.roi ?? 0) < 0 && 'text-destructive',
+                    )}
+                  >
+                    {financeiro.roi === null ? '—' : formatDelta(financeiro.roi)}
+                  </dd>
+                </div>
+              </dl>
+
+              <ul className="space-y-3">
+                {financeiro.linhas.map((row) => {
+                  const share =
+                    financeiro.retornoMaximo > 0
+                      ? (Number(row.retorno_esperado) / financeiro.retornoMaximo) * 100
+                      : 0;
+
+                  return (
+                    <li key={row.chave} className="space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="truncate font-medium">{row.chave}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatCompactCurrency(row.orcamento)} → {formatCompactCurrency(row.retorno_esperado)}
+                          <Badge
+                            variant="soft"
+                            className={cn(
+                              'ml-2',
+                              Number(row.beneficio_liquido) >= 0
+                                ? 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200',
+                            )}
+                          >
+                            ROI {formatDelta(row.roi_percent)}
+                          </Badge>
+                        </span>
+                      </div>
+                      <Progress
+                        value={share}
+                        className="h-1.5"
+                        indicatorClassName={
+                          Number(row.beneficio_liquido) >= 0 ? 'bg-success' : 'bg-destructive'
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card>

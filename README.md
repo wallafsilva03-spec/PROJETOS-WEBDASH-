@@ -74,7 +74,8 @@ Ou, pelo **SQL Editor** do painel, cole e execute na sequência:
 | 5 | `20250101000400_views.sql` | Views analíticas (dashboard, workload, Gantt, executivo) |
 | 6 | `20250101000500_rls_policies.sql` | Row Level Security por perfil |
 | 7 | `20250101000600_realtime_storage.sql` | Publicação Realtime e buckets do Storage |
-| 8 | `seed.sql` | Departamentos, clientes e tags do Grupo Moreno |
+| 8 | `20250201000000_stages_and_viability.sql` | Etapas do projeto, viabilidade econômica e conclusão por tempo |
+| 9 | `seed.sql` | Departamentos, clientes e tags do Grupo Moreno |
 
 ### 4. Executar
 
@@ -107,17 +108,22 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   atenção, minhas tarefas e centro de atividades ao vivo.
 - **Projetos** — portfólio em cards ou tabela, filtros por status/saúde/departamento, ordenação e
   exportação.
-- **Detalhe do projeto** — 12 abas: Kanban (drag & drop), Lista (agrupamentos e ordenação), Gantt,
-  Timeline, Calendário, Indicadores (Burn Down / Burn Up / Curva S + marcos), Riscos, Checklist,
-  Horas, Arquivos, Equipe e Comentários.
+- **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
+  esforço, escopo e **viabilidade econômica**) e 13 abas: Kanban (drag & drop), Lista (agrupamentos e
+  ordenação), **Etapas** (organograma + linha do tempo), Gantt, Timeline, Calendário, Indicadores
+  (Burn Down / Burn Up / Curva S + marcos), Riscos, Checklist, Horas, Arquivos, Equipe e
+  Comentários.
 - **Cronograma** — Gantt consolidado do portfólio, com filtro de caminho crítico.
 - **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão.
 - **Calendário** — visões diária, semanal e mensal.
 - **Workload** — capacidade × alocação, disponibilidade e sobrecarga por pessoa.
 - **Dashboard Executivo** — Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por
-  status/departamento/prioridade/gestor, projetos críticos e orçamento. Restrito à gestão.
+  status/departamento/prioridade/gestor, projetos críticos, orçamento e **retorno financeiro do
+  portfólio** (investimento × retorno esperado, benefício líquido e ROI por departamento).
+  Restrito à gestão.
 - **Riscos** — heatmap corporativo 5 × 5 (probabilidade × impacto).
-- **Relatórios** — exportação em Excel, CSV e PDF com cabeçalho institucional.
+- **Relatórios** — portfólio (com ROI, payback e conclusão projetada), cronograma de tarefas,
+  **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
 
@@ -133,18 +139,24 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 - **Caminho crítico** via CTE recursiva sobre o grafo de dependências.
 - **Dias úteis**, dias restantes, dias de atraso, eficiência (estimado ÷ apontado) e severidade de
   risco (probabilidade × impacto) como colunas calculadas.
+- **Conclusão por tempo**: percentual do prazo consumido, índice de ritmo (executado ÷ previsto),
+  data de conclusão projetada no ritmo atual e desvio dessa projeção em dias.
+- **Viabilidade econômica**: retorno esperado e realizado, benefício líquido, ROI planejado e
+  realizado, payback em meses e classificação automática (inviável, atenção, viável, alto retorno).
+- **Etapas do projeto**: início e término planejados × reais, avanço ponderado por peso, etapas
+  atrasadas e o texto de andamento escrito pelo responsável — desenhados no organograma de etapas.
 
 ### Tempo real
 
 Um canal Supabase Realtime por contexto invalida o cache do TanStack Query quando qualquer usuário
-altera projetos, tarefas, comentários, checklist, arquivos, horas, riscos, marcos, equipe ou
+altera projetos, tarefas, comentários, checklist, arquivos, horas, riscos, marcos, etapas, equipe ou
 notificações. Presença por heartbeat alimenta o indicador de usuários online.
 
 ### Auditoria
 
 Trigger genérico registra em `audit_log` quem alterou, quando, valor antigo, valor novo e a lista de
-campos modificados — para projetos, tarefas, equipe, checklist, marcos, riscos, apontamentos,
-arquivos e perfis.
+campos modificados — para projetos, tarefas, equipe, checklist, marcos, etapas, riscos,
+apontamentos, arquivos e perfis.
 
 ---
 
@@ -161,7 +173,7 @@ src/
 │   ├── layout/            sidebar, topbar, busca global, notificações
 │   ├── views/             Kanban, Lista, Gantt, Timeline, Calendário
 │   ├── projects/          painéis do projeto (riscos, arquivos, equipe, …)
-│   ├── charts/            Burn Down, Burn Up, Curva S
+│   ├── charts/            Burn Down, Burn Up, Curva S, organograma de etapas
 │   └── brand/             logotipo e selos institucionais
 ├── hooks/                 camada de dados (TanStack Query + Realtime)
 ├── lib/                   supabase, formatação, validações Zod, exportação

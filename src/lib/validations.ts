@@ -46,12 +46,15 @@ export const projectSchema = z
     planned_hours: z.coerce.number().min(0, 'As horas planejadas não podem ser negativas.').default(0),
     expected_return: z.coerce.number().min(0, 'O retorno esperado não pode ser negativo.').default(0),
     actual_return: z.coerce.number().min(0, 'O retorno realizado não pode ser negativo.').default(0),
-    return_period_months: z.coerce
-      .number()
-      .int('Informe o horizonte em meses inteiros.')
-      .min(1, 'O horizonte mínimo é de 1 mês.')
-      .max(240, 'O horizonte máximo é de 240 meses.')
-      .default(12),
+    // Campo em branco volta ao padrão em vez de travar o formulário.
+    return_period_months: z.preprocess(
+      (value) => (value === '' || value === null || value === undefined ? 12 : value),
+      z.coerce
+        .number()
+        .int('Informe o horizonte em meses inteiros.')
+        .min(1, 'O horizonte mínimo é de 1 mês.')
+        .max(240, 'O horizonte máximo é de 240 meses.'),
+    ),
     financial_notes: z.string().trim().max(2000).optional().or(z.literal('')),
     tags: z.array(z.string()).default([]),
   })

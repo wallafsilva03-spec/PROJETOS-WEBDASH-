@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, type FieldErrors } from 'react-hook-form';
+import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Button } from '@/components/ui/button';
@@ -131,6 +132,12 @@ export function ProjectFormDialog({
     );
   }
 
+  /** Sem isto o botão "Criar projeto" parece não fazer nada quando há erro. */
+  function onInvalid(formErrors: FieldErrors<ProjectInput>) {
+    const first = Object.values(formErrors).find((field) => field?.message)?.message;
+    toast.error(first ? String(first) : 'Revise os campos destacados em vermelho.');
+  }
+
   async function onSubmit(values: ProjectInput) {
     const payload = {
       ...values,
@@ -158,7 +165,7 @@ export function ProjectFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Código" htmlFor="code" error={errors.code?.message} required>
               <Input id="code" placeholder="PRJ-001" className="font-mono uppercase" {...register('code')} />

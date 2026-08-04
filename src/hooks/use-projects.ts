@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
+import { describeDbError, isSchemaOutdated, SETUP_HINT } from '@/lib/supabase/errors';
+import { fillProjectDefaults, withoutViabilityColumns } from '@/lib/project-compat';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
 import type {
@@ -45,22 +47,29 @@ export function useProjects(filters: ProjectFilters = {}) {
     queryKey: qk.projects(filters),
     queryFn: async (): Promise<ProjectOverview[]> => {
       const supabase = createClient();
-      let request = supabase.from('v_project_360').select('*');
 
-      if (!filters.includeArchived) request = request.eq('is_archived', false);
-      if (filters.search) request = request.or(`name.ilike.%${filters.search}%,code.ilike.%${filters.search}%`);
-      if (filters.status?.length) request = request.in('status', filters.status);
-      if (filters.priority?.length) request = request.in('priority', filters.priority);
-      if (filters.health?.length) request = request.in('health', filters.health);
-      if (filters.departmentId) request = request.eq('department_id', filters.departmentId);
-      if (filters.clientId) request = request.eq('client_id', filters.clientId);
-      if (filters.ownerId) request = request.eq('owner_id', filters.ownerId);
+      // `view` cai para a antiga enquanto o setup.sql novo não é executado.
+      const run = async (view: string) => {
+        let request = supabase.from(view).select('*');
 
-      const sort = SORT_CONFIG[filters.sort ?? 'due_date'];
-      const { data, error } = await request.order(sort.column, { ascending: sort.ascending });
+        if (!filters.includeArchived) request = request.eq('is_archived', false);
+        if (filters.search) request = request.or(`name.ilike.%${filters.search}%,code.ilike.%${filters.search}%`);
+        if (filters.status?.length) request = request.in('status', filters.status);
+        if (filters.priority?.length) request = request.in('priority', filters.priority);
+        if (filters.health?.length) request = request.in('health', filters.health);
+        if (filters.departmentId) request = request.eq('department_id', filters.departmentId);
+        if (filters.clientId) request = request.eq('client_id', filters.clientId);
+        if (filters.ownerId) request = request.eq('owner_id', filters.ownerId);
+
+        const sort = SORT_CONFIG[filters.sort ?? 'due_date'];
+        return request.order(sort.column, { ascending: sort.ascending });
+      };
+
+      let { data, error } = await run('v_project_360');
+      if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
 
       if (error) throw error;
-      return data as ProjectOverview[];
+      return (data ?? []).map(fillProjectDefaults);
     },
   });
 
@@ -74,13 +83,14 @@ export function useProject(id: string) {
     queryKey: qk.project(id),
     enabled: Boolean(id),
     queryFn: async (): Promise<ProjectOverview> => {
-      const { data, error } = await createClient()
-        .from('v_project_360')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const supabase = createClient();
+      const run = (view: string) => supabase.from(view).select('*').eq('id', id).single();
+
+      let { data, error } = await run('v_project_360');
+      if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
+
       if (error) throw error;
-      return data as ProjectOverview;
+      return fillProjectDefaults(data as Record<string, unknown>);
     },
   });
 
@@ -131,11 +141,17 @@ export function useCreateProject() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({ ...payload, created_by: user?.id, owner_id: payload.owner_id ?? user?.id })
-        .select()
-        .single();
+      const row = { ...payload, created_by: user?.id, owner_id: payload.owner_id ?? user?.id };
+      const insert = (values: Record<string, unknown>) =>
+        supabase.from('projects').insert(values).select().single();
+
+      let { data, error } = await insert(row);
+
+      // Banco ainda sem as colunas de viabilidade: grava o resto e avisa.
+      if (error && isSchemaOutdated(error)) {
+        ({ data, error } = await insert(withoutViabilityColumns(row)));
+        if (!error) toast.warning(`Projeto criado sem a viabilidade econômica. ${SETUP_HINT}`);
+      }
 
       if (error) throw error;
       const project = data as Project;
@@ -157,7 +173,7 @@ export function useCreateProject() {
       queryClient.invalidateQueries({ queryKey: qk.kpis });
       toast.success(`Projeto ${project.code} criado.`);
     },
-    onError: (error: Error) => toast.error(`Falha ao criar o projeto: ${error.message}`),
+    onError: (error: Error) => toast.error(`Falha ao criar o projeto: ${describeDbError(error)}`),
   });
 }
 
@@ -167,7 +183,16 @@ export function useUpdateProject() {
   return useMutation({
     mutationFn: async ({ id, tags, ...payload }: ProjectPayload & { id: string }) => {
       const supabase = createClient();
-      const { data, error } = await supabase.from('projects').update(payload).eq('id', id).select().single();
+      const update = (values: Record<string, unknown>) =>
+        supabase.from('projects').update(values).eq('id', id).select().single();
+
+      let { data, error } = await update(payload);
+
+      if (error && isSchemaOutdated(error)) {
+        ({ data, error } = await update(withoutViabilityColumns(payload)));
+        if (!error) toast.warning(`Viabilidade econômica não gravada. ${SETUP_HINT}`);
+      }
+
       if (error) throw error;
 
       if (tags) {
@@ -185,7 +210,7 @@ export function useUpdateProject() {
       queryClient.invalidateQueries({ queryKey: qk.kpis });
       toast.success('Projeto atualizado.');
     },
-    onError: (error: Error) => toast.error(`Falha ao atualizar: ${error.message}`),
+    onError: (error: Error) => toast.error(`Falha ao atualizar: ${describeDbError(error)}`),
   });
 }
 
@@ -203,7 +228,7 @@ export function useDeleteProject() {
       queryClient.invalidateQueries({ queryKey: qk.kpis });
       toast.success('Projeto excluído.');
     },
-    onError: (error: Error) => toast.error(`Falha ao excluir: ${error.message}`),
+    onError: (error: Error) => toast.error(`Falha ao excluir: ${describeDbError(error)}`),
   });
 }
 

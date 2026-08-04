@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { createClient } from '@/lib/supabase/client';
+import { isSchemaOutdated } from '@/lib/supabase/errors';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
 import type {
@@ -103,10 +104,11 @@ export function useExecutiveData() {
         supabase.from('v_exec_financials').select('*').order('retorno_esperado', { ascending: false }),
       ]);
 
-      const failure = [byStatus, byDepartment, byPriority, byManager, health, flow, financials].find(
-        (r) => r.error,
-      );
+      // O retorno financeiro é opcional: em banco sem a migration nova a view
+      // ainda não existe e o resto da tela continua funcionando.
+      const failure = [byStatus, byDepartment, byPriority, byManager, health, flow].find((r) => r.error);
       if (failure?.error) throw failure.error;
+      if (financials.error && !isSchemaOutdated(financials.error)) throw financials.error;
 
       return {
         byStatus: (byStatus.data ?? []) as GroupCount[],

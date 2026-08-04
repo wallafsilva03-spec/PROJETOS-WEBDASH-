@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, type FieldErrors } from 'react-hook-form';
+import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowDown, ArrowUp, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 
@@ -115,6 +116,11 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
   function openEdit(stage: ProjectStageView) {
     if (!canEditStage(stage)) return;
     openDialog(stage);
+  }
+
+  function onInvalid(formErrors: FieldErrors<StageInput>) {
+    const first = Object.values(formErrors).find((field) => field?.message)?.message;
+    toast.error(first ? String(first) : 'Revise os campos destacados em vermelho.');
   }
 
   async function onSubmit(values: StageInput) {
@@ -320,7 +326,7 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             <Field label="Nome da etapa" htmlFor="stage-name" error={errors.name?.message} required>
               <Input id="stage-name" placeholder="Diagnóstico" {...register('name')} />
             </Field>

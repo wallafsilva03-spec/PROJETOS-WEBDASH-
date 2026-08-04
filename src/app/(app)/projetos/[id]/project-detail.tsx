@@ -10,6 +10,7 @@ import {
   GanttChartSquare,
   History,
   KanbanSquare,
+  Layers,
   ListChecks,
   MessageSquare,
   Paperclip,
@@ -39,6 +40,8 @@ import { RisksPanel } from '@/components/projects/risks-panel';
 import { FilesPanel } from '@/components/projects/files-panel';
 import { TeamPanel } from '@/components/projects/team-panel';
 import { ProjectFormDialog } from '@/components/projects/project-form-dialog';
+import { StagesPanel } from '@/components/projects/stages-panel';
+import { TimeCompletionCard, ViabilityCard } from '@/components/projects/viability-card';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { ActivityFeed } from '@/components/dashboard/activity-feed';
 import { TaskDialog } from '@/components/tasks/task-dialog';
@@ -172,7 +175,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </div>
 
       {/* Inteligência do projeto */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Execução</p>
           <p className="mt-1 font-display text-3xl font-semibold">{formatPercent(project.progress)}</p>
@@ -224,6 +227,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </dl>
         </Card>
 
+        <TimeCompletionCard project={project} />
+
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Esforço</p>
           <p className="mt-1 font-display text-3xl font-semibold">{formatHours(project.actual_hours)}</p>
@@ -258,6 +263,17 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               </dd>
             </div>
             <div className="flex justify-between">
+              <dt>Etapas concluídas</dt>
+              <dd className="font-medium text-foreground">
+                {project.stages_done}/{project.stages_total}
+                {project.stages_late > 0 && (
+                  <span className="ml-1 font-medium text-destructive">
+                    ({project.stages_late} atrasada{project.stages_late > 1 ? 's' : ''})
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div className="flex justify-between">
               <dt>Checklist</dt>
               <dd className="font-medium text-foreground">
                 {project.checklist_done}/{project.checklist_total}
@@ -275,6 +291,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </div>
           </dl>
         </Card>
+
+        <ViabilityCard project={project} />
       </section>
 
       <Tabs defaultValue="kanban">
@@ -284,6 +302,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </TabsTrigger>
           <TabsTrigger value="lista">
             <ListChecks /> Lista
+          </TabsTrigger>
+          <TabsTrigger value="etapas">
+            <Layers /> Etapas
           </TabsTrigger>
           <TabsTrigger value="gantt">
             <GanttChartSquare /> Gantt
@@ -323,6 +344,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
         <TabsContent value="lista">
           <TaskList projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
+        </TabsContent>
+
+        <TabsContent value="etapas">
+          <StagesPanel
+            projectId={projectId}
+            canManage={Boolean(canManage)}
+            projectStart={project.start_date}
+            projectDue={project.due_date}
+          />
         </TabsContent>
 
         <TabsContent value="gantt">

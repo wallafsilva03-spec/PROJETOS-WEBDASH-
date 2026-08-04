@@ -10,6 +10,7 @@ import type {
   AuditLogEntry,
   BurnPoint,
   DashboardKpis,
+  ExecFinancialRow,
   FlowMetrics,
   GroupCount,
   RiskHeatCell,
@@ -81,6 +82,8 @@ export interface ExecutiveData {
   byManager: GroupCount[];
   health: GroupCount[];
   flow: FlowMetrics | null;
+  /** Retorno financeiro consolidado por departamento. */
+  financials: ExecFinancialRow[];
 }
 
 /** Todas as agregações do Dashboard Executivo em uma única rodada. */
@@ -90,16 +93,19 @@ export function useExecutiveData() {
     staleTime: 60_000,
     queryFn: async (): Promise<ExecutiveData> => {
       const supabase = createClient();
-      const [byStatus, byDepartment, byPriority, byManager, health, flow] = await Promise.all([
+      const [byStatus, byDepartment, byPriority, byManager, health, flow, financials] = await Promise.all([
         supabase.from('v_exec_by_status').select('*'),
         supabase.from('v_exec_by_department').select('*').order('total', { ascending: false }),
         supabase.from('v_exec_by_priority').select('*'),
         supabase.from('v_exec_by_manager').select('*').order('total', { ascending: false }).limit(10),
         supabase.from('v_exec_health').select('*'),
         supabase.from('v_exec_flow_metrics').select('*').maybeSingle(),
+        supabase.from('v_exec_financials').select('*').order('retorno_esperado', { ascending: false }),
       ]);
 
-      const failure = [byStatus, byDepartment, byPriority, byManager, health, flow].find((r) => r.error);
+      const failure = [byStatus, byDepartment, byPriority, byManager, health, flow, financials].find(
+        (r) => r.error,
+      );
       if (failure?.error) throw failure.error;
 
       return {
@@ -109,6 +115,7 @@ export function useExecutiveData() {
         byManager: (byManager.data ?? []) as GroupCount[],
         health: (health.data ?? []) as GroupCount[],
         flow: (flow.data ?? null) as FlowMetrics | null,
+        financials: (financials.data ?? []) as ExecFinancialRow[],
       };
     },
   });

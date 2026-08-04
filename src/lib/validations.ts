@@ -44,6 +44,15 @@ export const projectSchema = z
     due_date: z.string().min(1, 'Informe o prazo final.'),
     budget: z.coerce.number().min(0, 'O orçamento não pode ser negativo.').default(0),
     planned_hours: z.coerce.number().min(0, 'As horas planejadas não podem ser negativas.').default(0),
+    expected_return: z.coerce.number().min(0, 'O retorno esperado não pode ser negativo.').default(0),
+    actual_return: z.coerce.number().min(0, 'O retorno realizado não pode ser negativo.').default(0),
+    return_period_months: z.coerce
+      .number()
+      .int('Informe o horizonte em meses inteiros.')
+      .min(1, 'O horizonte mínimo é de 1 mês.')
+      .max(240, 'O horizonte máximo é de 240 meses.')
+      .default(12),
+    financial_notes: z.string().trim().max(2000).optional().or(z.literal('')),
     tags: z.array(z.string()).default([]),
   })
   .refine((data) => new Date(data.due_date) >= new Date(data.start_date), {
@@ -92,6 +101,26 @@ export const milestoneSchema = z.object({
   status: z.enum(['pendente', 'em_andamento', 'concluido', 'atrasado']).default('pendente'),
 });
 export type MilestoneInput = z.infer<typeof milestoneSchema>;
+
+/* ----------------------------------------------------------------- Etapa */
+export const stageSchema = z
+  .object({
+    name: requiredText('Nome da etapa', 2, 160),
+    description: z.string().trim().max(2000).optional().or(z.literal('')),
+    progress_notes: z.string().trim().max(4000).optional().or(z.literal('')),
+    status: z.enum(['nao_iniciada', 'em_andamento', 'pausada', 'concluida', 'cancelada']).default('nao_iniciada'),
+    owner_id: z.string().uuid().nullable().optional(),
+    start_date: z.string().min(1, 'Informe o início da etapa.'),
+    end_date: z.string().min(1, 'Informe o término previsto da etapa.'),
+    actual_start_date: z.string().optional().or(z.literal('')),
+    progress: z.coerce.number().min(0).max(100).default(0),
+    weight: z.coerce.number().positive('O peso deve ser maior que zero.').max(99).default(1),
+  })
+  .refine((data) => new Date(data.end_date) >= new Date(data.start_date), {
+    path: ['end_date'],
+    message: 'O término deve ser igual ou posterior ao início.',
+  });
+export type StageInput = z.infer<typeof stageSchema>;
 
 /* ------------------------------------------------------------ Apontamento */
 export const timeEntrySchema = z.object({

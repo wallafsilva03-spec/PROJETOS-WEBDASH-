@@ -19,6 +19,8 @@ export const qk = {
   projectTags: (id: string) => ['project', id, 'tags'] as const,
   checklist: (projectId: string) => ['project', projectId, 'checklist'] as const,
   milestones: (projectId: string) => ['project', projectId, 'milestones'] as const,
+  stages: (projectId: string) => ['project', projectId, 'stages'] as const,
+  allStages: ['stages', 'all'] as const,
   risks: (projectId: string) => ['project', projectId, 'risks'] as const,
   attachments: (projectId: string) => ['project', projectId, 'attachments'] as const,
   timeEntries: (projectId: string) => ['project', projectId, 'time-entries'] as const,

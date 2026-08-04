@@ -36,13 +36,16 @@ const SORT_CONFIG: Record<NonNullable<ProjectFilters['sort']>, { column: string;
   created_at: { column: 'created_at', ascending: false },
 };
 
-/** Portfólio de projetos com métricas calculadas (view `v_project_overview`). */
+/**
+ * Portfólio de projetos com métricas calculadas (view `v_project_360`:
+ * overview + viabilidade econômica + conclusão por tempo + etapas).
+ */
 export function useProjects(filters: ProjectFilters = {}) {
   const query = useQuery({
     queryKey: qk.projects(filters),
     queryFn: async (): Promise<ProjectOverview[]> => {
       const supabase = createClient();
-      let request = supabase.from('v_project_overview').select('*');
+      let request = supabase.from('v_project_360').select('*');
 
       if (!filters.includeArchived) request = request.eq('is_archived', false);
       if (filters.search) request = request.or(`name.ilike.%${filters.search}%,code.ilike.%${filters.search}%`);
@@ -72,7 +75,7 @@ export function useProject(id: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<ProjectOverview> => {
       const { data, error } = await createClient()
-        .from('v_project_overview')
+        .from('v_project_360')
         .select('*')
         .eq('id', id)
         .single();
@@ -90,11 +93,12 @@ export function useProject(id: string) {
       { table: 'comments', filter: `project_id=eq.${id}` },
       { table: 'risks', filter: `project_id=eq.${id}` },
       { table: 'milestones', filter: `project_id=eq.${id}` },
+      { table: 'project_stages', filter: `project_id=eq.${id}` },
       { table: 'attachments', filter: `project_id=eq.${id}` },
       { table: 'project_members', filter: `project_id=eq.${id}` },
       { table: 'time_entries', filter: `project_id=eq.${id}` },
     ],
-    [['project', id], qk.tasks(id), qk.comments(id), qk.activity(id)],
+    [['project', id], qk.tasks(id), qk.comments(id), qk.activity(id), qk.stages(id)],
   );
 
   return query;

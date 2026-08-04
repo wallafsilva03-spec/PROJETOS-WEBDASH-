@@ -5,7 +5,9 @@ import type {
   PriorityLevel,
   ProjectStatus,
   RiskStatus,
+  StageStatus,
   TaskStatus,
+  ViabilityRating,
 } from '@/types/database';
 
 /** Cores institucionais Grupo Moreno — FORTALECER · CONECTAR · CRESCER. */
@@ -136,6 +138,90 @@ export const HEALTH_META: Record<HealthStatus, Meta & { description: string }> =
     className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200',
     dot: 'bg-rose-500',
     description: 'Atraso relevante ou desvio superior a 25%.',
+  },
+};
+
+/** Etapas do projeto — organograma de execução. */
+export const STAGE_STATUS_META: Record<
+  StageStatus,
+  Meta & { description: string; bar: string }
+> = {
+  nao_iniciada: {
+    label: 'Não iniciada',
+    className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    dot: 'bg-slate-400',
+    bar: 'bg-slate-400',
+    description: 'Etapa planejada, ainda sem execução registrada.',
+  },
+  em_andamento: {
+    label: 'Em andamento',
+    className: 'bg-moreno-lime-50 text-moreno-lime-800 dark:bg-moreno-lime-900/40 dark:text-moreno-lime-200',
+    dot: 'bg-moreno-lime-500',
+    bar: 'bg-moreno-lime-500',
+    description: 'Etapa iniciada e em execução.',
+  },
+  pausada: {
+    label: 'Pausada',
+    className: 'bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    dot: 'bg-amber-500',
+    bar: 'bg-amber-500',
+    description: 'Execução interrompida temporariamente.',
+  },
+  concluida: {
+    label: 'Concluída',
+    className: 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200',
+    dot: 'bg-moreno-green-500',
+    bar: 'bg-moreno-green-500',
+    description: 'Entrega da etapa finalizada.',
+  },
+  cancelada: {
+    label: 'Cancelada',
+    className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200',
+    dot: 'bg-rose-500',
+    bar: 'bg-rose-400',
+    description: 'Etapa retirada do escopo — não entra no avanço consolidado.',
+  },
+};
+
+export const STAGE_STATUS_OPTIONS = Object.entries(STAGE_STATUS_META).map(([value, meta]) => ({
+  value: value as StageStatus,
+  label: meta.label,
+}));
+
+/** Viabilidade econômica calculada a partir do ROI (function `viability_rating`). */
+export const VIABILITY_META: Record<
+  ViabilityRating,
+  { label: string; className: string; description: string }
+> = {
+  sem_dados: {
+    label: 'Sem dados',
+    className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    description: 'Informe orçamento e retorno esperado para avaliar a viabilidade.',
+  },
+  sem_retorno: {
+    label: 'Sem retorno informado',
+    className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    description: 'O projeto tem investimento, mas nenhum retorno financeiro declarado.',
+  },
+  inviavel: {
+    label: 'Inviável',
+    className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200',
+    description: 'O retorno esperado é menor que o investimento (ROI negativo).',
+  },
+  atencao: {
+    label: 'Atenção',
+    className: 'bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    description: 'ROI abaixo de 15% — margem estreita para imprevistos.',
+  },
+  viavel: {
+    label: 'Viável',
+    className: 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200',
+    description: 'ROI entre 15% e 50% — retorno consistente.',
+  },
+  estrategico: {
+    label: 'Alto retorno',
+    className: 'bg-moreno-lime-50 text-moreno-lime-800 dark:bg-moreno-lime-900/40 dark:text-moreno-lime-200',
+    description: 'ROI acima de 50% — prioridade natural no portfólio.',
   },
 };
 

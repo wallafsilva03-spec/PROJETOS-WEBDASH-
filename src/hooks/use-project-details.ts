@@ -5,7 +5,15 @@ import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
 import { qk } from '@/lib/query-keys';
-import type { Attachment, ChecklistItem, Milestone, Risk, TimeEntry } from '@/types/database';
+import type {
+  Attachment,
+  ChecklistItem,
+  Milestone,
+  ProjectStage,
+  ProjectStageView,
+  Risk,
+  TimeEntry,
+} from '@/types/database';
 
 /* --------------------------------------------------------------- Checklist */
 export function useChecklist(projectId: string, taskId?: string | null) {
@@ -124,6 +132,85 @@ export function useMilestoneMutations(projectId: string) {
   });
 
   return { save, remove };
+}
+
+/* ------------------------------------------------------------------ Etapas */
+/**
+ * Etapas com prazo, avanço e atraso já calculados no banco.
+ * Sem `projectId`, devolve as etapas de todos os projetos visíveis.
+ */
+export function useStages(projectId?: string) {
+  return useQuery({
+    queryKey: projectId ? qk.stages(projectId) : qk.allStages,
+    queryFn: async (): Promise<ProjectStageView[]> => {
+      let request = createClient().from('v_project_stages').select('*');
+      if (projectId) request = request.eq('project_id', projectId);
+
+      const { data, error } = await request.order('project_code').order('position').order('start_date');
+      if (error) throw error;
+      return data as ProjectStageView[];
+    },
+  });
+}
+
+export function useStageMutations(projectId: string) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: qk.stages(projectId) });
+    queryClient.invalidateQueries({ queryKey: qk.project(projectId) });
+    queryClient.invalidateQueries({ queryKey: qk.activity(projectId) });
+  };
+
+  const save = useMutation({
+    mutationFn: async ({ id, ...payload }: Partial<ProjectStage> & { id?: string }) => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error } = id
+        ? await supabase.from('project_stages').update(payload).eq('id', id)
+        : await supabase
+            .from('project_stages')
+            .insert({ ...payload, project_id: projectId, created_by: user?.id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success('Etapa salva.');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await createClient().from('project_stages').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success('Etapa removida.');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  /** Troca a etapa de lugar no organograma. */
+  const reorder = useMutation({
+    mutationFn: async (stages: { id: string; position: number }[]) => {
+      const supabase = createClient();
+      for (const stage of stages) {
+        const { error } = await supabase
+          .from('project_stages')
+          .update({ position: stage.position })
+          .eq('id', stage.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: invalidate,
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return { save, remove, reorder };
 }
 
 /* ------------------------------------------------------------------ Riscos */

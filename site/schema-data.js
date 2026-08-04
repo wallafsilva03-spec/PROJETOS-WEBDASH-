@@ -46,6 +46,11 @@ const SCHEMA = {
     { name: 'risk_status', description: 'Ciclo de vida do risco.', values: ['identificado', 'em_mitigacao', 'mitigado', 'aceito', 'materializado'] },
     { name: 'milestone_status', description: 'Situação do marco.', values: ['pendente', 'em_andamento', 'concluido', 'atrasado'] },
     {
+      name: 'stage_status',
+      description: 'Situação da etapa do projeto no organograma de execução.',
+      values: ['nao_iniciada', 'em_andamento', 'pausada', 'concluida', 'cancelada'],
+    },
+    {
       name: 'notification_type',
       description: 'Categoria da notificação em tempo real.',
       values: [
@@ -175,6 +180,10 @@ const SCHEMA = {
         { name: 'actual_end_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido ao concluir.' },
         { name: 'budget', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0' },
         { name: 'cost', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0' },
+        { name: 'expected_return', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0', note: 'Retorno financeiro esperado no horizonte de return_period_months. Base do ROI e do payback.' },
+        { name: 'actual_return', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0', note: 'Retorno já realizado e comprovado.' },
+        { name: 'return_period_months', type: 'integer', flags: ['NOT NULL'], default: '12', note: 'Horizonte do retorno, de 1 a 240 meses.' },
+        { name: 'financial_notes', type: 'text', note: 'Premissas da viabilidade: de onde vem o retorno e como será medido.' },
         { name: 'planned_hours', type: 'numeric(10,2)', flags: ['NOT NULL'], default: '0', note: 'Estimativa macro; as horas por tarefa ficam em tasks.' },
         { name: 'progress', type: 'numeric(5,2)', flags: ['NOT NULL', 'CALCULADO'], default: '0', note: 'Recalculado por recalc_project_progress(), ponderado por horas estimadas.' },
         { name: 'position', type: 'integer', flags: ['NOT NULL'], default: '0' },
@@ -300,6 +309,34 @@ const SCHEMA = {
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
         { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
       ],
+    },
+
+    {
+      name: 'project_stages',
+      domain: 'execucao',
+      description:
+        'Etapas (fases) do projeto. Guardam início e término planejados, datas reais, percentual de avanço e o texto de andamento escrito pelo responsável. Alimentam o organograma de etapas e a linha do tempo.',
+      rls: 'Leitura para quem enxerga o projeto. Cria e exclui quem gerencia o projeto. Edita quem gerencia ou o responsável pela etapa.',
+      columns: [
+        { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
+        { name: 'project_id', type: 'uuid', flags: ['NOT NULL', 'FK'], ref: 'projects(id)', onDelete: 'CASCADE' },
+        { name: 'name', type: 'text', flags: ['NOT NULL'], note: 'De 2 a 160 caracteres.' },
+        { name: 'description', type: 'text', note: 'O que a etapa entrega.' },
+        { name: 'progress_notes', type: 'text', note: 'Andamento: o que já foi feito, o que está em curso e o que trava.' },
+        { name: 'status', type: 'stage_status', flags: ['NOT NULL'], default: "'nao_iniciada'" },
+        { name: 'owner_id', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Responsável — pode registrar o andamento mesmo sem gerenciar o projeto.' },
+        { name: 'start_date', type: 'date', flags: ['NOT NULL'], default: 'current_date', note: 'Início planejado.' },
+        { name: 'end_date', type: 'date', flags: ['NOT NULL'], note: 'CHECK garante end_date >= start_date.' },
+        { name: 'actual_start_date', type: 'date', flags: ['CALCULADO'], note: 'Carimbado quando a etapa entra em andamento.' },
+        { name: 'actual_end_date', type: 'date', flags: ['CALCULADO'], note: 'Carimbado ao concluir; limpo se a etapa for reaberta.' },
+        { name: 'progress', type: 'numeric(5,2)', flags: ['NOT NULL'], default: '0', note: 'Forçado a 100 quando concluída e a 0 quando não iniciada.' },
+        { name: 'weight', type: 'numeric(6,2)', flags: ['NOT NULL'], default: '1', note: 'Peso da etapa no avanço consolidado do projeto.' },
+        { name: 'position', type: 'integer', flags: ['NOT NULL'], default: '0', note: 'Ordem no organograma; preenchida sozinha na inclusão.' },
+        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL' },
+        { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
+        { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
+      ],
+      indexes: ['idx_project_stages_project (project_id, position)', 'idx_project_stages_owner', 'idx_project_stages_dates'],
     },
 
     /* ------------------------------------------------------- Colaboração */
@@ -471,6 +508,23 @@ const SCHEMA = {
     { name: 'v_roadmap', description: 'Projetos com seus marcos, prontos para o roadmap executivo.', usedBy: 'Roadmap.' },
     { name: 'v_activity_feed', description: 'Atividades com nome e avatar do autor e código do projeto.', usedBy: 'Centro de atividades.' },
     { name: 'v_risk_heatmap', description: 'Riscos em aberto agrupados por probabilidade e impacto.', usedBy: 'Heatmap de riscos.' },
+    {
+      name: 'v_project_360',
+      description:
+        'Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio) e o resumo das etapas.',
+      usedBy: 'Portfólio, cards de projeto, detalhe do projeto e relatórios.',
+    },
+    {
+      name: 'v_project_stages',
+      description:
+        'Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso e sinalização de etapa atrasada.',
+      usedBy: 'Organograma de etapas, linha do tempo e relatório de etapas.',
+    },
+    {
+      name: 'v_exec_financials',
+      description: 'Orçamento, custo, retorno esperado e realizado, benefício líquido e ROI por departamento.',
+      usedBy: 'Dashboard executivo.',
+    },
   ],
 
   functions: [
@@ -483,6 +537,12 @@ const SCHEMA = {
     { name: 'business_days(date, date)', kind: 'Cálculo', description: 'Dias úteis (segunda a sexta) entre duas datas, inclusive.' },
     { name: 'expected_progress(date, date)', kind: 'Cálculo', description: 'Percentual que deveria estar executado hoje, medido em dias úteis.' },
     { name: 'calc_health(...)', kind: 'Cálculo', description: 'Saúde do projeto a partir do desvio entre executado e previsto e dos dias de atraso.' },
+    { name: 'time_elapsed_percent(date, date, date)', kind: 'Cálculo', description: 'Percentual do prazo já consumido em dias corridos. Passa de 100% depois da data de entrega.' },
+    { name: 'forecast_end_date(date, date, numeric, date)', kind: 'Cálculo', description: 'Data de conclusão projetada mantendo o ritmo atual de execução.' },
+    { name: 'schedule_index(numeric, numeric)', kind: 'Cálculo', description: 'Executado ÷ previsto. 1 significa exatamente no ritmo do cronograma.' },
+    { name: 'project_roi(numeric, numeric)', kind: 'Viabilidade', description: 'Retorno sobre investimento em %, nulo quando não há investimento informado.' },
+    { name: 'payback_months(numeric, numeric, integer)', kind: 'Viabilidade', description: 'Meses necessários para o retorno pagar o investimento.' },
+    { name: 'viability_rating(numeric, numeric, numeric)', kind: 'Viabilidade', description: 'Classifica o projeto em sem_dados, sem_retorno, inviavel, atencao, viavel ou estrategico.' },
     { name: 'recalc_project_progress(uuid)', kind: 'Cálculo', description: 'Recalcula o progresso do projeto ponderado por horas estimadas das tarefas raiz.' },
     { name: 'reschedule_successors(uuid, int)', kind: 'Cronograma', description: 'Empurra as tarefas sucessoras conforme o tipo de dependência e o lag, preservando a duração. Protegida contra ciclos.' },
     { name: 'critical_path(uuid)', kind: 'Cronograma', description: 'CTE recursiva que devolve a maior cadeia de dependências do projeto.' },
@@ -505,15 +565,16 @@ const SCHEMA = {
     { table: 'tasks', name: 'task_reschedule', when: 'AFTER UPDATE', description: 'Reagenda as sucessoras quando as datas mudam.' },
     { table: 'tasks', name: 'task_notify', when: 'AFTER INSERT/UPDATE', description: 'Notifica atribuição e mudança de status; alimenta o feed.' },
     { table: 'checklist_items', name: 'checklist_done', when: 'BEFORE UPDATE', description: 'Carimba quem concluiu o item e quando.' },
+    { table: 'project_stages', name: 'stage_intelligence', when: 'BEFORE INSERT/UPDATE', description: 'Ordena a etapa nova, sincroniza status × progresso e carimba as datas reais de início e término.' },
     { table: 'comments', name: 'comment_notify', when: 'AFTER INSERT', description: 'Notifica a equipe e registra a atividade.' },
     { table: 'comment_mentions', name: 'mention_notify', when: 'AFTER INSERT', description: 'Notificação direta para o mencionado.' },
-    { table: '9 tabelas sensíveis', name: 'audit_changes', when: 'AFTER INSERT/UPDATE/DELETE', description: 'Grava quem alterou, quando, valor antigo, valor novo e campos modificados.' },
+    { table: '10 tabelas sensíveis', name: 'audit_changes', when: 'AFTER INSERT/UPDATE/DELETE', description: 'Grava quem alterou, quando, valor antigo, valor novo e campos modificados.' },
     { table: '6 tabelas', name: 'set_updated_at', when: 'BEFORE UPDATE', description: 'Mantém updated_at.' },
   ],
 
   realtime: [
     'projects', 'tasks', 'checklist_items', 'comments', 'attachments', 'notifications',
-    'activity_log', 'project_members', 'milestones', 'risks', 'time_entries',
+    'activity_log', 'project_members', 'milestones', 'project_stages', 'risks', 'time_entries',
     'task_dependencies', 'user_presence',
   ],
 

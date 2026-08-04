@@ -69,9 +69,14 @@ export function TaskDialog({ projectId, open, onOpenChange, task, initialStatus 
     formState: { errors, isSubmitting },
   } = useForm<TaskInput>({ resolver: zodResolver(taskSchema), defaultValues });
 
+  // Preenche na abertura. Reagir a `defaultValues` faria uma atualização em
+  // tempo real na tarefa apagar o que o usuário está digitando.
+  const defaultsRef = React.useRef(defaultValues);
+  defaultsRef.current = defaultValues;
+
   React.useEffect(() => {
-    if (open) reset(defaultValues);
-  }, [open, defaultValues, reset]);
+    if (open) reset(defaultsRef.current);
+  }, [open, reset]);
 
   async function onSubmit(values: TaskInput) {
     const payload = {

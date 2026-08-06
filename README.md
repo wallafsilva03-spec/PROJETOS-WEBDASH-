@@ -107,7 +107,8 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   planejadas × realizadas, eficiência, indicador geral, usuários online), projetos que exigem
   atenção, minhas tarefas e centro de atividades ao vivo.
 - **Projetos** — portfólio em cards ou tabela, filtros por status/saúde/departamento, ordenação e
-  exportação.
+  exportação. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
+  protegida por confirmação com o código do projeto.
 - **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
   esforço, escopo e **viabilidade econômica**) e 14 abas: **Kanban** (etapas por data de término,
   drag & drop), Kanban de tarefas, Lista (agrupamentos e ordenação), **Etapas** (organograma +

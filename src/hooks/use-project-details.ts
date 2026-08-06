@@ -160,6 +160,8 @@ export function useStageMutations(projectId: string) {
     queryClient.invalidateQueries({ queryKey: qk.stages(projectId) });
     queryClient.invalidateQueries({ queryKey: qk.project(projectId) });
     queryClient.invalidateQueries({ queryKey: qk.activity(projectId) });
+    // O kanban corporativo lê as etapas de todos os projetos.
+    queryClient.invalidateQueries({ queryKey: qk.allStages });
   };
 
   const save = useMutation({
@@ -212,6 +214,36 @@ export function useStageMutations(projectId: string) {
   });
 
   return { save, remove, reorder };
+}
+
+/**
+ * Atualização pontual de uma etapa feita direto no quadro kanban.
+ *
+ * Diferente de `useStageMutations`, não fica presa a um projeto: o quadro
+ * corporativo mistura etapas de todo o portfólio e cada card sabe a que
+ * projeto pertence.
+ */
+export function useStageBoardMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      stage,
+      patch,
+    }: {
+      stage: Pick<ProjectStageView, 'id' | 'project_id'>;
+      patch: Partial<ProjectStage>;
+    }) => {
+      const { error } = await createClient().from('project_stages').update(patch).eq('id', stage.id);
+      if (error) throw error;
+    },
+    onSuccess: (_result, { stage }) => {
+      queryClient.invalidateQueries({ queryKey: qk.allStages });
+      queryClient.invalidateQueries({ queryKey: qk.project(stage.project_id) });
+      queryClient.invalidateQueries({ queryKey: qk.projects() });
+    },
+    onError: (error: Error) => toast.error(describeDbError(error)),
+  });
 }
 
 /* ------------------------------------------------------------------ Riscos */

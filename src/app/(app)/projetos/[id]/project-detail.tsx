@@ -12,6 +12,7 @@ import {
   KanbanSquare,
   Layers,
   ListChecks,
+  ListTodo,
   MessageSquare,
   Paperclip,
   Pencil,
@@ -29,6 +30,7 @@ import { ProgressWithDelta } from '@/components/ui/progress';
 import { Skeleton, SkeletonCards } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/empty-state';
 import { KanbanBoard } from '@/components/views/kanban-board';
+import { StagesKanban } from '@/components/views/stages-kanban';
 import { TaskList } from '@/components/views/task-list';
 import { GanttChart } from '@/components/views/gantt-chart';
 import { TimelineView } from '@/components/views/timeline-view';
@@ -300,6 +302,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           <TabsTrigger value="kanban">
             <KanbanSquare /> Kanban
           </TabsTrigger>
+          <TabsTrigger value="kanban-tarefas">
+            <ListTodo /> Kanban de tarefas
+          </TabsTrigger>
           <TabsTrigger value="lista">
             <ListChecks /> Lista
           </TabsTrigger>
@@ -339,6 +344,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </TabsList>
 
         <TabsContent value="kanban">
+          <StagesKanban
+            projectId={projectId}
+            canManageProject={() => Boolean(canManage)}
+            defaultStart={project.start_date}
+            defaultEnd={project.due_date}
+          />
+        </TabsContent>
+
+        <TabsContent value="kanban-tarefas">
           <KanbanBoard projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
         </TabsContent>
 

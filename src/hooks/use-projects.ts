@@ -219,13 +219,21 @@ export function useDeleteProject() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await createClient().from('projects').delete().eq('id', id);
+      // O `select` devolve o que foi realmente apagado. Sem ele, a exclusão
+      // barrada pela RLS volta como sucesso com zero linhas e o usuário acha
+      // que o projeto sumiu.
+      const { data, error } = await createClient().from('projects').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error('Somente administradores podem excluir projetos.');
+      }
       return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: qk.kpis });
+      queryClient.invalidateQueries({ queryKey: qk.allStages });
+      queryClient.removeQueries({ queryKey: qk.project(id) });
       toast.success('Projeto excluído.');
     },
     onError: (error: Error) => toast.error(`Falha ao excluir: ${describeDbError(error)}`),

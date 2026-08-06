@@ -12,11 +12,13 @@ import {
   KanbanSquare,
   Layers,
   ListChecks,
+  ListTodo,
   MessageSquare,
   Paperclip,
   Pencil,
   ShieldAlert,
   Timer,
+  Trash2,
   Users,
 } from 'lucide-react';
 
@@ -29,6 +31,7 @@ import { ProgressWithDelta } from '@/components/ui/progress';
 import { Skeleton, SkeletonCards } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/empty-state';
 import { KanbanBoard } from '@/components/views/kanban-board';
+import { StagesKanban } from '@/components/views/stages-kanban';
 import { TaskList } from '@/components/views/task-list';
 import { GanttChart } from '@/components/views/gantt-chart';
 import { TimelineView } from '@/components/views/timeline-view';
@@ -40,6 +43,7 @@ import { RisksPanel } from '@/components/projects/risks-panel';
 import { FilesPanel } from '@/components/projects/files-panel';
 import { TeamPanel } from '@/components/projects/team-panel';
 import { ProjectFormDialog } from '@/components/projects/project-form-dialog';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { StagesPanel } from '@/components/projects/stages-panel';
 import { TimeCompletionCard, ViabilityCard } from '@/components/projects/viability-card';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -68,9 +72,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const tasksQuery = useTasks(projectId);
   const ganttQuery = useGantt(projectId);
   const milestonesQuery = useMilestones(projectId);
-  const { isManager, profile } = useSession();
+  const { isAdmin, isManager, profile } = useSession();
 
   const [editOpen, setEditOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<TaskWithRelations | null>(null);
 
   const tasks = React.useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
@@ -150,6 +155,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               <Button variant="brand" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
                 Editar
+              </Button>
+            )}
+            {/* A RLS só libera o delete para administradores. */}
+            {isAdmin && (
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="size-4" />
+                Excluir
               </Button>
             )}
           </>
@@ -300,6 +312,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           <TabsTrigger value="kanban">
             <KanbanSquare /> Kanban
           </TabsTrigger>
+          <TabsTrigger value="kanban-tarefas">
+            <ListTodo /> Kanban de tarefas
+          </TabsTrigger>
           <TabsTrigger value="lista">
             <ListChecks /> Lista
           </TabsTrigger>
@@ -339,6 +354,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </TabsList>
 
         <TabsContent value="kanban">
+          <StagesKanban
+            projectId={projectId}
+            canManageProject={() => Boolean(canManage)}
+            defaultStart={project.start_date}
+            defaultEnd={project.due_date}
+          />
+        </TabsContent>
+
+        <TabsContent value="kanban-tarefas">
           <KanbanBoard projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
         </TabsContent>
 
@@ -431,6 +455,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </Tabs>
 
       <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
+
+      <DeleteProjectDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        project={{ id: project.id, code: project.code, name: project.name }}
+        redirectTo="/projetos"
+      />
 
       <TaskDialog
         projectId={projectId}

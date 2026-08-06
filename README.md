@@ -107,12 +107,17 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   planejadas × realizadas, eficiência, indicador geral, usuários online), projetos que exigem
   atenção, minhas tarefas e centro de atividades ao vivo.
 - **Projetos** — portfólio em cards ou tabela, filtros por status/saúde/departamento, ordenação e
-  exportação.
+  exportação. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
+  protegida por confirmação com o código do projeto.
 - **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
-  esforço, escopo e **viabilidade econômica**) e 13 abas: Kanban (drag & drop), Lista (agrupamentos e
-  ordenação), **Etapas** (organograma + linha do tempo), Gantt, Timeline, Calendário, Indicadores
-  (Burn Down / Burn Up / Curva S + marcos), Riscos, Checklist, Horas, Arquivos, Equipe e
-  Comentários.
+  esforço, escopo e **viabilidade econômica**) e 14 abas: **Kanban** (etapas por data de término,
+  drag & drop), Kanban de tarefas, Lista (agrupamentos e ordenação), **Etapas** (organograma +
+  linha do tempo), Gantt, Timeline, Calendário, Indicadores (Burn Down / Burn Up / Curva S +
+  marcos), Riscos, Checklist, Horas, Arquivos, Equipe e Comentários.
+- **Kanban** — etapas de todo o portfólio em colunas calculadas pela data de término (atrasadas,
+  esta semana, próxima semana, próximos 30 dias, depois e concluídas), com alternância para
+  agrupar por situação. Arrastar um card replaneja as datas da etapa — preservando a duração
+  planejada — ou a conclui.
 - **Cronograma** — Gantt consolidado do portfólio, com filtro de caminho crítico.
 - **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão.
 - **Calendário** — visões diária, semanal e mensal.
@@ -144,7 +149,8 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 - **Viabilidade econômica**: retorno esperado e realizado, benefício líquido, ROI planejado e
   realizado, payback em meses e classificação automática (inviável, atenção, viável, alto retorno).
 - **Etapas do projeto**: início e término planejados × reais, avanço ponderado por peso, etapas
-  atrasadas e o texto de andamento escrito pelo responsável — desenhados no organograma de etapas.
+  atrasadas e o texto de andamento escrito pelo responsável — desenhados no organograma de etapas e
+  distribuídos no kanban pela data de término.
 
 ### Tempo real
 
@@ -171,7 +177,7 @@ src/
 ├── components/
 │   ├── ui/                primitivos shadcn/ui
 │   ├── layout/            sidebar, topbar, busca global, notificações
-│   ├── views/             Kanban, Lista, Gantt, Timeline, Calendário
+│   ├── views/             Kanban de etapas e de tarefas, Lista, Gantt, Timeline, Calendário
 │   ├── projects/          painéis do projeto (riscos, arquivos, equipe, …)
 │   ├── charts/            Burn Down, Burn Up, Curva S, organograma de etapas
 │   └── brand/             logotipo e selos institucionais

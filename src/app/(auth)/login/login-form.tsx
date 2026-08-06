@@ -14,6 +14,34 @@ import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
 import { loginSchema, type LoginInput } from '@/lib/validations';
 
+/**
+ * Traduz o erro do Supabase para o motivo real de não ter entrado.
+ *
+ * "Invalid login credentials" é a resposta genérica para senha errada, e-mail
+ * inexistente e conta de outro projeto — mas as demais falhas têm solução
+ * própria e o usuário só descobre qual se a tela disser.
+ */
+function describeAuthError(error: { message: string; status?: number }) {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('invalid login credentials')) {
+    return 'E-mail ou senha incorretos. Confira o e-mail e tente de novo.';
+  }
+  if (message.includes('email not confirmed')) {
+    return 'Sua conta ainda não foi confirmada. Abra o link que o Supabase enviou para o seu e-mail e depois entre.';
+  }
+  if (message.includes('too many requests') || error.status === 429) {
+    return 'Muitas tentativas seguidas. Aguarde alguns minutos antes de tentar de novo.';
+  }
+  if (message.includes('user is banned') || message.includes('user not found')) {
+    return 'Esta conta não está ativa na plataforma. Procure um administrador.';
+  }
+  if (message.includes('failed to fetch') || message.includes('networkerror')) {
+    return 'Não foi possível falar com o Supabase. Verifique a conexão e se o projeto do Supabase está ativo.';
+  }
+  return `Não foi possível entrar: ${error.message}`;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,11 +61,7 @@ export function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword(values);
 
     if (error) {
-      toast.error(
-        error.message === 'Invalid login credentials'
-          ? 'E-mail ou senha incorretos.'
-          : `Não foi possível entrar: ${error.message}`,
-      );
+      toast.error(describeAuthError(error), { duration: 8000 });
       return;
     }
 

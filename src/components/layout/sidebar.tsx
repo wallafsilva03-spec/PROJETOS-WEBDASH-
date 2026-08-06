@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
+import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
 import { Logo, LogoMark } from '@/components/brand/logo';
 import { Hint } from '@/components/ui/misc';
 import { cn } from '@/lib/utils';
@@ -29,11 +30,15 @@ export function Sidebar({
     <nav
       aria-label="Navegação principal"
       className={cn(
-        'flex h-full flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200',
+        'relative flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-[width] duration-200',
         collapsed ? 'w-[72px]' : 'w-64',
       )}
     >
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-4">
+      {/* A mesma aurora da tela de entrada, respirando atrás do menu. */}
+      <AuroraBackdrop className="opacity-[0.35]" intensity="soft" />
+      <AuroraRail className="absolute inset-y-0 right-0 z-10 w-[3px]" duration="9s" />
+
+      <div className="relative flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-4">
         {collapsed ? (
           <span className="mx-auto flex size-9 items-center justify-center rounded-lg bg-white p-1.5">
             <LogoMark className="size-6" />
@@ -51,7 +56,7 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-3 py-5 scrollbar-thin">
+      <div className="relative flex-1 space-y-6 overflow-y-auto px-3 py-5 scrollbar-thin">
         {sections.map((section) => (
           <div key={section.title} className="space-y-1">
             {!collapsed && (
@@ -100,7 +105,7 @@ export function Sidebar({
       </div>
 
       {!collapsed && (
-        <div className="border-t border-sidebar-border p-4">
+        <div className="relative border-t border-sidebar-border p-4">
           <div className="rounded-lg bg-white/5 p-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-accent">
               Fortalecer · Conectar · Crescer

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { AuroraRail } from '@/components/brand/aurora';
 import { Sidebar } from '@/components/layout/sidebar';
 import { GlobalSearch } from '@/components/layout/global-search';
 import { NotificationsBell } from '@/components/layout/notifications-bell';
@@ -32,6 +33,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-background">
+      {/* Sem barra lateral no celular, o fio de cor segura a identidade. */}
+      <AuroraRail className="fixed inset-y-0 left-0 z-30 w-1 lg:hidden" duration="9s" />
+
       {/* Sidebar fixa (desktop) */}
       <aside className="sticky top-0 hidden h-dvh shrink-0 lg:block">
         <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />

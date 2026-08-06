@@ -155,12 +155,32 @@ const config: Config = {
           '70%': { boxShadow: '0 0 0 8px hsl(146 82% 31% / 0)' },
           '100%': { boxShadow: '0 0 0 0 hsl(146 82% 31% / 0)' },
         },
+        /**
+         * Aurora da marca. O elemento tem o dobro da altura do container e um
+         * degradê que se repete a cada metade dele, então andar 50% recoloca o
+         * padrão exatamente onde começou — laço contínuo, sem emenda visível.
+         */
+        'flow-down': {
+          from: { transform: 'translate3d(0, -50%, 0)' },
+          to: { transform: 'translate3d(0, 0, 0)' },
+        },
+        'flow-up': {
+          from: { transform: 'translate3d(0, 0, 0)' },
+          to: { transform: 'translate3d(0, -50%, 0)' },
+        },
+        'aurora-drift': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0) scale(1)', opacity: '0.5' },
+          '50%': { transform: 'translate3d(0, -8%, 0) scale(1.15)', opacity: '0.85' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         shimmer: 'shimmer 1.8s infinite',
         'pulse-ring': 'pulse-ring 2s ease-out infinite',
+        'flow-down': 'flow-down 18s linear infinite',
+        'flow-up': 'flow-up 18s linear infinite',
+        'aurora-drift': 'aurora-drift 14s ease-in-out infinite',
       },
     },
   },

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
+import { describeDbError } from '@/lib/supabase/errors';
 import { qk } from '@/lib/query-keys';
 import type {
   Attachment,
@@ -179,7 +180,7 @@ export function useStageMutations(projectId: string) {
       invalidate();
       toast.success('Etapa salva.');
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(describeDbError(error)),
   });
 
   const remove = useMutation({
@@ -191,7 +192,7 @@ export function useStageMutations(projectId: string) {
       invalidate();
       toast.success('Etapa removida.');
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(describeDbError(error)),
   });
 
   /** Troca a etapa de lugar no organograma. */

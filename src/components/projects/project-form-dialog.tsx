@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, useWatch, Controller, type FieldErrors } from 'react-hook-form';
+import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,12 @@ import type { ProjectOverview } from '@/types/database';
 
 const NONE = '__none__';
 
+/**
+ * Constante de módulo, não `= []` na assinatura: um array novo a cada render
+ * mudaria a identidade de `defaultValues` e realimentaria o efeito de reset.
+ */
+const NO_TAGS: string[] = [];
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -53,7 +60,7 @@ export function ProjectFormDialog({
   open,
   onOpenChange,
   project,
-  currentTagIds = [],
+  currentTagIds = NO_TAGS,
 }: ProjectFormDialogProps) {
   const isEditing = Boolean(project);
   const departments = useDepartments();
@@ -98,18 +105,26 @@ export function ProjectFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<ProjectInput>({ resolver: zodResolver(projectSchema), defaultValues });
 
+  /**
+   * O formulário é preenchido só na abertura. Reagir a `defaultValues` a cada
+   * render faria o reset apagar o que está sendo digitado — e, como a
+   * identidade do objeto muda junto, o par efeito + reset entrava em laço
+   * infinito ("Maximum update depth exceeded") e travava o diálogo inteiro.
+   */
+  const defaultsRef = React.useRef(defaultValues);
+  defaultsRef.current = defaultValues;
+
   React.useEffect(() => {
-    if (open) reset(defaultValues);
-  }, [open, defaultValues, reset]);
+    if (open) reset(defaultsRef.current);
+  }, [open, reset]);
 
   const selectedTags = watch('tags') ?? [];
 
   // Prévia da viabilidade com os valores digitados, antes mesmo de salvar.
-  const [budget, expectedReturn, periodMonths] = watch([
-    'budget',
-    'expected_return',
-    'return_period_months',
-  ]);
+  const [budget, expectedReturn, periodMonths] = useWatch({
+    control,
+    name: ['budget', 'expected_return', 'return_period_months'],
+  });
 
   const preview = React.useMemo(() => {
     const investment = Number(budget) || 0;
@@ -129,6 +144,12 @@ export function ProjectFormDialog({
       selectedTags.includes(tagId) ? selectedTags.filter((id) => id !== tagId) : [...selectedTags, tagId],
       { shouldDirty: true },
     );
+  }
+
+  /** Sem isto o botão "Criar projeto" parece não fazer nada quando há erro. */
+  function onInvalid(formErrors: FieldErrors<ProjectInput>) {
+    const first = Object.values(formErrors).find((field) => field?.message)?.message;
+    toast.error(first ? String(first) : 'Revise os campos destacados em vermelho.');
   }
 
   async function onSubmit(values: ProjectInput) {
@@ -158,7 +179,7 @@ export function ProjectFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Código" htmlFor="code" error={errors.code?.message} required>
               <Input id="code" placeholder="PRJ-001" className="font-mono uppercase" {...register('code')} />

@@ -19,6 +19,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ResponsiblesField } from '@/components/projects/responsibles-field';
+import { CatalogField } from '@/components/projects/catalog-field';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -26,7 +27,13 @@ import {
 } from '@/lib/constants';
 import { projectSchema, type ProjectInput } from '@/lib/validations';
 import { formatCurrency, formatDelta } from '@/lib/format';
-import { useClients, useDepartments, useProfiles, useTags } from '@/hooks/use-catalogs';
+import {
+  useClients,
+  useDepartmentMutations,
+  useDepartments,
+  useProfiles,
+  useTags,
+} from '@/hooks/use-catalogs';
 import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
@@ -66,6 +73,7 @@ export function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const isEditing = Boolean(project);
   const departments = useDepartments();
+  const departmentMutations = useDepartmentMutations();
   const clients = useClients();
   const people = useProfiles();
   const tags = useTags();
@@ -207,23 +215,24 @@ export function ProjectFormDialog({
               control={control}
               name="department_id"
               render={({ field }) => (
-                <Field label="Departamento">
-                  <Select
-                    value={field.value ?? NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Sem departamento</SelectItem>
-                      {departments.data?.map((department) => (
-                        <SelectItem key={department.id} value={department.id}>
-                          {department.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field label="Departamento" hint="Escreva para cadastrar um setor novo.">
+                  <CatalogField
+                    options={departments.data ?? []}
+                    loading={departments.isLoading}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    onCreate={async (name) => {
+                      const created = await departmentMutations.add.mutateAsync(name).catch(() => null);
+                      return created?.id ?? null;
+                    }}
+                    onDelete={(id) => {
+                      // Some da lista: o projeto não pode continuar apontando para ele.
+                      if (field.value === id) field.onChange(null);
+                      departmentMutations.remove.mutate(id);
+                    }}
+                    emptyLabel="Sem departamento"
+                    placeholder="Novo departamento"
+                  />
                 </Field>
               )}
             />

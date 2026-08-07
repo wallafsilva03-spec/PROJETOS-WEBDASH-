@@ -4,6 +4,7 @@ export const qk = {
   profiles: ['profiles'] as const,
   departments: ['departments'] as const,
   clients: ['clients'] as const,
+  responsibles: ['responsibles'] as const,
   tags: ['tags'] as const,
 
   dashboard: ['dashboard'] as const,

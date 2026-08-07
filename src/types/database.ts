@@ -64,12 +64,22 @@ export interface Profile {
   updated_at: string;
 }
 
+/** Opção do catálogo de responsáveis (áreas e pessoas). */
+export interface Responsible {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Department {
   id: string;
   name: string;
   code: string;
   color: string;
   is_active: boolean;
+  /** Quem criou pelo formulário — pode remover depois. Null nos que vieram do seed. */
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }

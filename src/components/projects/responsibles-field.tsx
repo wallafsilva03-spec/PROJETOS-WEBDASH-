@@ -5,17 +5,20 @@ import { Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RESPONSIBLE_PRESETS } from '@/lib/constants';
-import { useProfiles } from '@/hooks/use-catalogs';
+import { useResponsibleMutations, useResponsibles } from '@/hooks/use-catalogs';
 import { cn } from '@/lib/utils';
 
 const MAX = 12;
 
 /**
  * Responsáveis do projeto: áreas, pessoas cadastradas ou qualquer nome
- * escrito à mão. Guardado como lista de texto — quem responde por um projeto
- * nem sempre tem usuário na plataforma.
+ * escrito à mão. Guardado como lista de texto no projeto — quem responde por
+ * um projeto nem sempre tem usuário na plataforma.
+ *
+ * O nome digitado uma vez entra no catálogo (tabela `responsibles`) e passa a
+ * ser oferecido nos próximos projetos. São dois "×" com sentidos diferentes,
+ * e por isso os rótulos são explícitos: o da etiqueta tira o responsável
+ * deste projeto; o da lista de sugestões apaga a opção para todo mundo.
  */
 export function ResponsiblesField({
   value,
@@ -26,7 +29,8 @@ export function ResponsiblesField({
   onChange: (next: string[]) => void;
   disabled?: boolean;
 }) {
-  const people = useProfiles();
+  const catalog = useResponsibles();
+  const { add: saveOption, remove: removeOption } = useResponsibleMutations();
   const [draft, setDraft] = React.useState('');
 
   const has = React.useCallback(
@@ -34,12 +38,11 @@ export function ResponsiblesField({
     [value],
   );
 
-  function add(name: string) {
+  /** Entra no projeto e, se for nome novo, também no catálogo. */
+  function add(name: string, { save = false } = {}) {
     const clean = name.trim();
     if (!clean) return;
 
-    // Já está na lista: limpa o campo em vez de deixar o texto parado ali,
-    // parecendo que o botão não funcionou.
     if (has(clean)) {
       setDraft('');
       return;
@@ -48,17 +51,19 @@ export function ResponsiblesField({
 
     onChange([...value, clean.slice(0, 80)]);
     setDraft('');
+
+    const known = (catalog.data ?? []).some((item) => item.name.toLowerCase() === clean.toLowerCase());
+    if (save && !known && clean.length >= 2) saveOption.mutate(clean);
   }
 
   function remove(name: string) {
     onChange(value.filter((item) => item !== name));
   }
 
-  /** Enter adiciona sem enviar o formulário inteiro. */
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') {
       event.preventDefault();
-      add(draft);
+      add(draft, { save: true });
       return;
     }
     // Backspace no campo vazio apaga o último — atalho conhecido de campos de chip.
@@ -67,8 +72,8 @@ export function ResponsiblesField({
     }
   }
 
-  const availablePeople = (people.data ?? []).filter((person) => !has(person.full_name));
   const full = value.length >= MAX;
+  const options = catalog.data ?? [];
 
   return (
     <div className="space-y-2">
@@ -85,7 +90,8 @@ export function ResponsiblesField({
                   type="button"
                   onClick={() => remove(name)}
                   className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  aria-label={`Remover ${name}`}
+                  aria-label={`Tirar ${name} deste projeto`}
+                  title="Tirar deste projeto"
                 >
                   <X className="size-3" />
                 </button>
@@ -109,7 +115,7 @@ export function ResponsiblesField({
           type="button"
           variant="outline"
           size="icon"
-          onClick={() => add(draft)}
+          onClick={() => add(draft, { save: true })}
           disabled={disabled || full || !draft.trim()}
           aria-label="Adicionar responsável"
         >
@@ -117,40 +123,46 @@ export function ResponsiblesField({
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {RESPONSIBLE_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => add(preset)}
-            disabled={disabled || full || has(preset)}
-            className={cn(
-              'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-              has(preset)
-                ? 'cursor-default border-transparent bg-secondary text-muted-foreground'
-                : 'hover:border-primary hover:text-primary',
-              'disabled:cursor-not-allowed disabled:opacity-60',
-            )}
-          >
-            {has(preset) ? preset : `+ ${preset}`}
-          </button>
-        ))}
+      {options.length > 0 && (
+        <ul className="flex flex-wrap items-center gap-1.5">
+          {options.map((option) => {
+            const chosen = has(option.name);
 
-        {availablePeople.length > 0 && (
-          <Select value="" onValueChange={add} disabled={disabled || full}>
-            <SelectTrigger className="h-7 w-auto gap-1 rounded-full border-dashed px-2.5 text-xs">
-              <SelectValue placeholder="+ Da equipe" />
-            </SelectTrigger>
-            <SelectContent>
-              {availablePeople.map((person) => (
-                <SelectItem key={person.id} value={person.full_name}>
-                  {person.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+            return (
+              <li key={option.id} className="inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={() => add(option.name)}
+                  disabled={disabled || full || chosen}
+                  className={cn(
+                    'rounded-l-full border py-1 pl-2.5 pr-1.5 text-xs font-medium transition-colors',
+                    chosen
+                      ? 'cursor-default border-transparent bg-secondary text-muted-foreground'
+                      : 'hover:border-primary hover:text-primary',
+                    'disabled:cursor-not-allowed',
+                  )}
+                >
+                  {chosen ? option.name : `+ ${option.name}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeOption.mutate(option.id)}
+                  disabled={disabled}
+                  className={cn(
+                    'rounded-r-full border border-l-0 py-1 pl-1 pr-2 text-muted-foreground transition-colors',
+                    'hover:bg-destructive/10 hover:text-destructive',
+                    chosen && 'border-transparent bg-secondary',
+                  )}
+                  aria-label={`Apagar ${option.name} do catálogo`}
+                  title="Apagar do catálogo, para todos os projetos"
+                >
+                  <X className="size-3" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

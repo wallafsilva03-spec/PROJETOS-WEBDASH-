@@ -33,21 +33,27 @@ interface Beam {
   width: string;
   color: string;
   direction: 'down' | 'up';
+  /** Tempo de uma subida (ou descida) da cor. */
   duration: string;
+  /** Tempo do balanço lateral da faixa. */
+  swing: string;
+  /** Tira as faixas do compasso — sem isso a cortina inteira anda junta. */
+  delay: string;
 }
 
 /**
- * Feixes largos, cada um no seu tempo. Eles não correm em linha reta: vão e
- * voltam (`alternate`) com aceleração suave nas pontas, então a cor sobe e
- * desce devagar em vez de desfilar sempre para o mesmo lado.
+ * As faixas da cortina. Cada uma faz duas coisas ao mesmo tempo: a cor sobe e
+ * desce (`duration`, entre 3s e 9s — rápido o bastante para se enxergar) e a
+ * faixa inteira balança de lado (`swing`). Os tempos são todos diferentes e
+ * entram fora de compasso, senão o pano andaria em bloco.
  */
 const BEAMS: Beam[] = [
-  { left: '-8%', width: '30%', color: LIME, direction: 'down', duration: '38s' },
-  { left: '14%', width: '24%', color: GREEN, direction: 'up', duration: '52s' },
-  { left: '34%', width: '26%', color: BLUE, direction: 'down', duration: '64s' },
-  { left: '56%', width: '24%', color: LIME, direction: 'up', duration: '44s' },
-  { left: '74%', width: '26%', color: GREEN, direction: 'down', duration: '58s' },
-  { left: '90%', width: '22%', color: BLUE, direction: 'up', duration: '70s' },
+  { left: '-8%', width: '30%', color: LIME, direction: 'down', duration: '3.4s', swing: '6s', delay: '-0.8s' },
+  { left: '14%', width: '24%', color: GREEN, direction: 'up', duration: '5.2s', swing: '8s', delay: '-2.4s' },
+  { left: '34%', width: '26%', color: BLUE, direction: 'down', duration: '7.6s', swing: '10s', delay: '-1.2s' },
+  { left: '56%', width: '24%', color: LIME, direction: 'up', duration: '4.2s', swing: '7s', delay: '-3.1s' },
+  { left: '74%', width: '26%', color: GREEN, direction: 'down', duration: '6.4s', swing: '9s', delay: '-0.4s' },
+  { left: '90%', width: '22%', color: BLUE, direction: 'up', duration: '9.2s', swing: '11s', delay: '-2.2s' },
 ];
 
 /**
@@ -88,8 +94,8 @@ export function AuroraBackdrop({
         className="absolute -bottom-40 -left-20 size-[28rem] animate-aurora-drift rounded-full blur-3xl"
         style={{
           background: `radial-gradient(circle, ${GREEN} 0%, transparent 70%)`,
-          animationDuration: '34s',
-          animationDelay: '-11s',
+          animationDuration: '11s',
+          animationDelay: '-4s',
         }}
       />
 
@@ -98,15 +104,25 @@ export function AuroraBackdrop({
         {BEAMS.map((beam) => (
           <div
             key={beam.left}
-            className="absolute inset-y-0 overflow-hidden"
-            style={{ left: beam.left, width: beam.width }}
+            className="absolute inset-y-0 animate-curtain overflow-hidden"
+            style={{
+              left: beam.left,
+              width: beam.width,
+              animationDuration: beam.swing,
+              animationDelay: beam.delay,
+              willChange: 'transform',
+            }}
           >
             <div
               className={cn(
                 'h-[200%] w-full',
                 beam.direction === 'down' ? 'animate-sway-down' : 'animate-sway-up',
               )}
-              style={{ ...flowingGradient(beamStops(beam.color)), animationDuration: beam.duration }}
+              style={{
+                ...flowingGradient(beamStops(beam.color)),
+                animationDuration: beam.duration,
+                animationDelay: beam.delay,
+              }}
             />
           </div>
         ))}
@@ -122,7 +138,7 @@ export function AuroraBackdrop({
 export function AuroraRail({
   className,
   direction = 'down',
-  duration = '26s',
+  duration = '6s',
 }: {
   className?: string;
   direction?: 'down' | 'up';

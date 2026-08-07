@@ -24,7 +24,10 @@ const SCHEMA = {
     {
       name: 'project_status',
       description: 'Situação do projeto no funil corporativo.',
-      values: ['backlog', 'planejamento', 'em_desenvolvimento', 'homologacao', 'concluido', 'cancelado'],
+      values: [
+        'nao_iniciado', 'backlog', 'planejamento', 'em_desenvolvimento',
+        'homologacao', 'pausado', 'concluido', 'cancelado',
+      ],
     },
     {
       name: 'task_status',
@@ -76,18 +79,34 @@ const SCHEMA = {
     {
       name: 'departments',
       domain: 'cadastros',
-      description: 'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos.',
-      rls: 'Leitura para todos os autenticados; escrita apenas para administrador e gerente.',
+      description:
+        'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer usuário cadastra um setor novo pelo formulário de projeto.',
+      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita a gestão; exclui a gestão ou quem criou.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()', note: 'Identificador.' },
         { name: 'name', type: 'text', flags: ['NOT NULL'], note: 'Nome do departamento (2 a 120 caracteres).' },
         { name: 'code', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'Sigla usada em códigos de projeto.' },
         { name: 'color', type: 'text', flags: ['NOT NULL'], default: "'#1B3F94'", note: 'Cor de identificação nos gráficos.' },
         { name: 'is_active', type: 'boolean', flags: ['NOT NULL'], default: 'true', note: 'Desativa sem apagar histórico.' },
+        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Quem cadastrou pelo formulário — pode remover depois.' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
         { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()', note: 'Mantido por trigger.' },
       ],
     },
+    {
+      name: 'responsibles',
+      domain: 'cadastros',
+      description:
+        'Opções de responsável oferecidas no formulário de projeto — áreas como COA, Projetos, Actius e MAC, mais o que o time for cadastrando. É texto, e não referência a profiles, porque quem responde por um projeto nem sempre tem login.',
+      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita e exclui a gestão ou quem criou.',
+      columns: [
+        { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
+        { name: 'name', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'De 2 a 80 caracteres.' },
+        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL' },
+        { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
+      ],
+    },
+
     {
       name: 'clients',
       domain: 'cadastros',
@@ -168,7 +187,8 @@ const SCHEMA = {
         { name: 'description', type: 'text' },
         { name: 'department_id', type: 'uuid', flags: ['FK'], ref: 'departments(id)', onDelete: 'SET NULL' },
         { name: 'client_id', type: 'uuid', flags: ['FK'], ref: 'clients(id)', onDelete: 'SET NULL' },
-        { name: 'owner_id', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Gestor responsável.' },
+        { name: 'owner_id', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Dono no sistema — é dele que a RLS tira quem pode editar o projeto.' },
+        { name: 'responsibles', type: 'text[]', flags: ['NOT NULL'], default: "'{}'", note: 'Áreas e/ou pessoas que respondem pelo projeto, até 12. As opções ficam na tabela responsibles.' },
         { name: 'status', type: 'project_status', flags: ['NOT NULL'], default: "'backlog'" },
         { name: 'priority', type: 'priority_level', flags: ['NOT NULL'], default: "'media'" },
         { name: 'complexity', type: 'complexity_level', flags: ['NOT NULL'], default: "'media'" },
@@ -176,7 +196,7 @@ const SCHEMA = {
         { name: 'health', type: 'health_status', flags: ['NOT NULL', 'CALCULADO'], default: "'no_prazo'", note: 'Derivado por calc_health() no trigger project_intelligence.' },
         { name: 'start_date', type: 'date', flags: ['NOT NULL'], default: 'current_date' },
         { name: 'due_date', type: 'date', flags: ['NOT NULL'], note: 'CHECK garante due_date >= start_date.' },
-        { name: 'actual_start_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido quando o projeto sai do backlog.' },
+        { name: 'actual_start_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido quando o projeto sai do backlog ou de não iniciado.' },
         { name: 'actual_end_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido ao concluir.' },
         { name: 'budget', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0' },
         { name: 'cost', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0' },
@@ -197,6 +217,7 @@ const SCHEMA = {
         'idx_projects_owner', 'idx_projects_department', 'idx_projects_client',
         'idx_projects_due_date', 'idx_projects_health',
         'idx_projects_name_trgm (GIN/trigram para busca)',
+        'idx_projects_responsibles (GIN sobre o array de responsáveis)',
       ],
     },
     {

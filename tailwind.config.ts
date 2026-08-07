@@ -155,12 +155,45 @@ const config: Config = {
           '70%': { boxShadow: '0 0 0 8px hsl(146 82% 31% / 0)' },
           '100%': { boxShadow: '0 0 0 0 hsl(146 82% 31% / 0)' },
         },
+        /**
+         * Aurora da marca. O elemento tem o dobro da altura do container e um
+         * degradê que se repete a cada metade dele, então andar 50% recoloca o
+         * padrão exatamente onde começou — laço contínuo, sem emenda visível.
+         */
+        'flow-down': {
+          from: { transform: 'translate3d(0, -50%, 0)' },
+          to: { transform: 'translate3d(0, 0, 0)' },
+        },
+        'flow-up': {
+          from: { transform: 'translate3d(0, 0, 0)' },
+          to: { transform: 'translate3d(0, -50%, 0)' },
+        },
+        'aurora-drift': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0) scale(1)', opacity: '0.5' },
+          '50%': { transform: 'translate3d(0, -8%, 0) scale(1.15)', opacity: '0.85' },
+        },
+        /**
+         * O balanço da cortina: a faixa inteira vai e vem de lado, entortando
+         * um pouco e esticando na vertical, como tecido pendurado pegando
+         * vento. Anda no elemento de fora, enquanto a cor corre no de dentro.
+         */
+        curtain: {
+          '0%, 100%': { transform: 'translate3d(-5%, 0, 0) skewX(-2.5deg) scaleY(1)' },
+          '50%': { transform: 'translate3d(5%, 0, 0) skewX(2.5deg) scaleY(1.06)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         shimmer: 'shimmer 1.8s infinite',
         'pulse-ring': 'pulse-ring 2s ease-out infinite',
+        'flow-down': 'flow-down 7s linear infinite',
+        'flow-up': 'flow-up 7s linear infinite',
+        // Vai e volta: a cor sobe e desce, sem repuxar no fim do laço.
+        'sway-down': 'flow-down 6s ease-in-out infinite alternate',
+        'sway-up': 'flow-up 6s ease-in-out infinite alternate',
+        'aurora-drift': 'aurora-drift 9s ease-in-out infinite',
+        curtain: 'curtain 8s ease-in-out infinite',
       },
     },
   },

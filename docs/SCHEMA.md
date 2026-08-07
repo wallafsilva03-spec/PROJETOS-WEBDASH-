@@ -6,7 +6,7 @@
 **Motor:** Supabase (PostgreSQL 15+)  
 **Migrations:** `supabase/migrations`
 
-O banco tem **21 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
+O banco tem **22 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
 
 ## Sumário
 
@@ -41,6 +41,8 @@ As permissões são aplicadas no banco por Row Level Security, não no frontend.
 
 ```mermaid
 erDiagram
+  profiles |o--o{ departments : "created_by"
+  profiles |o--o{ responsibles : "created_by"
   departments |o--o{ profiles : "department_id"
   profiles |o--o{ user_presence : "user_id"
   departments |o--o{ projects : "department_id"
@@ -98,7 +100,7 @@ _Estruturas de apoio compartilhadas pelo portfólio._
 
 #### `departments`
 
-Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos.
+Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer usuário cadastra um setor novo pelo formulário de projeto.
 
 | Coluna | Tipo | Restrições | Referência | Observação |
 | ------ | ---- | ---------- | ---------- | ---------- |
@@ -107,10 +109,24 @@ Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos.
 | `code` | `text` | NOT NULL, UNIQUE | — | Sigla usada em códigos de projeto. |
 | `color` | `text` | NOT NULL | — | default `'#1B3F94'`. Cor de identificação nos gráficos. |
 | `is_active` | `boolean` | NOT NULL | — | default `true`. Desativa sem apagar histórico. |
+| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Quem cadastrou pelo formulário — pode remover depois. |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()`. Mantido por trigger. |
 
-**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e gerente.
+**RLS:** Leitura para todos os autenticados. Cria qualquer autenticado; edita a gestão; exclui a gestão ou quem criou.
+
+#### `responsibles`
+
+Opções de responsável oferecidas no formulário de projeto — áreas como COA, Projetos, Actius e MAC, mais o que o time for cadastrando. É texto, e não referência a profiles, porque quem responde por um projeto nem sempre tem login.
+
+| Coluna | Tipo | Restrições | Referência | Observação |
+| ------ | ---- | ---------- | ---------- | ---------- |
+| `id` | `uuid` | PK | — | default `gen_random_uuid()` |
+| `name` | `text` | NOT NULL, UNIQUE | — | De 2 a 80 caracteres. |
+| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | — |
+| `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
+
+**RLS:** Leitura para todos os autenticados. Cria qualquer autenticado; edita e exclui a gestão ou quem criou.
 
 #### `clients`
 
@@ -199,7 +215,8 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `description` | `text` | — | — | — |
 | `department_id` | `uuid` | FK | `departments(id)` ON DELETE SET NULL | — |
 | `client_id` | `uuid` | FK | `clients(id)` ON DELETE SET NULL | — |
-| `owner_id` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Gestor responsável. |
+| `owner_id` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Dono no sistema — é dele que a RLS tira quem pode editar o projeto. |
+| `responsibles` | `text[]` | NOT NULL | — | default `'{}'`. Áreas e/ou pessoas que respondem pelo projeto, até 12. As opções ficam na tabela responsibles. |
 | `status` | `project_status` | NOT NULL | — | default `'backlog'` |
 | `priority` | `priority_level` | NOT NULL | — | default `'media'` |
 | `complexity` | `complexity_level` | NOT NULL | — | default `'media'` |
@@ -207,7 +224,7 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `health` | `health_status` | NOT NULL, CALCULADO | — | default `'no_prazo'`. Derivado por calc_health() no trigger project_intelligence. |
 | `start_date` | `date` | NOT NULL | — | default `current_date` |
 | `due_date` | `date` | NOT NULL | — | CHECK garante due_date >= start_date. |
-| `actual_start_date` | `date` | CALCULADO | — | Preenchido quando o projeto sai do backlog. |
+| `actual_start_date` | `date` | CALCULADO | — | Preenchido quando o projeto sai do backlog ou de não iniciado. |
 | `actual_end_date` | `date` | CALCULADO | — | Preenchido ao concluir. |
 | `budget` | `numeric(14,2)` | NOT NULL | — | default `0` |
 | `cost` | `numeric(14,2)` | NOT NULL | — | default `0` |
@@ -223,7 +240,7 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
-**Índices e restrições:** `idx_projects_status (parcial, is_archived = false)`, `idx_projects_owner`, `idx_projects_department`, `idx_projects_client`, `idx_projects_due_date`, `idx_projects_health`, `idx_projects_name_trgm (GIN/trigram para busca)`
+**Índices e restrições:** `idx_projects_status (parcial, is_archived = false)`, `idx_projects_owner`, `idx_projects_department`, `idx_projects_client`, `idx_projects_due_date`, `idx_projects_health`, `idx_projects_name_trgm (GIN/trigram para busca)`, `idx_projects_responsibles (GIN sobre o array de responsáveis)`
 
 **RLS:** Enxergam: administrador, gerente, dono, criador e membros da equipe. Criam: administrador, gerente e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.
 
@@ -538,7 +555,7 @@ Trilha de auditoria preenchida por trigger genérico em projects, tasks, project
 | Tipo | Valores | Uso |
 | ---- | ------- | --- |
 | `app_role` | `administrador`, `gerente`, `lider`, `colaborador` | Perfis de acesso da plataforma, base de toda a RLS. |
-| `project_status` | `backlog`, `planejamento`, `em_desenvolvimento`, `homologacao`, `concluido`, `cancelado` | Situação do projeto no funil corporativo. |
+| `project_status` | `nao_iniciado`, `backlog`, `planejamento`, `em_desenvolvimento`, `homologacao`, `pausado`, `concluido`, `cancelado` | Situação do projeto no funil corporativo. |
 | `task_status` | `backlog`, `planejamento`, `em_desenvolvimento`, `homologacao`, `concluido` | Colunas do quadro Kanban. |
 | `priority_level` | `baixa`, `media`, `alta`, `critica` | Prioridade de projetos e tarefas. |
 | `complexity_level` | `baixa`, `media`, `alta`, `muito_alta` | Complexidade estimada do projeto. |

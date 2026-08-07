@@ -36,9 +36,22 @@ export const projectSchema = z
     department_id: z.string().uuid().nullable().optional(),
     client_id: z.string().uuid().nullable().optional(),
     owner_id: z.string().uuid().nullable().optional(),
-    status: z.enum(['backlog', 'planejamento', 'em_desenvolvimento', 'homologacao', 'concluido', 'cancelado']),
+    status: z.enum([
+      'nao_iniciado',
+      'backlog',
+      'planejamento',
+      'em_desenvolvimento',
+      'homologacao',
+      'pausado',
+      'concluido',
+      'cancelado',
+    ]),
     priority: z.enum(['baixa', 'media', 'alta', 'critica']),
     complexity: z.enum(['baixa', 'media', 'alta', 'muito_alta']),
+    responsibles: z
+      .array(z.string().trim().min(1).max(80))
+      .max(12, 'No máximo 12 responsáveis por projeto.')
+      .default([]),
     category: z.string().trim().max(80).optional().or(z.literal('')),
     start_date: z.string().min(1, 'Informe a data de início.'),
     due_date: z.string().min(1, 'Informe o prazo final.'),

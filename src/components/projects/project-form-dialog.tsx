@@ -18,6 +18,8 @@ import { Field } from '@/components/ui/label';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { ResponsiblesField } from '@/components/projects/responsibles-field';
+import { CatalogField } from '@/components/projects/catalog-field';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -25,7 +27,13 @@ import {
 } from '@/lib/constants';
 import { projectSchema, type ProjectInput } from '@/lib/validations';
 import { formatCurrency, formatDelta } from '@/lib/format';
-import { useClients, useDepartments, useProfiles, useTags } from '@/hooks/use-catalogs';
+import {
+  useClients,
+  useDepartmentMutations,
+  useDepartments,
+  useProfiles,
+  useTags,
+} from '@/hooks/use-catalogs';
 import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
@@ -37,6 +45,7 @@ const NONE = '__none__';
  * mudaria a identidade de `defaultValues` e realimentaria o efeito de reset.
  */
 const NO_TAGS: string[] = [];
+const NO_RESPONSIBLES: string[] = [];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -64,6 +73,7 @@ export function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const isEditing = Boolean(project);
   const departments = useDepartments();
+  const departmentMutations = useDepartmentMutations();
   const clients = useClients();
   const people = useProfiles();
   const tags = useTags();
@@ -78,7 +88,8 @@ export function ProjectFormDialog({
       department_id: project?.department_id ?? null,
       client_id: project?.client_id ?? null,
       owner_id: project?.owner_id ?? null,
-      status: project?.status ?? 'backlog',
+      responsibles: project?.responsibles ?? NO_RESPONSIBLES,
+      status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
       complexity: project?.complexity ?? 'media',
       category: project?.category ?? '',
@@ -204,23 +215,24 @@ export function ProjectFormDialog({
               control={control}
               name="department_id"
               render={({ field }) => (
-                <Field label="Departamento">
-                  <Select
-                    value={field.value ?? NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Sem departamento</SelectItem>
-                      {departments.data?.map((department) => (
-                        <SelectItem key={department.id} value={department.id}>
-                          {department.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field label="Departamento" hint="Escreva para cadastrar um setor novo.">
+                  <CatalogField
+                    options={departments.data ?? []}
+                    loading={departments.isLoading}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    onCreate={async (name) => {
+                      const created = await departmentMutations.add.mutateAsync(name).catch(() => null);
+                      return created?.id ?? null;
+                    }}
+                    onDelete={(id) => {
+                      // Some da lista: o projeto não pode continuar apontando para ele.
+                      if (field.value === id) field.onChange(null);
+                      departmentMutations.remove.mutate(id);
+                    }}
+                    emptyLabel="Sem departamento"
+                    placeholder="Novo departamento"
+                  />
                 </Field>
               )}
             />
@@ -254,7 +266,7 @@ export function ProjectFormDialog({
               control={control}
               name="owner_id"
               render={({ field }) => (
-                <Field label="Responsável">
+                <Field label="Dono no sistema" hint="Quem pode editar o projeto, além da gestão.">
                   <Select
                     value={field.value ?? NONE}
                     onValueChange={(value) => field.onChange(value === NONE ? null : value)}
@@ -275,6 +287,20 @@ export function ProjectFormDialog({
               )}
             />
           </div>
+
+          <Controller
+            control={control}
+            name="responsibles"
+            render={({ field }) => (
+              <Field
+                label="Responsáveis"
+                error={errors.responsibles?.message}
+                hint="Áreas ou pessoas que respondem pelo projeto. Escreva o nome e tecle Enter, ou use os atalhos."
+              >
+                <ResponsiblesField value={field.value ?? []} onChange={field.onChange} />
+              </Field>
+            )}
+          />
 
           <div className="grid gap-4 sm:grid-cols-4">
             <Controller

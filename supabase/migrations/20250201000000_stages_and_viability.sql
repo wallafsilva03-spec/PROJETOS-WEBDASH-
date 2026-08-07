@@ -315,7 +315,15 @@ left join public.profiles o on o.id = s.owner_id;
 
 -- Visão 360º ampliada: mantém tudo de v_project_overview e acrescenta
 -- viabilidade econômica, conclusão por tempo e resumo das etapas.
-create or replace view public.v_project_360
+--
+-- Derrubar antes de criar não é capricho: como esta view expande `v.*`, uma
+-- migration posterior que acrescente coluna ao portfólio deixaria a lista de
+-- colunas daqui maior que a definição abaixo, e o `create or replace` recusa
+-- perder coluna ("cannot drop columns from view") na segunda execução do
+-- setup.sql. O cascade leva junto a v_exec_financials, recriada logo adiante.
+drop view if exists public.v_project_360 cascade;
+
+create view public.v_project_360
 with (security_invoker = on) as
 select
   v.*,

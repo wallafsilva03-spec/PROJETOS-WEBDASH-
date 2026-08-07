@@ -54,6 +54,14 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
             <Badge variant="soft" className={status.className} dot={status.dot}>
               {status.label}
             </Badge>
+            {project.responsibles?.slice(0, 2).map((name) => (
+              <Badge key={name} variant="soft" className="bg-gradient-brand-soft">
+                {name}
+              </Badge>
+            ))}
+            {project.responsibles?.length > 2 && (
+              <Badge variant="outline">+{project.responsibles.length - 2}</Badge>
+            )}
             {!isFinished && (
               <Badge variant="soft" className={health.className}>
                 {health.label}

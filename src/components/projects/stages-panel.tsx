@@ -213,7 +213,7 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
                           </Button>
                         )}
 
-                        {canManage && (
+                        {(canManage || stage.created_by === profile?.id) && (
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -239,6 +239,7 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
         onOpenChange={(open) => !open && setEditing(null)}
         projectId={projectId}
         stage={editing}
+        canDelete={Boolean(editing && (canManage || editing.created_by === profile?.id))}
       />
 
       <StageDialog

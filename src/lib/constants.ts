@@ -6,6 +6,7 @@ import type {
   ProjectStatus,
   RiskStatus,
   StageStatus,
+  StoredAppRole,
   TaskStatus,
   ViabilityRating,
 } from '@/types/database';
@@ -151,6 +152,24 @@ export const HEALTH_META: Record<HealthStatus, Meta & { description: string }> =
   },
 };
 
+/** Saúde que caracteriza projeto em atraso — mesma regra do KPI do dashboard. */
+export const LATE_HEALTH: HealthStatus[] = ['atrasado', 'critico'];
+
+/** Saúde de quem está dentro do previsto. */
+export const ON_TRACK_HEALTH: HealthStatus[] = ['no_prazo', 'adiantado'];
+
+/** Status de projeto que continua em execução — o que o KPI chama de ativo. */
+export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
+  'nao_iniciado',
+  'backlog',
+  'planejamento',
+  'em_desenvolvimento',
+  'homologacao',
+  'pausado',
+];
+
+export const CLOSED_PROJECT_STATUSES: ProjectStatus[] = ['concluido', 'cancelado'];
+
 /** Etapas do projeto — organograma de execução. */
 export const STAGE_STATUS_META: Record<
   StageStatus,
@@ -254,10 +273,25 @@ export const RISK_STATUS_META: Record<RiskStatus, { label: string; className: st
 
 export const ROLE_META: Record<AppRole, { label: string; description: string; rank: number }> = {
   administrador: { label: 'Administrador', description: 'Acesso total à plataforma.', rank: 4 },
-  gerente: { label: 'Gerente', description: 'Enxerga e gerencia todo o portfólio.', rank: 3 },
+  analista: { label: 'Analista', description: 'Enxerga e gerencia todo o portfólio.', rank: 3 },
   lider: { label: 'Líder', description: 'Gerencia os projetos em que participa.', rank: 2 },
   colaborador: { label: 'Colaborador', description: 'Executa as tarefas dos seus projetos.', rank: 1 },
 };
+
+/**
+ * O papel `gerente` foi renomeado para `analista` na migration 11. Enquanto
+ * o SQL não é executado, o banco continua devolvendo `gerente` — que é o
+ * mesmo perfil, com as mesmas permissões, e por isso é lido como analista.
+ */
+export function normalizeRole(role?: StoredAppRole | null): AppRole | undefined {
+  if (!role) return undefined;
+  return role === 'gerente' ? 'analista' : role;
+}
+
+/** Metadados do perfil tolerantes ao papel legado, para uso direto na tela. */
+export function roleMeta(role?: StoredAppRole | null) {
+  return ROLE_META[normalizeRole(role) ?? 'colaborador'];
+}
 
 export const PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS_META).map(([value, meta]) => ({
   value: value as ProjectStatus,

@@ -4,7 +4,14 @@
  *   supabase gen types typescript --project-id <id> --schema public > src/types/database.ts
  */
 
-export type AppRole = 'administrador' | 'gerente' | 'lider' | 'colaborador';
+export type AppRole = 'administrador' | 'analista' | 'lider' | 'colaborador';
+
+/**
+ * O que pode vir gravado na coluna `profiles.role`. Bancos que ainda não
+ * receberam a migration 11 devolvem `gerente`, lido como analista pela
+ * `normalizeRole()` — o rótulo mudou, as permissões não.
+ */
+export type StoredAppRole = AppRole | 'gerente';
 
 export type ProjectStatus =
   | 'nao_iniciado'
@@ -55,7 +62,7 @@ export interface Profile {
   avatar_url: string | null;
   job_title: string | null;
   phone: string | null;
-  role: AppRole;
+  role: StoredAppRole;
   department_id: string | null;
   weekly_capacity_hours: number;
   is_active: boolean;
@@ -221,8 +228,9 @@ export interface ProjectStage {
 }
 
 /** Linha da view `v_project_stages` — etapa + métricas de prazo. */
-export interface ProjectStageView
-  extends Omit<ProjectStage, 'created_by'> {
+export interface ProjectStageView extends Omit<ProjectStage, 'created_by'> {
+  /** Quem cadastrou a etapa. Ausente em bancos anteriores à migration 11. */
+  created_by?: string | null;
   project_code: string;
   project_name: string;
   owner_name: string | null;
@@ -459,7 +467,7 @@ export interface WorkloadRow {
   full_name: string;
   avatar_url: string | null;
   job_title: string | null;
-  role: AppRole;
+  role: StoredAppRole;
   department_id: string | null;
   department_name: string | null;
   capacidade_semanal: number;

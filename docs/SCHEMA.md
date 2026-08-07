@@ -33,7 +33,7 @@ As permissões são aplicadas no banco por Row Level Security, não no frontend.
 | Perfil | Alcance |
 | ------ | ------- |
 | **Administrador** | Acesso total. Único que exclui projetos e altera perfis de acesso. |
-| **Gerente** | Enxerga e gerencia todo o portfólio; lê a trilha de auditoria. |
+| **Analista** | Enxerga e gerencia todo o portfólio; lê a trilha de auditoria. É o perfil de quem se cadastra pela tela de criar conta. |
 | **Líder** | Gerencia integralmente os projetos em que participa. |
 | **Colaborador** | Enxerga apenas os projetos da sua equipe; edita as tarefas atribuídas a si ou criadas por si. |
 
@@ -99,7 +99,7 @@ _Estruturas de apoio compartilhadas pelo portfólio._
 
 #### `departments`
 
-Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administrador e gerente cadastram um setor novo direto do formulário de projeto.
+Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administrador e analista cadastram um setor novo direto do formulário de projeto.
 
 | Coluna | Tipo | Restrições | Referência | Observação |
 | ------ | ---- | ---------- | ---------- | ---------- |
@@ -111,7 +111,7 @@ Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administr
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()`. Mantido por trigger. |
 
-**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e gerente.
+**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e analista.
 
 #### `responsibles`
 
@@ -124,7 +124,7 @@ Opções de responsável oferecidas no formulário de projeto — áreas como CO
 | `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | — |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
-**RLS:** Igual às tags: leitura para todos os autenticados, qualquer um acrescenta uma opção, e mexer no catálogo é de administrador e gerente.
+**RLS:** Igual às tags: leitura para todos os autenticados, qualquer um acrescenta uma opção, e mexer no catálogo é de administrador e analista.
 
 #### `clients`
 
@@ -142,7 +142,7 @@ Clientes internos e externos vinculados aos projetos.
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
-**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e gerente.
+**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e analista.
 
 #### `tags`
 
@@ -173,7 +173,7 @@ Espelho de auth.users criado automaticamente no cadastro. O primeiro usuário da
 | `avatar_url` | `text` | — | — | Aponta para o bucket público avatars. |
 | `job_title` | `text` | — | — | — |
 | `phone` | `text` | — | — | — |
-| `role` | `app_role` | NOT NULL | — | default `'colaborador'`. Determina todo o alcance da RLS. |
+| `role` | `app_role` | NOT NULL | — | default `'analista'`. Determina todo o alcance da RLS. Conta nova nasce analista; o primeiro usuário vira administrador. |
 | `department_id` | `uuid` | FK | `departments(id)` ON DELETE SET NULL | — |
 | `weekly_capacity_hours` | `numeric(5,2)` | NOT NULL | — | default `40`. Base do cálculo de workload (0 a 80). |
 | `is_active` | `boolean` | NOT NULL | — | default `true` |
@@ -240,7 +240,7 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 
 **Índices e restrições:** `idx_projects_status (parcial, is_archived = false)`, `idx_projects_owner`, `idx_projects_department`, `idx_projects_client`, `idx_projects_due_date`, `idx_projects_health`, `idx_projects_name_trgm (GIN/trigram para busca)`, `idx_projects_responsibles (GIN sobre o array de responsáveis)`
 
-**RLS:** Enxergam: administrador, gerente, dono, criador e membros da equipe. Criam: administrador, gerente e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.
+**RLS:** Enxergam: administrador, analista, dono, criador e membros da equipe. Criam: administrador, analista e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.
 
 #### `project_members`
 
@@ -378,13 +378,13 @@ Etapas (fases) do projeto. Guardam início e término planejados, datas reais, p
 | `progress` | `numeric(5,2)` | NOT NULL | — | default `0`. Forçado a 100 quando concluída e a 0 quando não iniciada. |
 | `weight` | `numeric(6,2)` | NOT NULL | — | default `1`. Peso da etapa no avanço consolidado do projeto. |
 | `position` | `integer` | NOT NULL | — | default `0`. Ordem no organograma; preenchida sozinha na inclusão. |
-| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | — |
+| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Autor do cadastro — pode excluir a própria etapa. |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
 **Índices e restrições:** `idx_project_stages_project (project_id, position)`, `idx_project_stages_owner`, `idx_project_stages_dates`
 
-**RLS:** Leitura para quem enxerga o projeto. Cria e exclui quem gerencia o projeto. Edita quem gerencia ou o responsável pela etapa.
+**RLS:** Leitura para quem enxerga o projeto. Cria quem gerencia o projeto. Exclui quem gerencia o projeto ou quem cadastrou a etapa. Edita quem gerencia ou o responsável pela etapa.
 
 ### Colaboração
 
@@ -546,13 +546,13 @@ Trilha de auditoria preenchida por trigger genérico em projects, tasks, project
 
 **Índices e restrições:** `idx_audit_record (table_name, record_id, created_at DESC)`, `idx_audit_actor`
 
-**RLS:** Somente leitura, restrita a administrador e gerente. Escrita apenas pelo trigger tg_audit() (SECURITY DEFINER).
+**RLS:** Somente leitura, restrita a administrador e analista. Escrita apenas pelo trigger tg_audit() (SECURITY DEFINER).
 
 ## Tipos enumerados
 
 | Tipo | Valores | Uso |
 | ---- | ------- | --- |
-| `app_role` | `administrador`, `gerente`, `lider`, `colaborador` | Perfis de acesso da plataforma, base de toda a RLS. |
+| `app_role` | `administrador`, `analista`, `lider`, `colaborador` | Perfis de acesso da plataforma, base de toda a RLS. |
 | `project_status` | `nao_iniciado`, `backlog`, `planejamento`, `em_desenvolvimento`, `homologacao`, `pausado`, `concluido`, `cancelado` | Situação do projeto no funil corporativo. |
 | `task_status` | `backlog`, `planejamento`, `em_desenvolvimento`, `homologacao`, `concluido` | Colunas do quadro Kanban. |
 | `priority_level` | `baixa`, `media`, `alta`, `critica` | Prioridade de projetos e tarefas. |
@@ -585,7 +585,7 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | `v_activity_feed` | Atividades com nome e avatar do autor e código do projeto. | Centro de atividades. |
 | `v_risk_heatmap` | Riscos em aberto agrupados por probabilidade e impacto. | Heatmap de riscos. |
 | `v_project_360` | Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio) e o resumo das etapas. | Portfólio, cards de projeto, detalhe do projeto e relatórios. |
-| `v_project_stages` | Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso e sinalização de etapa atrasada. | Organograma de etapas, linha do tempo e relatório de etapas. |
+| `v_project_stages` | Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso, sinalização de etapa atrasada e o autor do cadastro (created_by). | Organograma de etapas, kanban de etapas, linha do tempo e relatório de etapas. |
 | `v_exec_financials` | Orçamento, custo, retorno esperado e realizado, benefício líquido e ROI por departamento. | Dashboard executivo. |
 
 ## Functions
@@ -594,7 +594,7 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | ------ | --------- | --------- |
 | `current_app_role()` | RLS | Papel do usuário logado. SECURITY DEFINER para evitar recursão nas policies. |
 | `is_admin()` | RLS | Verdadeiro para administrador. |
-| `is_manager()` | RLS | Verdadeiro para administrador e gerente — quem enxerga todo o portfólio. |
+| `is_manager()` | RLS | Verdadeiro para administrador e analista — quem enxerga todo o portfólio. |
 | `is_project_member(uuid)` | RLS | Membro, dono ou criador do projeto. |
 | `can_read_project(uuid)` | RLS | Gestão ou membro. Usada por todas as tabelas filhas. |
 | `can_manage_project(uuid)` | RLS | Gestão, dono ou líder que participa da equipe. |

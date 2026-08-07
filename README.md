@@ -97,7 +97,7 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 | Perfil | Alcance |
 | ------ | ------- |
 | **Administrador** | Acesso total, gerencia perfis de acesso |
-| **Gerente** | Enxerga e gerencia todo o portfólio |
+| **Analista** | Enxerga e gerencia todo o portfólio. É o perfil de quem se cadastra pela tela de criar conta |
 | **Líder** | Gerencia os projetos em que participa |
 | **Colaborador** | Enxerga apenas seus projetos; edita as tarefas que lhe pertencem |
 
@@ -107,7 +107,10 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   planejadas × realizadas, eficiência, indicador geral, usuários online), projetos que exigem
   atenção, minhas tarefas e centro de atividades ao vivo.
 - **Projetos** — portfólio em cards ou tabela, filtros por status/saúde/departamento, ordenação e
-  exportação. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
+  exportação. Os estados do portfólio (em atraso, em risco, dentro do previsto, vencendo em 7 dias
+  e cada um dos status) são cartões e etiquetas clicáveis: um clique abre a lista só daquele
+  estado. Os filtros ficam na URL, então o endereço pode ser guardado ou compartilhado — é para lá
+  que apontam os indicadores do dashboard. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
   protegida por confirmação com o código do projeto.
 - **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
   esforço, escopo e **viabilidade econômica**) e 14 abas: **Kanban** (etapas por data de término,
@@ -117,11 +120,15 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 - **Kanban** — etapas de todo o portfólio em colunas calculadas pela data de término (atrasadas,
   esta semana, próxima semana, próximos 30 dias, depois e concluídas), com alternância para
   agrupar por situação. Arrastar um card replaneja as datas da etapa — preservando a duração
-  planejada — ou a conclui.
+  planejada — ou a conclui. Cada card tem botão de excluir (com confirmação), disponível para a
+  gestão do projeto e para quem cadastrou a etapa.
 - **Cronograma** — Gantt consolidado do portfólio, com filtro de caminho crítico.
 - **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão.
 - **Calendário** — visões diária, semanal e mensal.
 - **Workload** — capacidade × alocação, disponibilidade e sobrecarga por pessoa.
+- **Gestão por analista** — projetos agrupados por responsável, com todos os status, o que está em
+  atraso e há quantos dias, execução média, desvio e horas estimadas × realizadas. Cada linha abre
+  a lista de projetos da pessoa. **Restrita ao administrador.**
 - **Dashboard Executivo** — Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por
   status/departamento/prioridade/gestor, projetos críticos, orçamento e **retorno financeiro do
   portfólio** (investimento × retorno esperado, benefício líquido e ROI por departamento).

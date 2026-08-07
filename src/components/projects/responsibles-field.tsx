@@ -20,7 +20,7 @@ const MAX = 12;
  * ser oferecido nos próximos projetos. São dois "×" com sentidos diferentes,
  * e por isso os rótulos são explícitos: o da etiqueta tira o responsável
  * deste projeto; o da lista de sugestões apaga a opção para todo mundo — e
- * este último só aparece para administrador e gerente, como nos demais
+ * este último só aparece para administrador e analista, como nos demais
  * catálogos da plataforma.
  */
 export function ResponsiblesField({

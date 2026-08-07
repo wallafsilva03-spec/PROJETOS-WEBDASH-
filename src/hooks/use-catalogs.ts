@@ -41,7 +41,7 @@ function departmentCode(name: string) {
 /**
  * Criar e apagar departamentos direto do formulário de projeto.
  *
- * Continua valendo a regra de sempre: só administrador e gerente escrevem no
+ * Continua valendo a regra de sempre: só administrador e analista escrevem no
  * catálogo de departamentos. A tela esconde os botões de quem não pode.
  */
 export function useDepartmentMutations() {
@@ -83,7 +83,7 @@ export function useDepartmentMutations() {
       if (error) throw error;
       // Sem linhas devolvidas a RLS barrou a exclusão — e o PostgREST responde
       // sucesso mesmo assim.
-      if (!data?.length) throw new Error('Só administrador e gerente podem remover departamentos.');
+      if (!data?.length) throw new Error('Só administrador e analista podem remover departamentos.');
     },
     onSuccess: () => {
       invalidate();
@@ -154,7 +154,7 @@ export function useResponsibleMutations() {
 
       const { data, error } = await createClient().from('responsibles').delete().eq('id', id).select('id');
       if (error) throw error;
-      if (!data?.length) throw new Error('Só administrador e gerente podem remover opções do catálogo.');
+      if (!data?.length) throw new Error('Só administrador e analista podem remover opções do catálogo.');
     },
     onSuccess: () => {
       invalidate();

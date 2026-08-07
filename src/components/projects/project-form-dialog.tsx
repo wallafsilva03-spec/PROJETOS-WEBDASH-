@@ -18,6 +18,7 @@ import { Field } from '@/components/ui/label';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -37,6 +38,7 @@ const NONE = '__none__';
  * mudaria a identidade de `defaultValues` e realimentaria o efeito de reset.
  */
 const NO_TAGS: string[] = [];
+const NO_RESPONSIBLES: string[] = [];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -78,7 +80,8 @@ export function ProjectFormDialog({
       department_id: project?.department_id ?? null,
       client_id: project?.client_id ?? null,
       owner_id: project?.owner_id ?? null,
-      status: project?.status ?? 'backlog',
+      responsibles: project?.responsibles ?? NO_RESPONSIBLES,
+      status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
       complexity: project?.complexity ?? 'media',
       category: project?.category ?? '',
@@ -254,7 +257,7 @@ export function ProjectFormDialog({
               control={control}
               name="owner_id"
               render={({ field }) => (
-                <Field label="Responsável">
+                <Field label="Dono no sistema" hint="Quem pode editar o projeto, além da gestão.">
                   <Select
                     value={field.value ?? NONE}
                     onValueChange={(value) => field.onChange(value === NONE ? null : value)}
@@ -275,6 +278,20 @@ export function ProjectFormDialog({
               )}
             />
           </div>
+
+          <Controller
+            control={control}
+            name="responsibles"
+            render={({ field }) => (
+              <Field
+                label="Responsáveis"
+                error={errors.responsibles?.message}
+                hint="Áreas ou pessoas que respondem pelo projeto. Escreva o nome e tecle Enter, ou use os atalhos."
+              >
+                <ResponsiblesField value={field.value ?? []} onChange={field.onChange} />
+              </Field>
+            )}
+          />
 
           <div className="grid gap-4 sm:grid-cols-4">
             <Controller

@@ -186,6 +186,19 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         {project.client_name && <Badge variant="outline">Cliente: {project.client_name}</Badge>}
       </div>
 
+      {project.responsibles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Responsáveis
+          </span>
+          {project.responsibles.map((name) => (
+            <Badge key={name} variant="soft" className="bg-gradient-brand-soft">
+              {name}
+            </Badge>
+          ))}
+        </div>
+      )}
+
       {/* Inteligência do projeto */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card className="p-5">

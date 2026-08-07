@@ -36,14 +36,18 @@ interface Beam {
   duration: string;
 }
 
-/** Feixes largos em velocidades diferentes: uns descem, outros sobem. */
+/**
+ * Feixes largos, cada um no seu tempo. Eles não correm em linha reta: vão e
+ * voltam (`alternate`) com aceleração suave nas pontas, então a cor sobe e
+ * desce devagar em vez de desfilar sempre para o mesmo lado.
+ */
 const BEAMS: Beam[] = [
-  { left: '-8%', width: '30%', color: LIME, direction: 'down', duration: '15s' },
-  { left: '14%', width: '24%', color: GREEN, direction: 'up', duration: '21s' },
-  { left: '34%', width: '26%', color: BLUE, direction: 'down', duration: '27s' },
-  { left: '56%', width: '24%', color: LIME, direction: 'up', duration: '18s' },
-  { left: '74%', width: '26%', color: GREEN, direction: 'down', duration: '24s' },
-  { left: '90%', width: '22%', color: BLUE, direction: 'up', duration: '30s' },
+  { left: '-8%', width: '30%', color: LIME, direction: 'down', duration: '38s' },
+  { left: '14%', width: '24%', color: GREEN, direction: 'up', duration: '52s' },
+  { left: '34%', width: '26%', color: BLUE, direction: 'down', duration: '64s' },
+  { left: '56%', width: '24%', color: LIME, direction: 'up', duration: '44s' },
+  { left: '74%', width: '26%', color: GREEN, direction: 'down', duration: '58s' },
+  { left: '90%', width: '22%', color: BLUE, direction: 'up', duration: '70s' },
 ];
 
 /**
@@ -84,8 +88,8 @@ export function AuroraBackdrop({
         className="absolute -bottom-40 -left-20 size-[28rem] animate-aurora-drift rounded-full blur-3xl"
         style={{
           background: `radial-gradient(circle, ${GREEN} 0%, transparent 70%)`,
-          animationDuration: '18s',
-          animationDelay: '-6s',
+          animationDuration: '34s',
+          animationDelay: '-11s',
         }}
       />
 
@@ -100,7 +104,7 @@ export function AuroraBackdrop({
             <div
               className={cn(
                 'h-[200%] w-full',
-                beam.direction === 'down' ? 'animate-flow-down' : 'animate-flow-up',
+                beam.direction === 'down' ? 'animate-sway-down' : 'animate-sway-up',
               )}
               style={{ ...flowingGradient(beamStops(beam.color)), animationDuration: beam.duration }}
             />
@@ -118,7 +122,7 @@ export function AuroraBackdrop({
 export function AuroraRail({
   className,
   direction = 'down',
-  duration = '11s',
+  duration = '26s',
 }: {
   className?: string;
   direction?: 'down' | 'up';

@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh bg-background">
       {/* Sem barra lateral no celular, o fio de cor segura a identidade. */}
-      <AuroraRail className="fixed inset-y-0 left-0 z-30 w-1 lg:hidden" duration="9s" />
+      <AuroraRail className="fixed inset-y-0 left-0 z-30 w-1 lg:hidden" duration="24s" />
 
       {/* Sidebar fixa (desktop) */}
       <aside className="sticky top-0 hidden h-dvh shrink-0 lg:block">

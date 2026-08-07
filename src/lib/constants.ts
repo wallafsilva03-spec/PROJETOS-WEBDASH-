@@ -38,6 +38,11 @@ export const KANBAN_COLUMNS: { id: TaskStatus; label: string; accent: string }[]
 ];
 
 export const PROJECT_STATUS_META: Record<ProjectStatus, Meta> = {
+  nao_iniciado: {
+    label: 'Não iniciado',
+    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    dot: 'bg-slate-300',
+  },
   backlog: {
     label: 'Backlog',
     className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
@@ -57,6 +62,11 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, Meta> = {
     label: 'Homologação',
     className: 'bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
     dot: 'bg-amber-500',
+  },
+  pausado: {
+    label: 'Pausado',
+    className: 'bg-orange-50 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200',
+    dot: 'bg-orange-400',
   },
   concluido: {
     label: 'Concluído',
@@ -224,6 +234,12 @@ export const VIABILITY_META: Record<
     description: 'ROI acima de 50% — prioridade natural no portfólio.',
   },
 };
+
+/**
+ * Áreas que costumam responder por um projeto. São sugestões: o campo aceita
+ * qualquer nome digitado, inclusive de pessoas que não usam a plataforma.
+ */
+export const RESPONSIBLE_PRESETS = ['COA', 'Projetos', 'Actius', 'MAC'] as const;
 
 export const RISK_STATUS_META: Record<RiskStatus, { label: string; className: string }> = {
   identificado: { label: 'Identificado', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },

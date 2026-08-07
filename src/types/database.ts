@@ -7,10 +7,12 @@
 export type AppRole = 'administrador' | 'gerente' | 'lider' | 'colaborador';
 
 export type ProjectStatus =
+  | 'nao_iniciado'
   | 'backlog'
   | 'planejamento'
   | 'em_desenvolvimento'
   | 'homologacao'
+  | 'pausado'
   | 'concluido'
   | 'cancelado';
 
@@ -99,6 +101,8 @@ export interface Project {
   department_id: string | null;
   client_id: string | null;
   owner_id: string | null;
+  /** Áreas e pessoas que respondem pelo projeto. Quem manda na permissão é o owner_id. */
+  responsibles: string[];
   status: ProjectStatus;
   priority: PriorityLevel;
   complexity: ComplexityLevel;

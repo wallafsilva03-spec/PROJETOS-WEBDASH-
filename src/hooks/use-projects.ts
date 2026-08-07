@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
 import { describeDbError, isSchemaOutdated, SETUP_HINT } from '@/lib/supabase/errors';
-import { fillProjectDefaults, withoutViabilityColumns } from '@/lib/project-compat';
+import { fillProjectDefaults, withoutOptionalColumns } from '@/lib/project-compat';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
 import type {
@@ -149,8 +149,8 @@ export function useCreateProject() {
 
       // Banco ainda sem as colunas de viabilidade: grava o resto e avisa.
       if (error && isSchemaOutdated(error)) {
-        ({ data, error } = await insert(withoutViabilityColumns(row)));
-        if (!error) toast.warning(`Projeto criado sem a viabilidade econômica. ${SETUP_HINT}`);
+        ({ data, error } = await insert(withoutOptionalColumns(row)));
+        if (!error) toast.warning(`Projeto criado sem viabilidade econômica e sem responsáveis. ${SETUP_HINT}`);
       }
 
       if (error) throw error;
@@ -189,8 +189,8 @@ export function useUpdateProject() {
       let { data, error } = await update(payload);
 
       if (error && isSchemaOutdated(error)) {
-        ({ data, error } = await update(withoutViabilityColumns(payload)));
-        if (!error) toast.warning(`Viabilidade econômica não gravada. ${SETUP_HINT}`);
+        ({ data, error } = await update(withoutOptionalColumns(payload)));
+        if (!error) toast.warning(`Viabilidade econômica e responsáveis não gravados. ${SETUP_HINT}`);
       }
 
       if (error) throw error;

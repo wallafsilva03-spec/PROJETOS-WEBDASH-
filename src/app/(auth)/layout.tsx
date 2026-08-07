@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Véu escuro: garante o contraste do texto sobre a cor em movimento. */}
         <div className="pointer-events-none absolute inset-0 bg-moreno-blue-900/35" aria-hidden />
 
-        <AuroraRail className="absolute inset-y-0 right-0 w-[3px]" duration="9s" />
+        <AuroraRail className="absolute inset-y-0 right-0 w-[3px]" duration="24s" />
 
         <div className="relative flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-xl bg-white p-2 shadow-brand">
@@ -46,7 +46,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       >
         {/* De leve também deste lado: o cartão flutua sobre a cor em movimento. */}
         <AuroraBackdrop className="opacity-[0.22]" intensity="soft" />
-        <AuroraRail className="absolute inset-y-0 left-0 w-1 lg:hidden" duration="9s" />
+        <AuroraRail className="absolute inset-y-0 left-0 w-1 lg:hidden" duration="24s" />
 
         <div className="relative w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">

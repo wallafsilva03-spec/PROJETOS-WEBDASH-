@@ -36,7 +36,7 @@ export function Sidebar({
     >
       {/* A mesma aurora da tela de entrada, respirando atrás do menu. */}
       <AuroraBackdrop className="opacity-[0.35]" intensity="soft" />
-      <AuroraRail className="absolute inset-y-0 right-0 z-10 w-[3px]" duration="9s" />
+      <AuroraRail className="absolute inset-y-0 right-0 z-10 w-[3px]" duration="24s" />
 
       <div className="relative flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-4">
         {collapsed ? (

@@ -14,18 +14,19 @@
 
 import type { ProjectOverview, ViabilityRating } from '@/types/database';
 
-/** Campos que só existem na tabela `projects` depois da migration. */
-export const VIABILITY_COLUMNS = [
+/** Campos que só existem na tabela `projects` depois das migrations 08 e 09. */
+export const OPTIONAL_COLUMNS = [
   'expected_return',
   'actual_return',
   'return_period_months',
   'financial_notes',
+  'responsibles',
 ] as const;
 
 /** Remove do payload o que um banco antigo ainda não sabe gravar. */
-export function withoutViabilityColumns<T extends Record<string, unknown>>(payload: T): Partial<T> {
+export function withoutOptionalColumns<T extends Record<string, unknown>>(payload: T): Partial<T> {
   const copy = { ...payload };
-  VIABILITY_COLUMNS.forEach((column) => delete copy[column]);
+  OPTIONAL_COLUMNS.forEach((column) => delete copy[column]);
   return copy;
 }
 
@@ -58,7 +59,10 @@ function viabilityOf(budget: number, expectedReturn: number): ViabilityRating {
  */
 export function fillProjectDefaults(row: Record<string, unknown>): ProjectOverview {
   const project = row as unknown as ProjectOverview;
-  if ('viability' in row) return project; // já veio da view nova
+
+  // A view nova já traz tudo, menos os responsáveis quando o banco parou na
+  // migration 08 — daí o campo ser normalizado nos dois caminhos.
+  if ('viability' in row) return { ...project, responsibles: project.responsibles ?? [] };
 
   const budget = Number(project.budget) || 0;
   const elapsed = daysBetween(project.start_date, today()) + 1;
@@ -66,6 +70,7 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
 
   return {
     ...project,
+    responsibles: project.responsibles ?? [],
     expected_return: 0,
     actual_return: 0,
     return_period_months: 12,

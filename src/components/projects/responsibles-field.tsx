@@ -6,6 +6,7 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useResponsibleMutations, useResponsibles } from '@/hooks/use-catalogs';
+import { useSession } from '@/hooks/use-session';
 import { cn } from '@/lib/utils';
 
 const MAX = 12;
@@ -18,7 +19,9 @@ const MAX = 12;
  * O nome digitado uma vez entra no catálogo (tabela `responsibles`) e passa a
  * ser oferecido nos próximos projetos. São dois "×" com sentidos diferentes,
  * e por isso os rótulos são explícitos: o da etiqueta tira o responsável
- * deste projeto; o da lista de sugestões apaga a opção para todo mundo.
+ * deste projeto; o da lista de sugestões apaga a opção para todo mundo — e
+ * este último só aparece para administrador e gerente, como nos demais
+ * catálogos da plataforma.
  */
 export function ResponsiblesField({
   value,
@@ -31,6 +34,7 @@ export function ResponsiblesField({
 }) {
   const catalog = useResponsibles();
   const { add: saveOption, remove: removeOption } = useResponsibleMutations();
+  const { isManager } = useSession();
   const [draft, setDraft] = React.useState('');
 
   const has = React.useCallback(
@@ -135,7 +139,8 @@ export function ResponsiblesField({
                   onClick={() => add(option.name)}
                   disabled={disabled || full || chosen}
                   className={cn(
-                    'rounded-l-full border py-1 pl-2.5 pr-1.5 text-xs font-medium transition-colors',
+                    'border py-1 pl-2.5 text-xs font-medium transition-colors',
+                    isManager ? 'rounded-l-full pr-1.5' : 'rounded-full pr-2.5',
                     chosen
                       ? 'cursor-default border-transparent bg-secondary text-muted-foreground'
                       : 'hover:border-primary hover:text-primary',
@@ -144,20 +149,22 @@ export function ResponsiblesField({
                 >
                   {chosen ? option.name : `+ ${option.name}`}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => removeOption.mutate(option.id)}
-                  disabled={disabled}
-                  className={cn(
-                    'rounded-r-full border border-l-0 py-1 pl-1 pr-2 text-muted-foreground transition-colors',
-                    'hover:bg-destructive/10 hover:text-destructive',
-                    chosen && 'border-transparent bg-secondary',
-                  )}
-                  aria-label={`Apagar ${option.name} do catálogo`}
-                  title="Apagar do catálogo, para todos os projetos"
-                >
-                  <X className="size-3" />
-                </button>
+                {isManager && (
+                  <button
+                    type="button"
+                    onClick={() => removeOption.mutate(option.id)}
+                    disabled={disabled}
+                    className={cn(
+                      'rounded-r-full border border-l-0 py-1 pl-1 pr-2 text-muted-foreground transition-colors',
+                      'hover:bg-destructive/10 hover:text-destructive',
+                      chosen && 'border-transparent bg-secondary',
+                    )}
+                    aria-label={`Apagar ${option.name} do catálogo`}
+                    title="Apagar do catálogo, para todos os projetos"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
               </li>
             );
           })}

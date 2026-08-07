@@ -2952,50 +2952,52 @@ insert into public.responsibles (name) values
   ('COA'), ('Projetos'), ('Actius'), ('MAC')
 on conflict (name) do nothing;
 
+-- As policies copiam as dos outros catálogos (`tags`, `clients`,
+-- `departments`), inclusive a exceção que já existia para tags: qualquer
+-- pessoa acrescenta uma opção ao preencher um projeto, mas mexer no catálogo
+-- é da gestão. Nenhuma regra de acesso nova entra aqui.
 alter table public.responsibles enable row level security;
 
 drop policy if exists responsibles_select on public.responsibles;
 create policy responsibles_select on public.responsibles
   for select to authenticated using (true);
 
--- Qualquer pessoa cadastra uma opção nova ao preencher um projeto.
 drop policy if exists responsibles_insert on public.responsibles;
 create policy responsibles_insert on public.responsibles
   for insert to authenticated with check (true);
 
--- Apagar é de quem criou — ou da gestão, para limpar o catálogo.
-drop policy if exists responsibles_delete on public.responsibles;
-create policy responsibles_delete on public.responsibles
-  for delete to authenticated using (public.is_manager() or created_by = auth.uid());
+drop policy if exists responsibles_write on public.responsibles;
+create policy responsibles_write on public.responsibles
+  for all to authenticated using (public.is_manager()) with check (public.is_manager());
 
+-- Versão anterior desta migration; removidas para não sobrar regra solta.
+drop policy if exists responsibles_delete on public.responsibles;
 drop policy if exists responsibles_update on public.responsibles;
-create policy responsibles_update on public.responsibles
-  for update to authenticated
-  using (public.is_manager() or created_by = auth.uid())
-  with check (true);
 
 grant select, insert, update, delete on public.responsibles to authenticated;
 
 -- ---------------------------------------------------------------------
--- DEPARTAMENTOS — também podem nascer do formulário
+-- DEPARTAMENTOS — desfazendo a primeira versão desta migration
 --
--- A policy antiga (`departments_write`) continua valendo para a gestão. As
--- duas abaixo se somam a ela: no Postgres, políticas permissivas são unidas
--- por OU.
+-- Ela acrescentava `created_by` em `departments` e afrouxava a escrita. Duas
+-- coisas deram errado:
+--
+-- 1. `created_by` criou uma SEGUNDA ligação entre `departments` e `profiles`
+--    (a primeira é `profiles.department_id`). Com duas, o PostgREST não sabe
+--    por qual caminho embutir e recusa `profiles?select=*,departments(...)`
+--    com PGRST201. Essa é justamente a consulta que carrega o perfil de quem
+--    está logado — sem ela o site não enxerga papel nenhum e todo mundo vira
+--    usuário comum, inclusive o administrador.
+-- 2. Afrouxar a escrita mudava a configuração de acesso, que não era o
+--    objetivo: o pedido era só sobre as telas de cadastro de projeto.
+--
+-- Então volta tudo ao que era: escrita de departamento continua com
+-- administrador e gerente, pela policy `departments_write` da migration 06.
 -- ---------------------------------------------------------------------
-alter table public.departments
-  add column if not exists created_by uuid references public.profiles (id) on delete set null;
-
 drop policy if exists departments_insert_any on public.departments;
-create policy departments_insert_any on public.departments
-  for insert to authenticated with check (true);
-
 drop policy if exists departments_delete_own on public.departments;
-create policy departments_delete_own on public.departments
-  for delete to authenticated using (public.is_manager() or created_by = auth.uid());
 
--- Um projeto que usava o departamento apagado fica sem departamento
--- (a foreign key já era `on delete set null`), sem perder nada além disso.
+alter table public.departments drop column if exists created_by;
 
 -- ---------------------------------------------------------------------
 -- ORIGEM: supabase/seed.sql (departamentos, clientes e tags do Grupo Moreno)

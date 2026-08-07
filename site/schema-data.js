@@ -80,15 +80,14 @@ const SCHEMA = {
       name: 'departments',
       domain: 'cadastros',
       description:
-        'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer usuário cadastra um setor novo pelo formulário de projeto.',
-      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita a gestão; exclui a gestão ou quem criou.',
+        'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administrador e gerente cadastram um setor novo direto do formulário de projeto.',
+      rls: 'Leitura para todos os autenticados; escrita apenas para administrador e gerente.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()', note: 'Identificador.' },
         { name: 'name', type: 'text', flags: ['NOT NULL'], note: 'Nome do departamento (2 a 120 caracteres).' },
         { name: 'code', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'Sigla usada em códigos de projeto.' },
         { name: 'color', type: 'text', flags: ['NOT NULL'], default: "'#1B3F94'", note: 'Cor de identificação nos gráficos.' },
         { name: 'is_active', type: 'boolean', flags: ['NOT NULL'], default: 'true', note: 'Desativa sem apagar histórico.' },
-        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Quem cadastrou pelo formulário — pode remover depois.' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
         { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()', note: 'Mantido por trigger.' },
       ],
@@ -98,7 +97,7 @@ const SCHEMA = {
       domain: 'cadastros',
       description:
         'Opções de responsável oferecidas no formulário de projeto — áreas como COA, Projetos, Actius e MAC, mais o que o time for cadastrando. É texto, e não referência a profiles, porque quem responde por um projeto nem sempre tem login.',
-      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita e exclui a gestão ou quem criou.',
+      rls: 'Igual às tags: leitura para todos os autenticados, qualquer um acrescenta uma opção, e mexer no catálogo é de administrador e gerente.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
         { name: 'name', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'De 2 a 80 caracteres.' },

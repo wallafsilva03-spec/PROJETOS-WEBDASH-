@@ -41,7 +41,6 @@ As permissões são aplicadas no banco por Row Level Security, não no frontend.
 
 ```mermaid
 erDiagram
-  profiles |o--o{ departments : "created_by"
   profiles |o--o{ responsibles : "created_by"
   departments |o--o{ profiles : "department_id"
   profiles |o--o{ user_presence : "user_id"
@@ -100,7 +99,7 @@ _Estruturas de apoio compartilhadas pelo portfólio._
 
 #### `departments`
 
-Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer usuário cadastra um setor novo pelo formulário de projeto.
+Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administrador e gerente cadastram um setor novo direto do formulário de projeto.
 
 | Coluna | Tipo | Restrições | Referência | Observação |
 | ------ | ---- | ---------- | ---------- | ---------- |
@@ -109,11 +108,10 @@ Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer 
 | `code` | `text` | NOT NULL, UNIQUE | — | Sigla usada em códigos de projeto. |
 | `color` | `text` | NOT NULL | — | default `'#1B3F94'`. Cor de identificação nos gráficos. |
 | `is_active` | `boolean` | NOT NULL | — | default `true`. Desativa sem apagar histórico. |
-| `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | Quem cadastrou pelo formulário — pode remover depois. |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()`. Mantido por trigger. |
 
-**RLS:** Leitura para todos os autenticados. Cria qualquer autenticado; edita a gestão; exclui a gestão ou quem criou.
+**RLS:** Leitura para todos os autenticados; escrita apenas para administrador e gerente.
 
 #### `responsibles`
 
@@ -126,7 +124,7 @@ Opções de responsável oferecidas no formulário de projeto — áreas como CO
 | `created_by` | `uuid` | FK | `profiles(id)` ON DELETE SET NULL | — |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
-**RLS:** Leitura para todos os autenticados. Cria qualquer autenticado; edita e exclui a gestão ou quem criou.
+**RLS:** Igual às tags: leitura para todos os autenticados, qualquer um acrescenta uma opção, e mexer no catálogo é de administrador e gerente.
 
 #### `clients`
 

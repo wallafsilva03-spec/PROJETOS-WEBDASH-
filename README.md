@@ -114,8 +114,8 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   protegida por confirmação com o código do projeto.
 - **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
   esforço, escopo e **viabilidade econômica**) e 14 abas: **Kanban** (etapas por data de término,
-  drag & drop), Kanban de tarefas, Lista (agrupamentos e ordenação), **Etapas** (organograma +
-  linha do tempo), Gantt, Timeline, Calendário, Indicadores (Burn Down / Burn Up / Curva S +
+  drag & drop), Kanban de tarefas, Lista (agrupamentos e ordenação), **Etapas** (roadmap das
+  etapas, organograma + linha do tempo), Gantt, Timeline, Calendário, Indicadores (Burn Down / Burn Up / Curva S +
   marcos), Riscos, Checklist, Horas, Arquivos, Equipe e Comentários.
 - **Kanban** — etapas de todo o portfólio em colunas calculadas pela data de término (atrasadas,
   esta semana, próxima semana, próximos 30 dias, depois e concluídas), com alternância para
@@ -123,7 +123,10 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   planejada — ou a conclui. Cada card tem botão de excluir (com confirmação), disponível para a
   gestão do projeto e para quem cadastrou a etapa.
 - **Cronograma** — Gantt consolidado do portfólio, com filtro de caminho crítico.
-- **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão.
+- **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão. Dá para
+  visualizar por **atividade (status)**, **saúde do projeto**, departamento ou responsável, e os
+  cartões de saúde e as etiquetas de status filtram o quadro em um clique. A seta ao lado do nome
+  abre as **etapas do projeto na mesma linha do tempo**, com a cor da situação de cada uma.
 - **Calendário** — visões diária, semanal e mensal.
 - **Workload** — capacidade × alocação, disponibilidade e sobrecarga por pessoa.
 - **Gestão por analista** — projetos agrupados por responsável, com todos os status, o que está em

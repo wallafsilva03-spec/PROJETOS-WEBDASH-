@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StagesChart } from '@/components/charts/stages-chart';
+import { StagesRoadmap } from '@/components/views/stages-roadmap';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { StageDialog } from '@/components/projects/stage-dialog';
 import { STAGE_COLUMNS } from '@/lib/report-columns';
@@ -64,6 +65,8 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
 
   return (
     <div className="space-y-4">
+      <StagesRoadmap stages={stages} isLoading={isLoading} />
+
       <StagesChart stages={stages} isLoading={isLoading} onSelectStage={openEdit} />
 
       <Card>

@@ -22,6 +22,14 @@ export function isSchemaOutdated(error: unknown): boolean {
   return /schema cache|does not exist|não existe/i.test(err.message ?? '');
 }
 
+/** Violação da unicidade do código do projeto (`projects_code_key`). */
+export function isDuplicateProjectCode(error: unknown): boolean {
+  const err = error as { code?: string; message?: string } | null;
+  if (err?.code !== '23505') return false;
+
+  return /projects_code_key|\bcode\b/i.test(err.message ?? '');
+}
+
 /** Mensagem pronta para toast ou para o estado de erro da tela. */
 export function describeDbError(error: unknown, fallback = 'Erro inesperado.'): string {
   const message = (error as { message?: string } | null)?.message ?? fallback;

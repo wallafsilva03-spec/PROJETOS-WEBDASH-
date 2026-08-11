@@ -18,7 +18,7 @@ import { ProgressWithDelta } from '@/components/ui/progress';
 import { SkeletonCards, SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { useProjects, type ProjectFilters } from '@/hooks/use-projects';
-import { useDepartments } from '@/hooks/use-catalogs';
+import { useDepartments, useResponsibles } from '@/hooks/use-catalogs';
 import { useSession } from '@/hooks/use-session';
 import { useDebouncedValue } from '@/hooks/use-search';
 import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
@@ -35,6 +35,7 @@ export function ProjectsView() {
   const searchParams = useSearchParams();
   const { canCreateProject } = useSession();
   const departments = useDepartments();
+  const responsibles = useResponsibles();
 
   const [dialogOpen, setDialogOpen] = React.useState(searchParams.get('novo') === '1');
   const [view, setView] = React.useState<ViewMode>('grid');
@@ -42,6 +43,7 @@ export function ProjectsView() {
   const [status, setStatus] = React.useState<ProjectStatus | typeof ALL>(ALL);
   const [health, setHealth] = React.useState<HealthStatus | typeof ALL>(ALL);
   const [departmentId, setDepartmentId] = React.useState<string>(ALL);
+  const [responsible, setResponsible] = React.useState<string>(ALL);
   const [sort, setSort] = React.useState<NonNullable<ProjectFilters['sort']>>('due_date');
 
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -58,14 +60,39 @@ export function ProjectsView() {
   );
 
   const { data, isLoading, isError, refetch } = useProjects(filters);
-  const projects = data ?? [];
-  const hasFilters = Boolean(debouncedSearch) || status !== ALL || health !== ALL || departmentId !== ALL;
+
+  /**
+   * Responsáveis são uma lista de texto dentro do projeto, então o filtro é
+   * aplicado aqui e não no banco — assim continua funcionando na view antiga,
+   * que ainda não traz a coluna.
+   */
+  const projects = React.useMemo(() => {
+    const rows = data ?? [];
+    if (responsible === ALL) return rows;
+    return rows.filter((project) =>
+      (project.responsibles ?? []).some((name) => name.toLowerCase() === responsible.toLowerCase()),
+    );
+  }, [data, responsible]);
+
+  /** Analistas do catálogo somados aos que já estão em algum projeto. */
+  const responsibleOptions = React.useMemo(() => {
+    const names = new Map<string, string>();
+    (responsibles.data ?? []).forEach((option) => names.set(option.name.toLowerCase(), option.name));
+    (data ?? []).forEach((project) =>
+      (project.responsibles ?? []).forEach((name) => names.set(name.toLowerCase(), name)),
+    );
+    return [...names.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [responsibles.data, data]);
+
+  const hasFilters =
+    Boolean(debouncedSearch) || status !== ALL || health !== ALL || departmentId !== ALL || responsible !== ALL;
 
   function clearFilters() {
     setSearch('');
     setStatus(ALL);
     setHealth(ALL);
     setDepartmentId(ALL);
+    setResponsible(ALL);
   }
 
   function handleDialogChange(open: boolean) {
@@ -99,8 +126,8 @@ export function ProjectsView() {
       />
 
       <Card className="p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+          <div className="relative min-w-56 flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               value={search}
@@ -111,7 +138,7 @@ export function ProjectsView() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-center">
             <Select value={status} onValueChange={(value) => setStatus(value as ProjectStatus | typeof ALL)}>
               <SelectTrigger className="lg:w-44" aria-label="Filtrar por status">
                 <SelectValue />
@@ -149,6 +176,20 @@ export function ProjectsView() {
                 {departments.data?.map((department) => (
                   <SelectItem key={department.id} value={department.id}>
                     {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={responsible} onValueChange={setResponsible}>
+              <SelectTrigger className="lg:w-48" aria-label="Filtrar por analista responsável">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todos os analistas</SelectItem>
+                {responsibleOptions.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
                   </SelectItem>
                 ))}
               </SelectContent>

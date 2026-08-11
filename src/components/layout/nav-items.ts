@@ -11,6 +11,7 @@ import {
   Users,
   Activity,
   FileSpreadsheet,
+  Paperclip,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -36,6 +37,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Indicadores do dia a dia' },
       { href: '/projetos', label: 'Projetos', icon: FolderKanban, description: 'Portfólio completo' },
+      { href: '/arquivos', label: 'Arquivos', icon: Paperclip, description: 'Anexos por projeto' },
       { href: '/atividades', label: 'Atividades', icon: Activity, description: 'Tudo que está acontecendo' },
     ],
   },

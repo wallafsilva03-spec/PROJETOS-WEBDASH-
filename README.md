@@ -121,7 +121,10 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 - **Cronograma** — Gantt consolidado do portfólio, com filtro de caminho crítico.
 - **Roadmap executivo** — projetos por linha, meses na horizontal, marcos e conclusão.
 - **Calendário** — visões diária, semanal e mensal.
-- **Workload** — capacidade × alocação, disponibilidade e sobrecarga por pessoa.
+- **Workload** — capacidade × alocação, disponibilidade e sobrecarga por analista, com busca e
+  filtro de departamento.
+- **Arquivos** — tela dedicada para anexar documentos a um projeto escolhido em campo suspenso
+  (o mesmo painel da aba *Arquivos* do projeto).
 - **Dashboard Executivo** — Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por
   status/departamento/prioridade/gestor, projetos críticos, orçamento e **retorno financeiro do
   portfólio** (investimento × retorno esperado, benefício líquido e ROI por departamento).

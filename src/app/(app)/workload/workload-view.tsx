@@ -1,21 +1,31 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, Users } from 'lucide-react';
+import { AlertTriangle, Search, Users, X } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { KpiCard } from '@/components/dashboard/kpi-card';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { useWorkload } from '@/hooks/use-analytics';
+import { useDepartments } from '@/hooks/use-catalogs';
 import { WORKLOAD_COLUMNS } from '@/lib/report-columns';
 import { formatHours, formatNumber, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
+
+/** Valor do item "sem filtro" — o Radix Select não aceita opção com valor vazio. */
+const ALL = '__all__';
+
+/** Quem está sem departamento cadastrado no perfil. */
+const NO_DEPARTMENT = '__none__';
 
 /** Faixa de ocupação → tom visual. */
 function occupancyMeta(percent: number | null) {
@@ -28,7 +38,55 @@ function occupancyMeta(percent: number | null) {
 
 export function WorkloadView() {
   const { data, isLoading, isError, refetch } = useWorkload();
-  const rows = React.useMemo(() => data ?? [], [data]);
+  const departments = useDepartments();
+
+  const [departmentId, setDepartmentId] = React.useState<string>(ALL);
+  const [search, setSearch] = React.useState('');
+
+  const all = React.useMemo(() => data ?? [], [data]);
+
+  /**
+   * Departamentos oferecidos no filtro: os do catálogo que realmente têm
+   * gente, mais os que aparecem só no workload (perfil com departamento já
+   * desativado no catálogo). Assim o campo nunca esconde uma linha da lista.
+   */
+  const departmentOptions = React.useMemo(() => {
+    const fromRows = new Map<string, string>();
+    all.forEach((row) => {
+      if (row.department_id) fromRows.set(row.department_id, row.department_name ?? 'Sem nome');
+    });
+
+    (departments.data ?? []).forEach((department) => {
+      if (fromRows.has(department.id)) fromRows.set(department.id, department.name);
+    });
+
+    return [...fromRows].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [all, departments.data]);
+
+  const hasUnassigned = all.some((row) => !row.department_id);
+
+  const rows = React.useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return all.filter((row) => {
+      if (departmentId === NO_DEPARTMENT && row.department_id) return false;
+      if (departmentId !== ALL && departmentId !== NO_DEPARTMENT && row.department_id !== departmentId) return false;
+      if (!term) return true;
+
+      return (
+        row.full_name.toLowerCase().includes(term) ||
+        (row.job_title ?? '').toLowerCase().includes(term) ||
+        (row.department_name ?? '').toLowerCase().includes(term)
+      );
+    });
+  }, [all, departmentId, search]);
+
+  const hasFilters = departmentId !== ALL || Boolean(search.trim());
+
+  function clearFilters() {
+    setDepartmentId(ALL);
+    setSearch('');
+  }
 
   const summary = React.useMemo(() => {
     const capacity = rows.reduce((sum, row) => sum + Number(row.capacidade_semanal), 0);
@@ -44,26 +102,72 @@ export function WorkloadView() {
       <PageHeader
         eyebrow="Planejamento"
         title="Capacidade da equipe"
-        description="Horas planejadas versus capacidade semanal, disponibilidade e sobrecarga por pessoa."
+        description="Horas planejadas versus capacidade semanal, disponibilidade e sobrecarga por analista."
         actions={
           <ExportMenu
             rows={rows}
             columns={WORKLOAD_COLUMNS}
             filename="workload-equipe"
             title="Capacidade da Equipe"
-            subtitle="Horas planejadas consideram o esforço restante das tarefas abertas."
+            subtitle={
+              hasFilters
+                ? 'Relatório gerado com filtros aplicados.'
+                : 'Horas planejadas consideram o esforço restante das tarefas abertas.'
+            }
           />
         }
       />
 
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar analista por nome ou cargo…"
+              className="pl-9"
+              aria-label="Buscar analista"
+            />
+          </div>
+
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger className="sm:w-64" aria-label="Filtrar por departamento">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Todos os departamentos</SelectItem>
+              {departmentOptions.map((department) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {department.name}
+                </SelectItem>
+              ))}
+              {hasUnassigned && <SelectItem value={NO_DEPARTMENT}>Sem departamento</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasFilters && (
+          <div className="mt-3 flex items-center gap-2 border-t pt-3">
+            <span className="text-xs text-muted-foreground">
+              {rows.length} de {all.length} analista(s) com os filtros aplicados
+            </span>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="size-3.5" />
+              Limpar filtros
+            </Button>
+          </div>
+        )}
+      </Card>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           index={0}
-          label="Pessoas"
+          label="Analistas"
           value={formatNumber(summary.people)}
           icon={Users}
           tone="brand"
-          hint="Colaboradores ativos"
+          hint={hasFilters ? 'No filtro aplicado' : 'Colaboradores ativos'}
         />
         <KpiCard
           index={1}
@@ -94,7 +198,7 @@ export function WorkloadView() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Alocação por colaborador</CardTitle>
+          <CardTitle className="text-base">Alocação por analista</CardTitle>
         </CardHeader>
         <CardContent>
           {isError ? (
@@ -102,7 +206,19 @@ export function WorkloadView() {
           ) : isLoading ? (
             <SkeletonTable rows={6} />
           ) : !rows.length ? (
-            <EmptyState icon={Users} title="Nenhum colaborador ativo" className="border-0 bg-transparent" />
+            <EmptyState
+              icon={Users}
+              title={hasFilters ? 'Nenhum analista encontrado' : 'Nenhum colaborador ativo'}
+              description={hasFilters ? 'Ajuste o departamento ou a busca para ampliar a lista.' : undefined}
+              className="border-0 bg-transparent"
+              action={
+                hasFilters ? (
+                  <Button variant="outline" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <ul className="divide-y">
               {rows.map((row) => {

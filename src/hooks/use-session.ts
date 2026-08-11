@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { createClient } from '@/lib/supabase/client';
 import { qk } from '@/lib/query-keys';
-import { ROLE_META } from '@/lib/constants';
+import { ROLE_META, normalizeRole } from '@/lib/constants';
 import type { AppRole, Profile } from '@/types/database';
 
 export interface SessionProfile extends Profile {
@@ -34,15 +34,16 @@ export function useSession() {
     },
   });
 
-  const role = query.data?.role;
+  // `gerente` ainda pode vir de um banco sem a migration 11 — é o analista.
+  const role = normalizeRole(query.data?.role);
 
   return {
     ...query,
     profile: query.data ?? null,
     role,
     isAdmin: role === 'administrador',
-    isManager: role === 'administrador' || role === 'gerente',
-    canCreateProject: role === 'administrador' || role === 'gerente' || role === 'lider',
+    isManager: role === 'administrador' || role === 'analista',
+    canCreateProject: role === 'administrador' || role === 'analista' || role === 'lider',
     hasRole: (minimum: AppRole) => (role ? ROLE_META[role].rank >= ROLE_META[minimum].rank : false),
   };
 }

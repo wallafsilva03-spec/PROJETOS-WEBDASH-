@@ -16,7 +16,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { CalendarClock, CalendarDays, Layers, Plus } from 'lucide-react';
+import { CalendarClock, CalendarDays, Layers, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,15 @@ import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { Switch } from '@/components/ui/misc';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { StageDialog, type StageProjectOption } from '@/components/projects/stage-dialog';
-import { useStageBoardMutation, useStages } from '@/hooks/use-project-details';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useStageBoardDelete, useStageBoardMutation, useStages } from '@/hooks/use-project-details';
 import { useSession } from '@/hooks/use-session';
 import { useRealtime } from '@/hooks/use-realtime';
 import { STAGE_STATUS_META } from '@/lib/constants';
@@ -134,11 +142,14 @@ function DraggableStage({
   showProject,
   editable,
   onOpen,
+  onDelete,
 }: {
   stage: ProjectStageView;
   showProject?: boolean;
   editable: boolean;
   onOpen: () => void;
+  /** Ausente quando a pessoa não pode excluir esta etapa. */
+  onDelete?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: stage.id,
@@ -146,7 +157,12 @@ function DraggableStage({
   });
 
   return (
-    <li ref={setNodeRef} className={cn('touch-none', isDragging && 'opacity-40')} {...attributes} {...listeners}>
+    <li
+      ref={setNodeRef}
+      className={cn('group/card relative touch-none', isDragging && 'opacity-40')}
+      {...attributes}
+      {...listeners}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -155,6 +171,26 @@ function DraggableStage({
       >
         <StageCard stage={stage} showProject={showProject} />
       </button>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+          className={cn(
+            'absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground transition-all',
+            'opacity-0 hover:bg-destructive/10 hover:text-destructive',
+            'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'group-hover/card:opacity-100',
+          )}
+          aria-label={`Excluir etapa ${stage.name}`}
+          title="Excluir etapa"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      )}
     </li>
   );
 }
@@ -166,7 +202,9 @@ function Column({
   showProject,
   canCreate,
   isEditable,
+  isDeletable,
   onOpenStage,
+  onDeleteStage,
   onCreate,
 }: {
   column: StageColumn;
@@ -174,7 +212,9 @@ function Column({
   showProject?: boolean;
   canCreate: boolean;
   isEditable: (stage: ProjectStageView) => boolean;
+  isDeletable: (stage: ProjectStageView) => boolean;
   onOpenStage: (stage: ProjectStageView) => void;
+  onDeleteStage: (stage: ProjectStageView) => void;
   onCreate: (column: StageColumn) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
@@ -221,6 +261,7 @@ function Column({
               showProject={showProject}
               editable={isEditable(stage)}
               onOpen={() => onOpenStage(stage)}
+              onDelete={isDeletable(stage) ? () => onDeleteStage(stage) : undefined}
             />
           ))}
         </ul>
@@ -263,6 +304,7 @@ export function StagesKanban({
 }: StagesKanbanProps) {
   const { data, isLoading, isError, error, refetch } = useStages(projectId);
   const move = useStageBoardMutation();
+  const removeStage = useStageBoardDelete();
   const { profile } = useSession();
 
   const [grouping, setGrouping] = React.useState<StageGrouping>('prazo');
@@ -270,6 +312,7 @@ export function StagesKanban({
   const [active, setActive] = React.useState<ProjectStageView | null>(null);
   const [editing, setEditing] = React.useState<ProjectStageView | null>(null);
   const [creating, setCreating] = React.useState<{ start?: string; end?: string } | null>(null);
+  const [deleting, setDeleting] = React.useState<ProjectStageView | null>(null);
 
   useRealtime(
     'stages-kanban',
@@ -313,6 +356,12 @@ export function StagesKanban({
   /** A RLS deixa o responsável pela etapa registrar o andamento dela. */
   const isEditable = React.useCallback(
     (stage: ProjectStageView) => canManageProject(stage.project_id) || stage.owner_id === profile?.id,
+    [canManageProject, profile?.id],
+  );
+
+  /** Excluir é da gestão do projeto e de quem cadastrou a etapa. */
+  const isDeletable = React.useCallback(
+    (stage: ProjectStageView) => canManageProject(stage.project_id) || stage.created_by === profile?.id,
     [canManageProject, profile?.id],
   );
 
@@ -486,7 +535,11 @@ export function StagesKanban({
                 showProject={!projectId}
                 canCreate={canCreate}
                 isEditable={isEditable}
-                onOpenStage={(stage) => (isEditable(stage) ? setEditing(stage) : undefined)}
+                isDeletable={isDeletable}
+                onOpenStage={(stage) =>
+                  isEditable(stage) || isDeletable(stage) ? setEditing(stage) : undefined
+                }
+                onDeleteStage={setDeleting}
                 onCreate={(target) =>
                   setCreating({
                     // A etapa criada dentro de uma coluna de prazo já nasce com
@@ -520,7 +573,37 @@ export function StagesKanban({
         onOpenChange={(open) => !open && setEditing(null)}
         projectId={editing?.project_id ?? projectId}
         stage={editing}
+        canDelete={Boolean(editing && isDeletable(editing))}
       />
+
+      <Dialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir etapa</DialogTitle>
+            <DialogDescription>
+              A etapa <strong>{deleting?.name}</strong> sai do projeto {deleting?.project_code} junto
+              com o andamento registrado nela. Não há como desfazer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              loading={removeStage.isPending}
+              onClick={() => {
+                if (!deleting) return;
+                removeStage.mutate(deleting, { onSuccess: () => setDeleting(null) });
+              }}
+            >
+              <Trash2 className="size-4" />
+              Excluir etapa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <StageDialog
         open={Boolean(creating)}

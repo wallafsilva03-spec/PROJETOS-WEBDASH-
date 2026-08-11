@@ -55,7 +55,7 @@ export default function CadastroPage() {
       <header className="space-y-1.5">
         <h2 className="font-display text-2xl font-semibold tracking-tight">Criar conta</h2>
         <p className="text-sm text-muted-foreground">
-          O acesso inicial é de colaborador. Um administrador pode elevar seu perfil depois.
+          O acesso inicial é de analista. Um administrador pode ajustar seu perfil depois.
         </p>
       </header>
 

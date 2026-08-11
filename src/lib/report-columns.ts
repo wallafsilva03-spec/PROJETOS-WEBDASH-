@@ -4,10 +4,13 @@ import {
   HEALTH_META,
   PRIORITY_META,
   PROJECT_STATUS_META,
+  PROJECT_STATUS_OPTIONS,
+  ROLE_META,
   STAGE_STATUS_META,
   TASK_STATUS_META,
   VIABILITY_META,
 } from '@/lib/constants';
+import type { AnalystSummary } from '@/lib/analyst-overview';
 import type { GanttTask, ProjectOverview, ProjectStageView, WorkloadRow } from '@/types/database';
 
 /** Colunas padronizadas do relatório de portfólio. */
@@ -88,4 +91,28 @@ export const WORKLOAD_COLUMNS: ExportColumn<WorkloadRow>[] = [
   { header: 'Tarefas abertas', accessor: (w) => w.tarefas_abertas },
   { header: 'Tarefas atrasadas', accessor: (w) => w.tarefas_atrasadas },
   { header: 'Projetos ativos', accessor: (w) => w.projetos_ativos },
+];
+
+/** Gestão por analista — uma linha por responsável, com todos os status. */
+export const ANALYST_COLUMNS: ExportColumn<AnalystSummary>[] = [
+  { header: 'Responsável', accessor: (a) => a.name, width: 3 },
+  { header: 'Cargo', accessor: (a) => a.jobTitle ?? '—' },
+  { header: 'Perfil', accessor: (a) => (a.role ? ROLE_META[a.role].label : 'Sem login') },
+  { header: 'Projetos', accessor: (a) => a.total },
+  { header: 'Em aberto', accessor: (a) => a.ativos },
+  { header: 'Encerrados', accessor: (a) => a.encerrados },
+  { header: 'Em atraso', accessor: (a) => a.atrasados },
+  { header: 'Em risco', accessor: (a) => a.emRisco },
+  { header: 'Dentro do previsto', accessor: (a) => a.noPrazo },
+  ...PROJECT_STATUS_OPTIONS.map((option) => ({
+    header: option.label,
+    accessor: (a: AnalystSummary) => a.byStatus[option.value] ?? 0,
+  })),
+  { header: 'Execução média', accessor: (a) => formatPercent(a.progressoMedio) },
+  { header: 'Desvio médio (p.p.)', accessor: (a) => a.desvioMedio.toFixed(1) },
+  { header: 'Dias de atraso (soma)', accessor: (a) => a.diasAtrasoTotal },
+  { header: 'Maior atraso (dias)', accessor: (a) => a.maiorAtraso },
+  { header: 'Horas estimadas', accessor: (a) => formatHours(a.horasPlanejadas) },
+  { header: 'Horas realizadas', accessor: (a) => formatHours(a.horasRealizadas) },
+  { header: 'Próximo prazo', accessor: (a) => formatDate(a.proximoPrazo) },
 ];

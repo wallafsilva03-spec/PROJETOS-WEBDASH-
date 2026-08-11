@@ -154,6 +154,27 @@ export function useStages(projectId?: string) {
   });
 }
 
+/**
+ * Exclusão de etapa, compartilhada pelo painel do projeto e pelo kanban.
+ *
+ * O `select` devolve o que foi realmente apagado: sem ele, uma exclusão
+ * barrada pela RLS volta como sucesso com zero linhas e a etapa "sumiria"
+ * da tela só até o próximo recarregamento.
+ */
+async function deleteStageRow(id: string) {
+  const { data, error } = await createClient()
+    .from('project_stages')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) {
+    throw new Error(
+      'A etapa não foi excluída: só quem cadastrou a etapa, o dono do projeto ou a gestão pode removê-la.',
+    );
+  }
+}
+
 export function useStageMutations(projectId: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
@@ -186,10 +207,7 @@ export function useStageMutations(projectId: string) {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await createClient().from('project_stages').delete().eq('id', id);
-      if (error) throw error;
-    },
+    mutationFn: deleteStageRow,
     onSuccess: () => {
       invalidate();
       toast.success('Etapa removida.');
@@ -241,6 +259,27 @@ export function useStageBoardMutation() {
       queryClient.invalidateQueries({ queryKey: qk.allStages });
       queryClient.invalidateQueries({ queryKey: qk.project(stage.project_id) });
       queryClient.invalidateQueries({ queryKey: qk.projects() });
+    },
+    onError: (error: Error) => toast.error(describeDbError(error)),
+  });
+}
+
+/**
+ * Exclusão feita direto no quadro kanban, onde cada card sabe a que projeto
+ * pertence — o mesmo motivo que fez `useStageBoardMutation` existir.
+ */
+export function useStageBoardDelete() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (stage: Pick<ProjectStageView, 'id' | 'project_id'>) =>
+      deleteStageRow(stage.id),
+    onSuccess: (_result, stage) => {
+      queryClient.invalidateQueries({ queryKey: qk.allStages });
+      queryClient.invalidateQueries({ queryKey: qk.stages(stage.project_id) });
+      queryClient.invalidateQueries({ queryKey: qk.project(stage.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Etapa removida.');
     },
     onError: (error: Error) => toast.error(describeDbError(error)),
   });

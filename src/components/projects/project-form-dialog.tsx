@@ -36,6 +36,7 @@ import {
   useTags,
 } from '@/hooks/use-catalogs';
 import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
+import { useSession } from '@/hooks/use-session';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
 
@@ -78,6 +79,7 @@ export function ProjectFormDialog({
   const clients = useClients();
   const people = useProfiles();
   const tags = useTags();
+  const { isManager } = useSession();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
 
@@ -239,8 +241,12 @@ export function ProjectFormDialog({
               control={control}
               name="department_id"
               render={({ field }) => (
-                <Field label="Departamento" hint="Escreva para cadastrar um setor novo.">
+                <Field
+                  label="Departamento"
+                  hint={isManager ? 'Escreva para cadastrar um setor novo.' : undefined}
+                >
                   <CatalogField
+                    canEditCatalog={isManager}
                     options={departments.data ?? []}
                     loading={departments.isLoading}
                     value={field.value ?? null}

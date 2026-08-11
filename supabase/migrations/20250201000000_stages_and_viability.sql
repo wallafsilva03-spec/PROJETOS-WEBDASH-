@@ -308,7 +308,12 @@ select
     and s.end_date < current_date
   )                                            as atrasada,
   s.created_at,
-  s.updated_at
+  s.updated_at,
+  -- Quem cadastrou a etapa; a tela usa para liberar o botão de excluir.
+  -- Precisa estar aqui também (e não só na migration 11) porque um
+  -- `create or replace view` não pode perder coluna: sem isto, a segunda
+  -- execução do setup.sql pararia neste ponto.
+  s.created_by
 from public.project_stages s
 join public.projects p on p.id = s.project_id
 left join public.profiles o on o.id = s.owner_id;

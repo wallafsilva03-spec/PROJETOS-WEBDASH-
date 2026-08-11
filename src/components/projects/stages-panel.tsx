@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StagesChart } from '@/components/charts/stages-chart';
+import { StagesRoadmap } from '@/components/views/stages-roadmap';
 import { ExportMenu } from '@/components/projects/export-menu';
 import { StageDialog } from '@/components/projects/stage-dialog';
 import { STAGE_COLUMNS } from '@/lib/report-columns';
@@ -64,6 +65,8 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
 
   return (
     <div className="space-y-4">
+      <StagesRoadmap stages={stages} isLoading={isLoading} />
+
       <StagesChart stages={stages} isLoading={isLoading} onSelectStage={openEdit} />
 
       <Card>
@@ -213,7 +216,7 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
                           </Button>
                         )}
 
-                        {canManage && (
+                        {(canManage || stage.created_by === profile?.id) && (
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -239,6 +242,7 @@ export function StagesPanel({ projectId, canManage, projectStart, projectDue }: 
         onOpenChange={(open) => !open && setEditing(null)}
         projectId={projectId}
         stage={editing}
+        canDelete={Boolean(editing && (canManage || editing.created_by === profile?.id))}
       />
 
       <StageDialog

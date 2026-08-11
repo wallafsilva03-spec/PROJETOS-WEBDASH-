@@ -20,7 +20,7 @@ import { BrandPills } from '@/components/brand/logo';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { createClient } from '@/lib/supabase/client';
 import { qk } from '@/lib/query-keys';
-import { ROLE_META, ROLE_OPTIONS, BRAND } from '@/lib/constants';
+import { ROLE_META, ROLE_OPTIONS, BRAND, normalizeRole, roleMeta } from '@/lib/constants';
 import { profileSchema, type ProfileInput } from '@/lib/validations';
 import { useDepartments, useProfiles } from '@/hooks/use-catalogs';
 import { useSession } from '@/hooks/use-session';
@@ -139,7 +139,7 @@ export function ConfiguracoesView() {
                       <p className="font-medium">{profile?.email}</p>
                       {profile && (
                         <Badge variant="soft" className="mt-1 bg-gradient-brand-soft text-foreground">
-                          {ROLE_META[profile.role].label}
+                          {roleMeta(profile.role).label}
                         </Badge>
                       )}
                     </div>
@@ -233,7 +233,7 @@ export function ConfiguracoesView() {
                           <p className="truncate text-xs text-muted-foreground">{person.email}</p>
                         </div>
                         <Select
-                          value={person.role}
+                          value={normalizeRole(person.role)}
                           onValueChange={(value) => changeRole(person.id, value as AppRole)}
                           disabled={person.id === profile?.id}
                         >

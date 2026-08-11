@@ -23,7 +23,7 @@ No painel do Supabase, abra **SQL Editor** → **New query**.
 Cole **todo** o conteúdo do arquivo [`supabase/setup.sql`](../supabase/setup.sql)
 e clique em **Run**.
 
-Esse arquivo único reúne as 8 migrations mais os cadastros básicos: cria as 21
+Esse arquivo único reúne as 11 migrations mais os cadastros básicos: cria as 21
 tabelas, os tipos, as views, as functions, os triggers, as políticas de acesso,
 a publicação de tempo real e os buckets de arquivos. Rodar mais de uma vez é
 seguro — tudo usa `if not exists` / `or replace`.
@@ -102,7 +102,9 @@ Clique em **Criar conta** e cadastre-se.
 
 **O primeiro usuário cadastrado vira administrador automaticamente** — isso é
 feito por um trigger no banco, não pelo frontend. Os próximos entram como
-colaboradores, e você pode promovê-los depois em **Configurações → Acessos**.
+**analistas**: enxergam e gerenciam todo o portfólio, mas não mexem em perfis de
+acesso nem excluem projetos. Para dar mais ou menos alcance a alguém, use
+**Configurações → Acessos**.
 
 ---
 
@@ -149,10 +151,12 @@ se move na outra em menos de um segundo, sem recarregar.
 
 ### Testar as permissões
 
-Crie uma segunda conta pelo cadastro. Ela entra como colaborador e **não
-enxerga nenhum projeto** — porque não pertence a nenhuma equipe. Volte na
-primeira conta, vá em **Projetos → PRJ-001 → Equipe**, adicione a segunda
-pessoa, e recarregue a outra janela: o projeto aparece.
+Crie uma segunda conta pelo cadastro — ela entra como analista, que enxerga o
+portfólio inteiro. Na primeira conta (administrador), vá em **Configurações →
+Acessos** e mude o perfil dela para **colaborador**: ao recarregar, a segunda
+janela **não enxerga nenhum projeto**, porque colaborador só vê o que é da sua
+equipe. Ainda na primeira conta, vá em **Projetos → PRJ-001 → Equipe**,
+adicione a segunda pessoa, e recarregue a outra janela: o projeto aparece.
 
 Isso não é regra de interface. É Row Level Security dentro do Postgres — o
 banco simplesmente não devolve aquelas linhas.

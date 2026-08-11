@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
@@ -43,6 +44,8 @@ interface StageDialogProps {
   /** Datas sugeridas para a etapa nova — vêm do projeto ou da coluna do kanban. */
   defaultStart?: string;
   defaultEnd?: string;
+  /** Mostra o botão de excluir na edição. A RLS é quem decide de verdade. */
+  canDelete?: boolean;
 }
 
 /**
@@ -59,12 +62,14 @@ export function StageDialog({
   projectOptions,
   defaultStart,
   defaultEnd,
+  canDelete,
 }: StageDialogProps) {
   const [chosenProject, setChosenProject] = React.useState('');
   const targetProject = stage?.project_id ?? projectId ?? chosenProject;
   const askProject = !projectId && !stage;
 
-  const { save } = useStageMutations(targetProject);
+  const { save, remove } = useStageMutations(targetProject);
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
   const members = useProjectMembers(targetProject);
 
   const {
@@ -92,6 +97,7 @@ export function StageDialog({
   React.useEffect(() => {
     if (!open) {
       filled.current = false;
+      setConfirmingDelete(false);
       return;
     }
     if (filled.current) return;
@@ -130,6 +136,19 @@ export function StageDialog({
       progress_notes: values.progress_notes || null,
       actual_start_date: values.actual_start_date || null,
     });
+    onOpenChange(false);
+  }
+
+  /** Exclusão em dois toques — não existe desfazer para etapa apagada. */
+  async function onDelete() {
+    if (!stage) return;
+
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+
+    await remove.mutateAsync(stage.id);
     onOpenChange(false);
   }
 
@@ -278,13 +297,30 @@ export function StageDialog({
             />
           </Field>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="brand" loading={isSubmitting}>
-              Salvar etapa
-            </Button>
+          <DialogFooter className="sm:justify-between">
+            {stage && canDelete ? (
+              <Button
+                type="button"
+                variant={confirmingDelete ? 'destructive' : 'ghost'}
+                onClick={onDelete}
+                loading={remove.isPending}
+                className={confirmingDelete ? undefined : 'text-destructive hover:text-destructive'}
+              >
+                <Trash2 className="size-4" />
+                {confirmingDelete ? 'Confirmar exclusão' : 'Excluir etapa'}
+              </Button>
+            ) : (
+              <span />
+            )}
+
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="brand" loading={isSubmitting}>
+                Salvar etapa
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

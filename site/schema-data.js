@@ -19,7 +19,7 @@ const SCHEMA = {
     {
       name: 'app_role',
       description: 'Perfis de acesso da plataforma, base de toda a RLS.',
-      values: ['administrador', 'gerente', 'lider', 'colaborador'],
+      values: ['administrador', 'analista', 'lider', 'colaborador'],
     },
     {
       name: 'project_status',
@@ -80,15 +80,14 @@ const SCHEMA = {
       name: 'departments',
       domain: 'cadastros',
       description:
-        'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Qualquer usuário cadastra um setor novo pelo formulário de projeto.',
-      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita a gestão; exclui a gestão ou quem criou.',
+        'Departamentos do Grupo Moreno. A cor alimenta os gráficos executivos. Administrador e analista cadastram um setor novo direto do formulário de projeto.',
+      rls: 'Leitura para todos os autenticados; escrita apenas para administrador e analista.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()', note: 'Identificador.' },
         { name: 'name', type: 'text', flags: ['NOT NULL'], note: 'Nome do departamento (2 a 120 caracteres).' },
         { name: 'code', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'Sigla usada em códigos de projeto.' },
         { name: 'color', type: 'text', flags: ['NOT NULL'], default: "'#1B3F94'", note: 'Cor de identificação nos gráficos.' },
         { name: 'is_active', type: 'boolean', flags: ['NOT NULL'], default: 'true', note: 'Desativa sem apagar histórico.' },
-        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Quem cadastrou pelo formulário — pode remover depois.' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
         { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()', note: 'Mantido por trigger.' },
       ],
@@ -98,7 +97,7 @@ const SCHEMA = {
       domain: 'cadastros',
       description:
         'Opções de responsável oferecidas no formulário de projeto — áreas como COA, Projetos, Actius e MAC, mais o que o time for cadastrando. É texto, e não referência a profiles, porque quem responde por um projeto nem sempre tem login.',
-      rls: 'Leitura para todos os autenticados. Cria qualquer autenticado; edita e exclui a gestão ou quem criou.',
+      rls: 'Igual às tags: leitura para todos os autenticados, qualquer um acrescenta uma opção, e mexer no catálogo é de administrador e analista.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
         { name: 'name', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'De 2 a 80 caracteres.' },
@@ -111,7 +110,7 @@ const SCHEMA = {
       name: 'clients',
       domain: 'cadastros',
       description: 'Clientes internos e externos vinculados aos projetos.',
-      rls: 'Leitura para todos os autenticados; escrita apenas para administrador e gerente.',
+      rls: 'Leitura para todos os autenticados; escrita apenas para administrador e analista.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
         { name: 'name', type: 'text', flags: ['NOT NULL'], note: 'Razão social ou nome fantasia.' },
@@ -151,7 +150,7 @@ const SCHEMA = {
         { name: 'avatar_url', type: 'text', note: 'Aponta para o bucket público avatars.' },
         { name: 'job_title', type: 'text' },
         { name: 'phone', type: 'text' },
-        { name: 'role', type: 'app_role', flags: ['NOT NULL'], default: "'colaborador'", note: 'Determina todo o alcance da RLS.' },
+        { name: 'role', type: 'app_role', flags: ['NOT NULL'], default: "'analista'", note: 'Determina todo o alcance da RLS. Conta nova nasce analista; o primeiro usuário vira administrador.' },
         { name: 'department_id', type: 'uuid', flags: ['FK'], ref: 'departments(id)', onDelete: 'SET NULL' },
         { name: 'weekly_capacity_hours', type: 'numeric(5,2)', flags: ['NOT NULL'], default: '40', note: 'Base do cálculo de workload (0 a 80).' },
         { name: 'is_active', type: 'boolean', flags: ['NOT NULL'], default: 'true' },
@@ -179,7 +178,7 @@ const SCHEMA = {
       domain: 'projetos',
       description:
         'Núcleo do portfólio. progress e health são calculados por trigger a partir das tarefas e do cronograma — não devem ser escritos manualmente.',
-      rls: 'Enxergam: administrador, gerente, dono, criador e membros da equipe. Criam: administrador, gerente e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.',
+      rls: 'Enxergam: administrador, analista, dono, criador e membros da equipe. Criam: administrador, analista e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
         { name: 'code', type: 'text', flags: ['NOT NULL', 'UNIQUE'], note: 'Código público, ex.: PRJ-001.' },
@@ -337,7 +336,7 @@ const SCHEMA = {
       domain: 'execucao',
       description:
         'Etapas (fases) do projeto. Guardam início e término planejados, datas reais, percentual de avanço e o texto de andamento escrito pelo responsável. Alimentam o organograma de etapas e a linha do tempo.',
-      rls: 'Leitura para quem enxerga o projeto. Cria e exclui quem gerencia o projeto. Edita quem gerencia ou o responsável pela etapa.',
+      rls: 'Leitura para quem enxerga o projeto. Cria quem gerencia o projeto. Exclui quem gerencia o projeto ou quem cadastrou a etapa. Edita quem gerencia ou o responsável pela etapa.',
       columns: [
         { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
         { name: 'project_id', type: 'uuid', flags: ['NOT NULL', 'FK'], ref: 'projects(id)', onDelete: 'CASCADE' },
@@ -353,7 +352,7 @@ const SCHEMA = {
         { name: 'progress', type: 'numeric(5,2)', flags: ['NOT NULL'], default: '0', note: 'Forçado a 100 quando concluída e a 0 quando não iniciada.' },
         { name: 'weight', type: 'numeric(6,2)', flags: ['NOT NULL'], default: '1', note: 'Peso da etapa no avanço consolidado do projeto.' },
         { name: 'position', type: 'integer', flags: ['NOT NULL'], default: '0', note: 'Ordem no organograma; preenchida sozinha na inclusão.' },
-        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL' },
+        { name: 'created_by', type: 'uuid', flags: ['FK'], ref: 'profiles(id)', onDelete: 'SET NULL', note: 'Autor do cadastro — pode excluir a própria etapa.' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
         { name: 'updated_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
       ],
@@ -494,7 +493,7 @@ const SCHEMA = {
       domain: 'governanca',
       description:
         'Trilha de auditoria preenchida por trigger genérico em projects, tasks, project_members, checklist_items, milestones, risks, time_entries, attachments e profiles.',
-      rls: 'Somente leitura, restrita a administrador e gerente. Escrita apenas pelo trigger tg_audit() (SECURITY DEFINER).',
+      rls: 'Somente leitura, restrita a administrador e analista. Escrita apenas pelo trigger tg_audit() (SECURITY DEFINER).',
       columns: [
         { name: 'id', type: 'bigint', flags: ['PK'], default: 'GENERATED ALWAYS AS IDENTITY' },
         { name: 'table_name', type: 'text', flags: ['NOT NULL'] },
@@ -538,8 +537,8 @@ const SCHEMA = {
     {
       name: 'v_project_stages',
       description:
-        'Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso e sinalização de etapa atrasada.',
-      usedBy: 'Organograma de etapas, linha do tempo e relatório de etapas.',
+        'Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso, sinalização de etapa atrasada e o autor do cadastro (created_by).',
+      usedBy: 'Organograma de etapas, kanban de etapas, linha do tempo e relatório de etapas.',
     },
     {
       name: 'v_exec_financials',
@@ -551,7 +550,7 @@ const SCHEMA = {
   functions: [
     { name: 'current_app_role()', kind: 'RLS', description: 'Papel do usuário logado. SECURITY DEFINER para evitar recursão nas policies.' },
     { name: 'is_admin()', kind: 'RLS', description: 'Verdadeiro para administrador.' },
-    { name: 'is_manager()', kind: 'RLS', description: 'Verdadeiro para administrador e gerente — quem enxerga todo o portfólio.' },
+    { name: 'is_manager()', kind: 'RLS', description: 'Verdadeiro para administrador e analista — quem enxerga todo o portfólio.' },
     { name: 'is_project_member(uuid)', kind: 'RLS', description: 'Membro, dono ou criador do projeto.' },
     { name: 'can_read_project(uuid)', kind: 'RLS', description: 'Gestão ou membro. Usada por todas as tabelas filhas.' },
     { name: 'can_manage_project(uuid)', kind: 'RLS', description: 'Gestão, dono ou líder que participa da equipe.' },
@@ -617,7 +616,7 @@ const SCHEMA = {
 
   roles: [
     { role: 'Administrador', scope: 'Acesso total. Único que exclui projetos e altera perfis de acesso.' },
-    { role: 'Gerente', scope: 'Enxerga e gerencia todo o portfólio; lê a trilha de auditoria.' },
+    { role: 'Analista', scope: 'Enxerga e gerencia todo o portfólio; lê a trilha de auditoria. É o perfil de quem se cadastra pela tela de criar conta.' },
     { role: 'Líder', scope: 'Gerencia integralmente os projetos em que participa.' },
     { role: 'Colaborador', scope: 'Enxerga apenas os projetos da sua equipe; edita as tarefas atribuídas a si ou criadas por si.' },
   ],

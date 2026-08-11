@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, TrendingDown, TrendingUp } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -28,6 +29,8 @@ interface KpiCardProps {
   progress?: number | null;
   trend?: { value: number; label?: string } | null;
   index?: number;
+  /** Destino ao clicar — normalmente o portfólio já filtrado pelo indicador. */
+  href?: string;
 }
 
 export function KpiCard({
@@ -39,6 +42,7 @@ export function KpiCard({
   progress,
   trend,
   index = 0,
+  href,
 }: KpiCardProps) {
   const palette = TONES[tone];
 
@@ -47,17 +51,40 @@ export function KpiCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, delay: Math.min(index * 0.04, 0.24) }}
+      className="h-full"
     >
-      <Card className="group relative overflow-hidden p-5 transition-shadow hover:shadow-card-hover">
+      <Card
+        className={cn(
+          'group relative h-full overflow-hidden p-5 transition-shadow hover:shadow-card-hover',
+          href && 'focus-within:ring-2 focus-within:ring-ring',
+        )}
+      >
         <span className={cn('absolute inset-x-0 top-0 h-0.5', palette.accent)} aria-hidden />
+
+        {/* O link cobre o card inteiro; o conteúdo continua legível e selecionável. */}
+        {href && (
+          <Link
+            href={href}
+            className="absolute inset-0 z-10 rounded-xl focus:outline-none"
+            aria-label={`Ver ${label}`}
+          >
+            <span className="sr-only">Ver {label}</span>
+          </Link>
+        )}
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
             <p className="font-display text-3xl font-semibold tracking-tight">{value}</p>
           </div>
-          <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', palette.icon)}>
+          <span className={cn('relative flex size-10 shrink-0 items-center justify-center rounded-lg', palette.icon)}>
             <Icon className="size-5" aria-hidden />
+            {href && (
+              <ArrowUpRight
+                className="absolute -right-1 -top-1 size-3.5 rounded-full bg-card p-px opacity-0 transition-opacity group-hover:opacity-100"
+                aria-hidden
+              />
+            )}
           </span>
         </div>
 

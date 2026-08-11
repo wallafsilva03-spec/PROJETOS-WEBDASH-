@@ -23,12 +23,81 @@ import { useSession } from '@/hooks/use-session';
 import { useDebouncedValue } from '@/hooks/use-search';
 import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
 import { PROJECT_COLUMNS } from '@/lib/report-columns';
+import {
+  ALL,
+  healthFilterLabel,
+  healthList,
+  isDueWithin,
+  isHealthFilter,
+  isLate,
+  isStatusFilter,
+  statusFilterLabel,
+  statusList,
+  type HealthFilter,
+  type StatusFilter,
+} from '@/lib/project-filters';
 import { formatDate, formatDaysLabel, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { HealthStatus, ProjectStatus } from '@/types/database';
+import type { ProjectOverview } from '@/types/database';
 
-const ALL = '__all__';
 type ViewMode = 'grid' | 'table';
+type Sort = NonNullable<ProjectFilters['sort']>;
+
+const SORTS: Sort[] = ['due_date', 'progress', 'priority', 'name', 'created_at'];
+
+/**
+ * Atalhos de estado do portfólio. São a resposta ao "cliquei em atrasados e
+ * quero ver só os atrasados": cada card leva o mesmo conjunto que ele conta.
+ */
+const STATE_TILES: {
+  key: string;
+  label: string;
+  hint: string;
+  tone: string;
+  match: (project: ProjectOverview) => boolean;
+  filters: { status?: StatusFilter; saude?: HealthFilter; prazo?: number };
+}[] = [
+  {
+    key: 'todos',
+    label: 'Todos',
+    hint: 'Portfólio completo',
+    tone: 'text-foreground',
+    match: () => true,
+    filters: {},
+  },
+  {
+    key: 'em_atraso',
+    label: 'Em atraso',
+    hint: 'Atrasados e críticos',
+    tone: 'text-destructive',
+    match: (project) => isLate(project),
+    filters: { saude: 'em_atraso' },
+  },
+  {
+    key: 'em_risco',
+    label: 'Em risco',
+    hint: 'Execução abaixo do previsto',
+    tone: 'text-warning',
+    match: (project) => project.health === 'em_risco',
+    filters: { saude: 'em_risco' },
+  },
+  {
+    key: 'no_previsto',
+    label: 'Dentro do previsto',
+    hint: 'No prazo ou adiantados',
+    tone: 'text-success',
+    match: (project) => project.health === 'no_prazo' || project.health === 'adiantado',
+    filters: { saude: 'no_previsto' },
+  },
+  {
+    key: 'vence_7',
+    label: 'Vencem em 7 dias',
+    hint: 'Prazo próximo, ainda em aberto',
+    tone: 'text-warning',
+    match: (project) => isDueWithin(project, 7),
+    filters: { prazo: 7 },
+  },
+];
 
 export function ProjectsView() {
   const router = useRouter();
@@ -38,19 +107,67 @@ export function ProjectsView() {
 
   const [dialogOpen, setDialogOpen] = React.useState(searchParams.get('novo') === '1');
   const [view, setView] = React.useState<ViewMode>('grid');
-  const [search, setSearch] = React.useState('');
-  const [status, setStatus] = React.useState<ProjectStatus | typeof ALL>(ALL);
-  const [health, setHealth] = React.useState<HealthStatus | typeof ALL>(ALL);
-  const [departmentId, setDepartmentId] = React.useState<string>(ALL);
-  const [sort, setSort] = React.useState<NonNullable<ProjectFilters['sort']>>('due_date');
 
+  /* ------------------------------------------------------------ URL → filtros
+   * A tela inteira é dirigida pela URL: o clique em um indicador do dashboard,
+   * em um card de estado ou em um analista chega aqui como parâmetro, e o
+   * endereço continua compartilhável.
+   */
+  const rawStatus = searchParams.get('status') ?? ALL;
+  const rawHealth = searchParams.get('saude') ?? ALL;
+  const status: StatusFilter = isStatusFilter(rawStatus) ? rawStatus : ALL;
+  const health: HealthFilter = isHealthFilter(rawHealth) ? rawHealth : ALL;
+  const departmentId = searchParams.get('depto') ?? ALL;
+  const responsible = searchParams.get('responsavel') ?? '';
+  const dueWithin = Number(searchParams.get('prazo')) || 0;
+  const rawSort = searchParams.get('ordenar') ?? '';
+  const sort: Sort = (SORTS as string[]).includes(rawSort) ? (rawSort as Sort) : 'due_date';
+
+  const [search, setSearch] = React.useState(searchParams.get('busca') ?? '');
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  /** Escreve os filtros na URL preservando o que não foi tocado. */
+  const setParams = React.useCallback(
+    (patch: Record<string, string | number | undefined | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      Object.entries(patch).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '' || value === ALL || value === 0) {
+          params.delete(key);
+        } else {
+          params.set(key, String(value));
+        }
+      });
+      params.delete('novo');
+
+      const query = params.toString();
+      router.replace(query ? `/projetos?${query}` : '/projetos', { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // A busca é digitada, então só vai para a URL depois do debounce.
+  React.useEffect(() => {
+    const current = searchParams.get('busca') ?? '';
+    if (debouncedSearch === current) return;
+    setParams({ busca: debouncedSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  function applyState(filters: { status?: StatusFilter; saude?: HealthFilter; prazo?: number }) {
+    setParams({
+      status: filters.status ?? ALL,
+      saude: filters.saude ?? ALL,
+      prazo: filters.prazo ?? 0,
+    });
+  }
+
+  /* ---------------------------------------------------------------- Consultas */
   const filters = React.useMemo<ProjectFilters>(
     () => ({
       search: debouncedSearch || undefined,
-      status: status === ALL ? undefined : [status],
-      health: health === ALL ? undefined : [health],
+      status: statusList(status),
+      health: healthList(health),
       departmentId: departmentId === ALL ? undefined : departmentId,
       sort,
     }),
@@ -58,19 +175,64 @@ export function ProjectsView() {
   );
 
   const { data, isLoading, isError, refetch } = useProjects(filters);
-  const projects = data ?? [];
-  const hasFilters = Boolean(debouncedSearch) || status !== ALL || health !== ALL || departmentId !== ALL;
+
+  // Lista sem filtro nenhum: alimenta a contagem dos cards de estado, que
+  // precisa continuar mostrando o portfólio inteiro mesmo com filtro ativo.
+  const all = useProjects({ sort: 'due_date' });
+
+  const projects = React.useMemo(() => {
+    let list = data ?? [];
+    // Responsável e prazo são resolvidos aqui: o primeiro depende de uma
+    // coluna que bancos antigos não têm, e o segundo é derivado da data.
+    if (responsible) {
+      const wanted = responsible.toLowerCase();
+      list = list.filter(
+        (project) =>
+          project.owner_name?.toLowerCase() === wanted ||
+          (project.responsibles ?? []).some((name) => name.toLowerCase() === wanted),
+      );
+    }
+    if (dueWithin) list = list.filter((project) => isDueWithin(project, dueWithin));
+    return list;
+  }, [data, responsible, dueWithin]);
+
+  const counts = React.useMemo(() => {
+    const list = all.data ?? [];
+    const byState = Object.fromEntries(
+      STATE_TILES.map((tile) => [tile.key, list.filter(tile.match).length]),
+    ) as Record<string, number>;
+    const byStatus = PROJECT_STATUS_OPTIONS.map((option) => ({
+      ...option,
+      total: list.filter((project) => project.status === option.value).length,
+    }));
+    return { byState, byStatus };
+  }, [all.data]);
+
+  /** O card fica marcado quando os filtros da tela são exatamente os dele. */
+  function isActiveTile(tile: (typeof STATE_TILES)[number]) {
+    return (
+      (tile.filters.status ?? ALL) === status &&
+      (tile.filters.saude ?? ALL) === health &&
+      (tile.filters.prazo ?? 0) === dueWithin
+    );
+  }
+
+  const hasFilters =
+    Boolean(debouncedSearch) ||
+    status !== ALL ||
+    health !== ALL ||
+    departmentId !== ALL ||
+    Boolean(responsible) ||
+    Boolean(dueWithin);
 
   function clearFilters() {
     setSearch('');
-    setStatus(ALL);
-    setHealth(ALL);
-    setDepartmentId(ALL);
+    router.replace('/projetos', { scroll: false });
   }
 
   function handleDialogChange(open: boolean) {
     setDialogOpen(open);
-    if (!open && searchParams.get('novo')) router.replace('/projetos');
+    if (!open && searchParams.get('novo')) setParams({});
   }
 
   return (
@@ -98,6 +260,35 @@ export function ProjectsView() {
         }
       />
 
+      {/* Estados do portfólio — cada card é um filtro de um clique. */}
+      <section aria-label="Estados do portfólio" className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        {STATE_TILES.map((tile) => {
+          const active = isActiveTile(tile);
+
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              onClick={() => applyState(tile.filters)}
+              aria-pressed={active}
+              className={cn(
+                'rounded-xl border bg-card p-4 text-left transition-all hover:shadow-card-hover',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                active && 'border-primary ring-1 ring-primary',
+              )}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {tile.label}
+              </p>
+              <p className={cn('font-display text-2xl font-semibold', tile.tone)}>
+                {all.isLoading ? '—' : counts.byState[tile.key]}
+              </p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{tile.hint}</p>
+            </button>
+          );
+        })}
+      </section>
+
       <Card className="p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
@@ -112,12 +303,14 @@ export function ProjectsView() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:items-center">
-            <Select value={status} onValueChange={(value) => setStatus(value as ProjectStatus | typeof ALL)}>
+            <Select value={status} onValueChange={(value) => setParams({ status: value, prazo: 0 })}>
               <SelectTrigger className="lg:w-44" aria-label="Filtrar por status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Todos os status</SelectItem>
+                <SelectItem value="ativos">{statusFilterLabel('ativos')}</SelectItem>
+                <SelectItem value="encerrados">{statusFilterLabel('encerrados')}</SelectItem>
                 {PROJECT_STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -126,12 +319,13 @@ export function ProjectsView() {
               </SelectContent>
             </Select>
 
-            <Select value={health} onValueChange={(value) => setHealth(value as HealthStatus | typeof ALL)}>
+            <Select value={health} onValueChange={(value) => setParams({ saude: value, prazo: 0 })}>
               <SelectTrigger className="lg:w-40" aria-label="Filtrar por saúde">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Toda saúde</SelectItem>
+                <SelectItem value="em_atraso">{healthFilterLabel('em_atraso')}</SelectItem>
                 {Object.entries(HEALTH_META).map(([value, meta]) => (
                   <SelectItem key={value} value={value}>
                     {meta.label}
@@ -140,7 +334,7 @@ export function ProjectsView() {
               </SelectContent>
             </Select>
 
-            <Select value={departmentId} onValueChange={setDepartmentId}>
+            <Select value={departmentId} onValueChange={(value) => setParams({ depto: value })}>
               <SelectTrigger className="lg:w-48" aria-label="Filtrar por departamento">
                 <SelectValue />
               </SelectTrigger>
@@ -154,7 +348,7 @@ export function ProjectsView() {
               </SelectContent>
             </Select>
 
-            <Select value={sort} onValueChange={(value) => setSort(value as typeof sort)}>
+            <Select value={sort} onValueChange={(value) => setParams({ ordenar: value })}>
               <SelectTrigger className="lg:w-44" aria-label="Ordenar">
                 <SlidersHorizontal className="mr-1 size-3.5 opacity-60" />
                 <SelectValue />
@@ -191,11 +385,44 @@ export function ProjectsView() {
           </div>
         </div>
 
+        {/* Contagem por status — o portfólio inteiro, um clique por estado. */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3">
+          {counts.byStatus.map((option) => {
+            const active = status === option.value;
+            const meta = PROJECT_STATUS_META[option.value];
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setParams({ status: active ? ALL : option.value, prazo: 0 })}
+                aria-pressed={active}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  active ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary hover:text-primary',
+                  !option.total && 'opacity-50',
+                )}
+              >
+                <span className={cn('size-1.5 rounded-full', meta.dot)} aria-hidden />
+                {option.label}
+                <span className="text-muted-foreground">{option.total}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {hasFilters && (
-          <div className="mt-3 flex items-center gap-2 border-t pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
             <span className="text-xs text-muted-foreground">
               {projects.length} projeto(s) com os filtros aplicados
             </span>
+            {responsible && (
+              <Badge variant="soft" className="bg-gradient-brand-soft text-foreground">
+                Responsável: {responsible}
+              </Badge>
+            )}
+            {Boolean(dueWithin) && <Badge variant="warning">Vencem em {dueWithin} dia(s)</Badge>}
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="size-3.5" />
               Limpar filtros
@@ -292,7 +519,11 @@ export function ProjectsView() {
                         {PRIORITY_META[project.priority].label}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{project.owner_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {project.responsibles?.length
+                        ? project.responsibles.join(', ')
+                        : (project.owner_name ?? '—')}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="block">{formatDate(project.due_date)}</span>
                       <span

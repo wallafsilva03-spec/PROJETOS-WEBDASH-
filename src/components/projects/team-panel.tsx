@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useProfiles } from '@/hooks/use-catalogs';
 import { useProjectMemberMutations, useProjectMembers } from '@/hooks/use-projects';
-import { ROLE_META } from '@/lib/constants';
+import { roleMeta } from '@/lib/constants';
 
 export function TeamPanel({ projectId, canManage }: { projectId: string; canManage: boolean }) {
   const { data, isLoading } = useProjectMembers(projectId);
@@ -60,7 +60,7 @@ export function TeamPanel({ projectId, canManage }: { projectId: string; canMana
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{member.profile?.full_name ?? 'Usuário'}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {member.profile?.job_title ?? (member.profile ? ROLE_META[member.profile.role].label : '—')}
+                    {member.profile?.job_title ?? (member.profile ? roleMeta(member.profile.role).label : '—')}
                   </p>
                 </div>
                 <Badge variant="outline" className="shrink-0 capitalize">

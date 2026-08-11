@@ -26,7 +26,13 @@ as $$
   select coalesce((select p.role = 'administrador' from public.profiles p where p.id = auth.uid()), false);
 $$;
 
--- Administrador e Gerente enxergam o portfólio inteiro.
+-- Administrador e Analista (o antigo Gerente) enxergam o portfólio inteiro.
+--
+-- A comparação é feita com `role::text` de propósito: a migration 11 troca o
+-- rótulo `gerente` por `analista`, e um literal de enum aqui faria esta
+-- migration parar de carregar em banco já migrado — quebrando a promessa de
+-- que o setup.sql pode ser executado quantas vezes for preciso. A versão
+-- final desta função está na migration 11.
 create or replace function public.is_manager()
 returns boolean
 language sql
@@ -35,7 +41,11 @@ security definer
 set search_path = public
 as $$
   select coalesce(
-    (select p.role in ('administrador', 'gerente') from public.profiles p where p.id = auth.uid()),
+    (
+      select p.role::text in ('administrador', 'gerente', 'analista')
+      from public.profiles p
+      where p.id = auth.uid()
+    ),
     false
   );
 $$;

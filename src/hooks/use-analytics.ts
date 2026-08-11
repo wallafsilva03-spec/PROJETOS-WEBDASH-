@@ -161,7 +161,7 @@ export function useBurnSeries(projectId: string) {
   });
 }
 
-/** Trilha de auditoria — restrita a administradores e gerentes pela RLS. */
+/** Trilha de auditoria — restrita a administradores e analistas pela RLS. */
 export function useAuditLog(params: { table?: string; recordId?: string; limit?: number } = {}) {
   const { table, recordId, limit = 100 } = params;
 

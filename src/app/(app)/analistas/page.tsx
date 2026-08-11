@@ -3,14 +3,14 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/constants';
-import { ExecutivoView } from './executivo-view';
+import { AnalistasView } from './analistas-view';
 
 export const metadata: Metadata = {
-  title: 'Dashboard Executivo',
-  description: 'KPIs de portfólio para a diretoria: fluxo, saúde, distribuição e projetos críticos.',
+  title: 'Gestão por analista',
+  description: 'Projetos, prazos e atrasos de cada responsável — visão exclusiva da administração.',
 };
 
-export default async function ExecutivoPage() {
+export default async function AnalistasPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,12 +25,11 @@ export default async function ExecutivoPage() {
     .eq('id', user.id)
     .maybeSingle();
 
-  // A RLS já limita os dados; o guard evita expor a tela a quem não é gestão.
-  // Perfil ainda não criado é tratado como sem permissão, não como erro.
-  const role = normalizeRole(profile?.role);
-  if (role !== 'administrador' && role !== 'analista') {
+  // Acompanhamento pessoa a pessoa é só da administração. Perfil ainda não
+  // criado é tratado como sem permissão, não como erro.
+  if (normalizeRole(profile?.role) !== 'administrador') {
     redirect('/dashboard');
   }
 
-  return <ExecutivoView />;
+  return <AnalistasView />;
 }

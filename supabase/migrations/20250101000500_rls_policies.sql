@@ -76,10 +76,12 @@ create policy projects_select on public.projects
   for select to authenticated
   using (public.is_manager() or public.is_project_member(id));
 
+-- Como em `is_manager()`, a comparação é textual para esta migration
+-- continuar carregando depois que a 11 renomeia `gerente` para `analista`.
 drop policy if exists projects_insert on public.projects;
 create policy projects_insert on public.projects
   for insert to authenticated
-  with check (public.current_app_role() in ('administrador', 'gerente', 'lider'));
+  with check (public.current_app_role()::text in ('administrador', 'gerente', 'analista', 'lider'));
 
 drop policy if exists projects_update on public.projects;
 create policy projects_update on public.projects

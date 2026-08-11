@@ -24,6 +24,8 @@ interface CatalogFieldProps {
   emptyLabel: string;
   placeholder: string;
   loading?: boolean;
+  /** Sem isto, o campo só escolhe: nada de cadastrar nem de apagar. */
+  canEditCatalog?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export function CatalogField({
   emptyLabel,
   placeholder,
   loading,
+  canEditCatalog = true,
 }: CatalogFieldProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState('');
@@ -92,6 +95,7 @@ export function CatalogField({
       </PopoverTrigger>
 
       <PopoverContent align="start" className="w-72 p-0">
+        {canEditCatalog && (
         <div className="flex gap-1.5 border-b p-2">
           <Input
             value={draft}
@@ -120,6 +124,7 @@ export function CatalogField({
             <Plus className="size-4" />
           </Button>
         </div>
+        )}
 
         <ul className="max-h-64 overflow-y-auto p-1 scrollbar-thin">
           <li>
@@ -155,21 +160,25 @@ export function CatalogField({
                 <span className="truncate">{option.name}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => onDelete(option.id)}
-                className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                aria-label={`Remover ${option.name} do catálogo`}
-                title="Remover do catálogo"
-              >
-                <X className="size-3.5" />
-              </button>
+              {canEditCatalog && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(option.id)}
+                  className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={`Remover ${option.name} do catálogo`}
+                  title="Remover do catálogo"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
             </li>
           ))}
 
           {!loading && options.length === 0 && (
             <li className="px-2 py-3 text-center text-xs text-muted-foreground">
-              Nada cadastrado ainda — escreva acima para criar.
+              {canEditCatalog
+                ? 'Nada cadastrado ainda — escreva acima para criar.'
+                : 'Nada cadastrado ainda.'}
             </li>
           )}
         </ul>

@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
-import { ROLE_META } from '@/lib/constants';
+import { roleMeta } from '@/lib/constants';
 import { useSession } from '@/hooks/use-session';
 
 export function UserMenu() {
@@ -60,7 +60,7 @@ export function UserMenu() {
           </div>
           {profile && (
             <Badge variant="soft" className="mt-1 bg-gradient-brand-soft text-foreground">
-              {ROLE_META[profile.role].label}
+              {roleMeta(profile.role).label}
             </Badge>
           )}
         </DropdownMenuLabel>

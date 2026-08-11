@@ -38,7 +38,12 @@ function departmentCode(name: string) {
   return slug || 'DEPTO';
 }
 
-/** Criar e apagar departamentos direto do formulário de projeto. */
+/**
+ * Criar e apagar departamentos direto do formulário de projeto.
+ *
+ * Continua valendo a regra de sempre: só administrador e analista escrevem no
+ * catálogo de departamentos. A tela esconde os botões de quem não pode.
+ */
 export function useDepartmentMutations() {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: qk.departments });
@@ -46,10 +51,6 @@ export function useDepartmentMutations() {
   const add = useMutation({
     mutationFn: async (name: string): Promise<Department> => {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       const base = departmentCode(name);
 
       // `code` é único. Se já existe um departamento com o mesmo código
@@ -57,7 +58,7 @@ export function useDepartmentMutations() {
       for (const suffix of ['', '2', '3', '4']) {
         const { data, error } = await supabase
           .from('departments')
-          .insert({ name: name.trim(), code: `${base}${suffix}`, created_by: user?.id })
+          .insert({ name: name.trim(), code: `${base}${suffix}` })
           .select()
           .single();
 
@@ -82,7 +83,7 @@ export function useDepartmentMutations() {
       if (error) throw error;
       // Sem linhas devolvidas a RLS barrou a exclusão — e o PostgREST responde
       // sucesso mesmo assim.
-      if (!data?.length) throw new Error('Só quem criou o departamento, ou a gestão, pode removê-lo.');
+      if (!data?.length) throw new Error('Só administrador e analista podem remover departamentos.');
     },
     onSuccess: () => {
       invalidate();
@@ -153,7 +154,7 @@ export function useResponsibleMutations() {
 
       const { data, error } = await createClient().from('responsibles').delete().eq('id', id).select('id');
       if (error) throw error;
-      if (!data?.length) throw new Error('Só quem criou a opção, ou a gestão, pode removê-la.');
+      if (!data?.length) throw new Error('Só administrador e analista podem remover opções do catálogo.');
     },
     onSuccess: () => {
       invalidate();

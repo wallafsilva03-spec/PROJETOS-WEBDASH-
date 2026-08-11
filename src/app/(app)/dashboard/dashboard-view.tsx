@@ -30,6 +30,7 @@ import { useMyTasks } from '@/hooks/use-tasks';
 import { useSession } from '@/hooks/use-session';
 import { formatDate, formatDaysLabel, formatHours, formatNumber, formatPercent } from '@/lib/format';
 import { PRIORITY_META } from '@/lib/constants';
+import { portfolioHref } from '@/lib/project-filters';
 import { cn } from '@/lib/utils';
 
 export function DashboardView() {
@@ -77,6 +78,7 @@ export function DashboardView() {
               icon={FolderKanban}
               tone="brand"
               hint={`${formatNumber(data?.projetos_concluidos)} concluídos no total`}
+              href={portfolioHref({ status: 'ativos' })}
             />
             <KpiCard
               index={1}
@@ -85,6 +87,7 @@ export function DashboardView() {
               icon={AlertTriangle}
               tone={data?.projetos_atrasados ? 'danger' : 'green'}
               hint="Prazo final ultrapassado"
+              href={portfolioHref({ saude: 'em_atraso' })}
             />
             <KpiCard
               index={2}
@@ -93,6 +96,7 @@ export function DashboardView() {
               icon={Gauge}
               tone={data?.projetos_em_risco ? 'warning' : 'green'}
               hint="Execução abaixo do previsto"
+              href={portfolioHref({ saude: 'em_risco' })}
             />
             <KpiCard
               index={3}
@@ -101,6 +105,7 @@ export function DashboardView() {
               icon={AlarmClock}
               tone="lime"
               hint="Próximos do vencimento"
+              href={portfolioHref({ prazo: 7 })}
             />
             <KpiCard
               index={4}
@@ -189,7 +194,7 @@ export function DashboardView() {
                   Projetos que exigem atenção
                 </CardTitle>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/projetos">Ver todos</Link>
+                  <Link href={portfolioHref({ saude: 'atencao' })}>Ver todos</Link>
                 </Button>
               </CardHeader>
               <CardContent>

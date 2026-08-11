@@ -148,6 +148,10 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Manifesto da marca em movimento** — FORTALECER, CONECTAR e CRESCER entram um por vez e a
+  assinatura **JEITO MORENO DE SER** fecha o ciclo, que recomeça sozinho. Em painel na tela de
+  login e como letreiro de uma linha no rodapé da barra lateral. É CSS puro: os elementos dividem
+  o mesmo laço de 9s e só mudam de atraso, então nunca saem de compasso.
 
 ### Inteligência do projeto (calculada no banco)
 

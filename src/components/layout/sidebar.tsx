@@ -8,6 +8,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
 import { Logo, LogoMark } from '@/components/brand/logo';
+import { BrandManifestoInline } from '@/components/brand/manifesto';
 import { Hint } from '@/components/ui/misc';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-session';
@@ -107,10 +108,8 @@ export function Sidebar({
       {!collapsed && (
         <div className="relative border-t border-sidebar-border p-4">
           <div className="rounded-lg bg-white/5 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-accent">
-              Fortalecer · Conectar · Crescer
-            </p>
-            <p className="mt-1 text-xs text-sidebar-muted">
+            <BrandManifestoInline />
+            <p className="mt-1.5 text-xs text-sidebar-muted">
               Plataforma interna de gestão de projetos do Grupo Moreno.
             </p>
           </div>

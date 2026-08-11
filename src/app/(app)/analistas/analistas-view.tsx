@@ -26,7 +26,7 @@ import { Switch } from '@/components/ui/misc';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { useProjects } from '@/hooks/use-projects';
-import { useProfiles } from '@/hooks/use-catalogs';
+import { useDepartments, useProfiles } from '@/hooks/use-catalogs';
 import { useDebouncedValue } from '@/hooks/use-search';
 import { HEALTH_META, PROJECT_STATUS_META, PROJECT_STATUS_OPTIONS, ROLE_META } from '@/lib/constants';
 import { ANALYST_COLUMNS } from '@/lib/report-columns';
@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils';
 import type { ProjectStatus } from '@/types/database';
 
 /** Linha de um analista — recolhida por padrão, expandida para ver projetos. */
-function AnalystRow({ analyst }: { analyst: AnalystSummary }) {
+function AnalystRow({ analyst, departmentId }: { analyst: AnalystSummary; departmentId: string }) {
   const [open, setOpen] = React.useState(false);
   const late = analyst.atrasados > 0;
 
@@ -113,7 +113,7 @@ function AnalystRow({ analyst }: { analyst: AnalystSummary }) {
         </div>
 
         <Button variant="ghost" size="sm" asChild className="lg:shrink-0">
-          <Link href={portfolioHref({ responsavel: analyst.name })}>
+          <Link href={portfolioHref({ responsavel: analyst.name, depto: departmentId })}>
             <ExternalLink className="size-3.5" />
             No portfólio
           </Link>
@@ -208,22 +208,36 @@ function AnalystRow({ analyst }: { analyst: AnalystSummary }) {
 export function AnalistasView() {
   const projects = useProjects({ sort: 'due_date' });
   const profiles = useProfiles();
+  const departments = useDepartments();
 
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState<StatusFilter>(ALL);
+  const [departmentId, setDepartmentId] = React.useState<string>(ALL);
   const [onlyLate, setOnlyLate] = React.useState(false);
   const [showIdle, setShowIdle] = React.useState(true);
 
   const debouncedSearch = useDebouncedValue(search, 250);
 
-  const analysts = React.useMemo(() => {
+  /**
+   * Status e departamento recortam os **projetos** antes do agrupamento, e não
+   * a lista de analistas depois dele. É o que faz "departamento X" responder
+   * "como cada responsável está indo dentro do departamento X" — os números da
+   * linha passam a contar só os projetos daquele setor.
+   */
+  const filtered = React.useMemo(() => {
     const allowed = statusList(status);
-    const list = (projects.data ?? []).filter(
-      (project) => !allowed || allowed.includes(project.status as ProjectStatus),
-    );
 
-    return buildAnalystSummaries(list, profiles.data ?? []);
-  }, [projects.data, profiles.data, status]);
+    return (projects.data ?? []).filter((project) => {
+      if (allowed && !allowed.includes(project.status as ProjectStatus)) return false;
+      if (departmentId !== ALL && project.department_id !== departmentId) return false;
+      return true;
+    });
+  }, [projects.data, status, departmentId]);
+
+  const analysts = React.useMemo(
+    () => buildAnalystSummaries(filtered, profiles.data ?? []),
+    [filtered, profiles.data],
+  );
 
   const visible = React.useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
@@ -243,10 +257,10 @@ export function AnalistasView() {
     return {
       pessoas: comProjeto.length,
       comAtraso: comAtraso.length,
-      projetosAtrasados: (projects.data ?? []).filter(isLate).length,
+      projetosAtrasados: filtered.filter(isLate).length,
       semResponsavel: semResponsavel?.total ?? 0,
     };
-  }, [analysts, projects.data]);
+  }, [analysts, filtered]);
 
   return (
     <div className="space-y-5">
@@ -289,7 +303,7 @@ export function AnalistasView() {
           icon={Timer}
           tone={summary.projetosAtrasados ? 'danger' : 'green'}
           hint="Atrasados e críticos no portfólio"
-          href={portfolioHref({ saude: 'em_atraso' })}
+          href={portfolioHref({ saude: 'em_atraso', depto: departmentId })}
         />
         <KpiCard
           index={3}
@@ -335,6 +349,20 @@ export function AnalistasView() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={departmentId} onValueChange={setDepartmentId}>
+              <SelectTrigger className="sm:w-52" aria-label="Filtrar por departamento">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todos os departamentos</SelectItem>
+                {departments.data?.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
 
@@ -365,7 +393,7 @@ export function AnalistasView() {
           ) : (
             <ul className="-mx-6 divide-y border-y">
               {visible.map((analyst) => (
-                <AnalystRow key={analyst.key} analyst={analyst} />
+                <AnalystRow key={analyst.key} analyst={analyst} departmentId={departmentId} />
               ))}
             </ul>
           )}

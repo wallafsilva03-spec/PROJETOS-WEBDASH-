@@ -78,6 +78,19 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<TaskWithRelations | null>(null);
 
+  /**
+   * As abas são controladas para o botão "Anexar arquivo" do cabeçalho poder
+   * abrir a de arquivos direto — são catorze abas, e procurar a certa não é
+   * trabalho de quem só quer subir um documento.
+   */
+  const [tab, setTab] = React.useState('kanban');
+  const tabsRef = React.useRef<HTMLDivElement>(null);
+
+  function openTab(value: string) {
+    setTab(value);
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   const tasks = React.useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const canManage = isManager || project?.owner_id === profile?.id;
 
@@ -151,6 +164,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               title={`Cronograma · ${project.name}`}
               subtitle={`${project.code} — responsável: ${project.owner_name ?? '—'}`}
             />
+            <Button variant="outline" onClick={() => openTab('arquivos')}>
+              <Paperclip className="size-4" />
+              Anexar arquivo
+            </Button>
             {canManage && (
               <Button variant="brand" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
@@ -320,8 +337,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <ViabilityCard project={project} />
       </section>
 
-      <Tabs defaultValue="kanban">
-        <TabsList className="w-full justify-start overflow-x-auto">
+      <Tabs value={tab} onValueChange={setTab} ref={tabsRef}>
+        {/*
+          As abas quebram linha em vez de rolarem na horizontal. A lista tem
+          catorze itens e a barra de rolagem é escondida por estilo, então o
+          que passava da largura da tela — Arquivos, Equipe, Comentários —
+          simplesmente não existia para quem olhava.
+        */}
+        <TabsList className="h-auto w-full flex-wrap justify-start overflow-x-visible">
           <TabsTrigger value="kanban">
             <KanbanSquare /> Kanban
           </TabsTrigger>

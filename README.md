@@ -132,8 +132,9 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
 - **Calendário** — visões diária, semanal e mensal.
 - **Workload** — capacidade × alocação, disponibilidade e sobrecarga por analista, com busca e
   filtro de departamento.
-- **Arquivos** — tela dedicada para anexar documentos a um projeto escolhido em campo suspenso
-  (o mesmo painel da aba *Arquivos* do projeto).
+- **Arquivos** — botão **Anexar arquivo** no cabeçalho do projeto, que abre a aba de anexos, e uma
+  tela dedicada em `/arquivos` para escolher o projeto em campo suspenso e subir documentos sem
+  entrar nele.
 - **Gestão por analista** — projetos agrupados por responsável, com todos os status, o que está em
   atraso e há quantos dias, execução média, desvio e horas estimadas × realizadas. Filtros de
   busca, status e **departamento** (campo suspenso), e cada linha abre a lista de projetos da

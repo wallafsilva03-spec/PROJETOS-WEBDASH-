@@ -52,9 +52,10 @@ export function DashboardView() {
         description="Panorama do portfólio corporativo atualizado em tempo real."
         actions={
           <>
-            {/* Abre em outra aba: a TV fica no mural e o navegador continua aqui. */}
+            {/* Mesma aba: a tela vira o mural e fica nele. A volta é pelo
+                botão de sair, dentro do próprio mural. */}
             <Button variant="outline" asChild>
-              <Link href="/tv" target="_blank" rel="noopener">
+              <Link href="/tv">
                 <MonitorPlay className="size-4" />
                 Modo TV
               </Link>

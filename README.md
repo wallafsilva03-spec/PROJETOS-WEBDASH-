@@ -148,11 +148,12 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
-- **Mural de indicadores (modo TV)** — tela de descanso em `/tv`, aberta pelo botão **Modo TV** do
-  dashboard. Seis lâminas girando sozinhas a cada 11s: panorama do portfólio em números grandes,
-  saúde por situação, projetos que exigem atenção, próximas entregas, gestão por analista e a marca.
-  Relógio, barra de tempo da lâmina, botão de tela cheia, cursor que some sozinho e dados que se
-  atualizam pelo Realtime — é feita para ficar ligada o dia inteiro sem ninguém tocar.
+- **Mural de indicadores (modo TV)** — botão **Modo TV** no rodapé da barra lateral (e no dashboard)
+  abre `/tv` e a tela passa a ser só o mural. Seis lâminas girando sozinhas a cada 11s: panorama do
+  portfólio em números grandes, saúde por situação, projetos que exigem atenção, próximas entregas,
+  gestão por analista e a marca. Relógio, barra de tempo da lâmina, tela cheia, cursor que some
+  sozinho, setas do teclado ou do controle da TV para passar as lâminas, botão de sair e dados que
+  se atualizam pelo Realtime — feita para ficar ligada o dia inteiro sem ninguém tocar.
 - **Manifesto da marca em movimento** — FORTALECER, CONECTAR e CRESCER entram um por vez e a
   assinatura **JEITO MORENO DE SER** fecha o ciclo, que recomeça sozinho. Em painel na tela de
   login e como letreiro de uma linha no rodapé da barra lateral. É CSS puro: os elementos dividem

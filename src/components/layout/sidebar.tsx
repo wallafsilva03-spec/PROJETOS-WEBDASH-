@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { MonitorPlay, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
 import { Logo, LogoMark } from '@/components/brand/logo';
@@ -103,6 +103,40 @@ export function Sidebar({
             })}
           </div>
         ))}
+      </div>
+
+      {/*
+        Modo TV fica fora das seções e colado no rodapé: não é um lugar do
+        sistema para onde se navega e se volta, é um jeito de deixar a tela
+        rodando. Some do fluxo do menu e continua à mão.
+      */}
+      <div className="relative border-t border-sidebar-border p-3">
+        {collapsed ? (
+          <Hint label="Modo TV">
+            <Link
+              href="/tv"
+              onClick={onNavigate}
+              className="flex items-center justify-center rounded-lg bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20"
+              aria-label="Abrir o modo TV"
+            >
+              <MonitorPlay className="size-5" />
+            </Link>
+          </Hint>
+        ) : (
+          <Link
+            href="/tv"
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2.5 text-white transition-colors hover:bg-white/20"
+          >
+            <MonitorPlay className="size-5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Modo TV</span>
+              <span className="block truncate text-[11px] text-sidebar-muted">
+                Indicadores girando no telão
+              </span>
+            </span>
+          </Link>
+        )}
       </div>
 
       {!collapsed && (

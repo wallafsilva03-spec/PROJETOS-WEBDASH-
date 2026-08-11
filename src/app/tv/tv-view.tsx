@@ -1,7 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, CalendarClock, Maximize, Minimize, ShieldCheck, Timer, UserCog } from 'lucide-react';
+import Link from 'next/link';
+import {
+  AlertTriangle,
+  CalendarClock,
+  LogOut,
+  Maximize,
+  Minimize,
+  ShieldCheck,
+  Timer,
+  UserCog,
+} from 'lucide-react';
 
 import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
 import { BrandManifesto } from '@/components/brand/manifesto';
@@ -520,6 +530,31 @@ export function TvView() {
     return () => clearTimeout(id);
   }, [index, total]);
 
+  /**
+   * Teclado — e, por tabela, o controle remoto: quase todo navegador de TV
+   * manda as setas do controle como setas do teclado, então dá para passar as
+   * lâminas sem chegar perto de um mouse.
+   */
+  React.useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const next = () => setIndex((current) => (current + 1) % total);
+      const previous = () => setIndex((current) => (current - 1 + total) % total);
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ') {
+        event.preventDefault();
+        next();
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        previous();
+      } else if (event.key.toLowerCase() === 'f') {
+        void toggleFullscreen();
+      }
+    }
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [total]);
+
   React.useEffect(() => {
     const id = setInterval(() => {
       void kpis.refetch();
@@ -607,17 +642,28 @@ export function TvView() {
 
         <div className="flex items-center gap-6">
           <Clock />
-          <button
-            type="button"
-            onClick={() => void toggleFullscreen()}
-            className={cn(
-              'rounded-xl bg-white/10 p-3 transition-opacity hover:bg-white/20',
-              idle && 'pointer-events-none opacity-0',
-            )}
-            aria-label={fullscreen ? 'Sair da tela cheia' : 'Entrar em tela cheia'}
-          >
-            {fullscreen ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
-          </button>
+
+          {/* Somem juntos quando o mouse para: na TV a tela fica só o mural. */}
+          <div className={cn('flex items-center gap-2 transition-opacity', idle && 'pointer-events-none opacity-0')}>
+            <button
+              type="button"
+              onClick={() => void toggleFullscreen()}
+              className="rounded-xl bg-white/10 p-3 hover:bg-white/20"
+              aria-label={fullscreen ? 'Sair da tela cheia' : 'Entrar em tela cheia'}
+              title="Tela cheia (F)"
+            >
+              {fullscreen ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
+            </button>
+
+            <Link
+              href="/dashboard"
+              className="rounded-xl bg-white/10 p-3 hover:bg-white/20"
+              aria-label="Sair do modo TV"
+              title="Sair do modo TV"
+            >
+              <LogOut className="size-5" />
+            </Link>
+          </div>
         </div>
       </header>
 

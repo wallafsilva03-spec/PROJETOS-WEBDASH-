@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
-import { describeDbError } from '@/lib/supabase/errors';
+import { describeDbError, describeStorageError } from '@/lib/supabase/errors';
 import { qk } from '@/lib/query-keys';
 import type {
   Attachment,
@@ -376,22 +376,32 @@ export function useAttachmentMutations(projectId: string) {
       const safeName = file.name.replace(/[^\w.\-]/g, '_');
       const path = `${projectId}/${crypto.randomUUID()}-${safeName}`;
 
+      // Sem sessão o Storage recusa e a RLS de `attachments` também: vale
+      // dizer isso antes de gastar a subida do arquivo.
+      if (!user) throw new Error('Sua sessão expirou. Recarregue a página e entre de novo.');
+
       const { error: uploadError } = await supabase.storage.from('project-files').upload(path, file, {
         cacheControl: '3600',
         upsert: false,
       });
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(describeStorageError(uploadError));
 
       const { error } = await supabase.from('attachments').insert({
         project_id: projectId,
         task_id: taskId ?? null,
-        uploader_id: user?.id,
+        uploader_id: user.id,
         storage_path: path,
         file_name: file.name,
         mime_type: file.type || null,
         size_bytes: file.size,
       });
-      if (error) throw error;
+
+      // O arquivo subiu mas a linha não entrou: sem isto sobra um objeto solto
+      // no bucket, que ninguém vê na tela e ninguém consegue apagar por ela.
+      if (error) {
+        await supabase.storage.from('project-files').remove([path]);
+        throw new Error(describeDbError(error, 'Não foi possível registrar o arquivo.'));
+      }
     },
     onSuccess: () => {
       invalidate();

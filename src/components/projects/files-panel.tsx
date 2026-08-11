@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, FileText, Image as ImageIcon, Paperclip, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, Download, FileText, Image as ImageIcon, Paperclip, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAttachmentMutations, useAttachments } from '@/hooks/use-project-details';
+import { describeStorageError } from '@/lib/supabase/errors';
 import { formatDateTime, formatFileSize } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Attachment } from '@/types/database';
@@ -31,7 +32,13 @@ export function FilesPanel({ projectId, taskId }: { projectId: string; taskId?: 
         toast.error(`${file.name} excede o limite de 50 MB.`);
         continue;
       }
-      await upload.mutateAsync({ file, taskId: taskId ?? null });
+
+      try {
+        await upload.mutateAsync({ file, taskId: taskId ?? null });
+      } catch {
+        // A mutation já mostra o motivo — aqui só impede que o primeiro erro
+        // engula os arquivos seguintes da seleção.
+      }
     }
   }
 
@@ -40,7 +47,7 @@ export function FilesPanel({ projectId, taskId }: { projectId: string; taskId?: 
       const url = await getSignedUrl(attachment);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      toast.error(`Não foi possível gerar o link: ${(error as Error).message}`);
+      toast.error(`Não foi possível gerar o link: ${describeStorageError(error)}`);
     }
   }
 
@@ -87,6 +94,24 @@ export function FilesPanel({ projectId, taskId }: { projectId: string; taskId?: 
         >
           Arraste arquivos aqui ou use o botão <strong>Enviar</strong>. Limite de 50 MB por arquivo.
         </div>
+
+        {/*
+          O motivo da recusa fica na tela, e não só no toast que some em três
+          segundos: quando o envio falha é justamente o texto do erro que diz
+          se falta o bucket, se falta permissão ou se a sessão caiu.
+        */}
+        {upload.isError && (
+          <div role="alert" className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+            <div className="min-w-0 space-y-1 text-sm">
+              <p className="font-medium text-destructive">Não foi possível enviar o arquivo</p>
+              <p className="break-words text-muted-foreground">{(upload.error as Error).message}</p>
+              <Button variant="outline" size="sm" onClick={() => upload.reset()}>
+                Entendi
+              </Button>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-2">

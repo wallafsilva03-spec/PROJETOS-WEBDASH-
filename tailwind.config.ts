@@ -215,6 +215,25 @@ const config: Config = {
           '25%': { opacity: '0', transform: 'translate3d(0, -100%, 0)' },
           '100%': { opacity: '0', transform: 'translate3d(0, -100%, 0)' },
         },
+        /**
+         * Entrada dos blocos do mural de TV. Roda uma vez por lâmina — a
+         * lâmina é remontada a cada troca, e isso basta para a animação
+         * recomeçar. O escalonamento vem do `animation-delay` de cada bloco.
+         */
+        'tv-rise': {
+          from: { opacity: '0', transform: 'translate3d(0, 32px, 0) scale(0.98)' },
+          to: { opacity: '1', transform: 'translate3d(0, 0, 0) scale(1)' },
+        },
+        /** Barra que mostra quanto falta para a próxima lâmina. */
+        'tv-progress': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        /** Respiro lento dos números grandes — a tela nunca fica totalmente parada. */
+        'tv-breathe': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0)' },
+          '50%': { transform: 'translate3d(0, -6px, 0)' },
+        },
         /** A assinatura chega abrindo as letras, não subindo como as palavras. */
         'reveal-phrase': {
           '0%': { opacity: '0', letterSpacing: '0.05em' },
@@ -240,6 +259,9 @@ const config: Config = {
         'reveal-word': 'reveal-word 9s ease-in-out infinite backwards',
         'reveal-phrase': 'reveal-phrase 9s ease-in-out infinite backwards',
         'roll-item': 'roll-item 9s ease-in-out infinite backwards',
+        'tv-rise': 'tv-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards',
+        'tv-progress': 'tv-progress linear forwards',
+        'tv-breathe': 'tv-breathe 7s ease-in-out infinite',
       },
     },
   },

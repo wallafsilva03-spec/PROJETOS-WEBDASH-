@@ -9,6 +9,7 @@ import {
   FolderKanban,
   Gauge,
   ListChecks,
+  MonitorPlay,
   Plus,
   Timer,
   TrendingUp,
@@ -50,14 +51,23 @@ export function DashboardView() {
         title={firstName ? `Olá, ${firstName}` : 'Dashboard'}
         description="Panorama do portfólio corporativo atualizado em tempo real."
         actions={
-          canCreateProject && (
-            <Button variant="brand" asChild>
-              <Link href="/projetos?novo=1">
-                <Plus className="size-4" />
-                Novo projeto
+          <>
+            {/* Abre em outra aba: a TV fica no mural e o navegador continua aqui. */}
+            <Button variant="outline" asChild>
+              <Link href="/tv" target="_blank" rel="noopener">
+                <MonitorPlay className="size-4" />
+                Modo TV
               </Link>
             </Button>
-          )
+            {canCreateProject && (
+              <Button variant="brand" asChild>
+                <Link href="/projetos?novo=1">
+                  <Plus className="size-4" />
+                  Novo projeto
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
 

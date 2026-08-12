@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Bell,
+  BellOff,
   CalendarClock,
   CheckCheck,
   ListChecks,
@@ -14,9 +15,10 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger, Separator } from '@/components/ui/misc';
+import { Popover, PopoverContent, PopoverTrigger, Separator, Switch } from '@/components/ui/misc';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useWebNotifications } from '@/hooks/use-web-notifications';
 import { formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/database';
@@ -46,6 +48,7 @@ export function NotificationsBell() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const { items, unreadCount, markAllRead, markRead, isLoading } = useNotifications();
+  const web = useWebNotifications();
 
   function openNotification(notification: Notification) {
     if (!notification.is_read) markRead.mutate(notification.id);
@@ -135,6 +138,39 @@ export function NotificationsBell() {
                 );
               })}
             </ul>
+          )}
+        </div>
+
+        <Separator />
+
+        {/*
+          O pedido da permissão precisa nascer de um clique — o navegador
+          ignora quem pede sozinho ao carregar a página, e uma recusa não pode
+          ser desfeita por código. Por isso o convite fica aqui, ao lado das
+          notificações, e não como um pop-up na entrada.
+        */}
+        <div className="px-4 py-3">
+          {web.permission === 'unsupported' ? (
+            <p className="text-[11px] text-muted-foreground">
+              Este navegador não avisa fora da aba.
+            </p>
+          ) : web.permission === 'denied' ? (
+            <p className="text-[11px] text-muted-foreground">
+              <BellOff className="mr-1 inline size-3" aria-hidden />
+              Avisos bloqueados neste navegador. Libere no cadeado da barra de endereço.
+            </p>
+          ) : web.permission === 'granted' ? (
+            <label className="flex cursor-pointer items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground">
+                Avisar no navegador quando eu estiver em outra aba
+              </span>
+              <Switch checked={web.enabled} onCheckedChange={web.setPreference} />
+            </label>
+          ) : (
+            <Button variant="outline" size="sm" className="w-full" onClick={() => void web.request()}>
+              <Bell className="size-3.5" />
+              Avisar mesmo em outra aba
+            </Button>
           )}
         </div>
       </PopoverContent>

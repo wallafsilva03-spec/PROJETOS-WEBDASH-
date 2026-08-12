@@ -148,6 +148,11 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Alertas** — o sino já reunia comentário, menção e tarefa atribuída; agora os alertas de **prazo
+  hoje**, **prazo amanhã** e **projeto atrasado** são gerados sozinhos todo dia às 08:00 de Brasília
+  (`pg_cron` chamando `generate_deadline_alerts()`). Com a permissão concedida no sino, o alerta
+  vira um **balão do navegador** quando a aba está escondida — em outra aba ou com a janela
+  minimizada —, e continua como aviso dentro do app quando ela está à vista.
 - **Mural de indicadores (modo TV)** — botão **Modo TV** no rodapé da barra lateral (e no dashboard)
   abre `/tv` e a tela passa a ser só o mural. Seis lâminas girando sozinhas a cada 11s: panorama do
   portfólio em números grandes, saúde por situação, projetos que exigem atenção, próximas entregas,

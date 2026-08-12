@@ -6,7 +6,7 @@
 **Motor:** Supabase (PostgreSQL 15+)  
 **Migrations:** `supabase/migrations`
 
-O banco tem **22 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
+O banco tem **23 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
 
 ## Sumário
 
@@ -86,6 +86,8 @@ erDiagram
   profiles ||--o{ notifications : "user_id"
   projects |o--o{ notifications : "project_id"
   profiles |o--o{ notifications : "actor_id"
+  profiles ||--o{ reminders : "user_id"
+  projects |o--o{ reminders : "project_id"
   projects |o--o{ activity_log : "project_id"
   profiles |o--o{ activity_log : "actor_id"
   profiles |o--o{ audit_log : "actor_id"
@@ -509,6 +511,27 @@ Notificações pessoais criadas por trigger e entregues via Realtime. Nunca noti
 **Índices e restrições:** `idx_notifications_user (user_id, is_read, created_at DESC)`
 
 **RLS:** Estritamente pessoal: cada usuário lê, marca como lida e apaga apenas as próprias. A escrita ocorre por funções SECURITY DEFINER.
+
+#### `reminders`
+
+Lembretes programados pela própria pessoa: hora marcada, repetição opcional e aviso pelo navegador. Diferente das notificações, que nascem de regra no banco. A hora fica aqui, e não num timer do navegador, para o lembrete sobreviver a recarregar a página e a trocar de máquina.
+
+| Coluna | Tipo | Restrições | Referência | Observação |
+| ------ | ---- | ---------- | ---------- | ---------- |
+| `id` | `uuid` | PK | — | default `gen_random_uuid()` |
+| `user_id` | `uuid` | NOT NULL, FK | `profiles(id)` ON DELETE CASCADE | — |
+| `project_id` | `uuid` | FK | `projects(id)` ON DELETE CASCADE | — |
+| `title` | `text` | NOT NULL | — | Entre 2 e 120 caracteres. |
+| `body` | `text` | — | — | — |
+| `next_at` | `timestamptz` | NOT NULL | — | Quando avisar da próxima vez. |
+| `repeat_minutes` | `integer` | — | — | Minutos entre um aviso e o seguinte; nulo avisa uma vez só. Mínimo de 5. |
+| `is_active` | `boolean` | NOT NULL | — | default `true` |
+| `last_fired_at` | `timestamptz` | — | — | — |
+| `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
+
+**Índices e restrições:** `idx_reminders_due (user_id, is_active, next_at)`
+
+**RLS:** Estritamente pessoal: cada usuário lê, cria, edita e apaga apenas os próprios lembretes.
 
 #### `activity_log`
 

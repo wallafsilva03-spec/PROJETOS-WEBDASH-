@@ -34,6 +34,7 @@ export const qk = {
     ['comments', projectId, taskId ?? 'project'] as const,
 
   notifications: ['notifications'] as const,
+  reminders: (projectId?: string) => ['reminders', projectId ?? 'todos'] as const,
   roadmap: ['roadmap'] as const,
   riskHeatmap: ['risk-heatmap'] as const,
   search: (term: string) => ['search', term] as const,

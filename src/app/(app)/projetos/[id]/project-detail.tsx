@@ -14,6 +14,7 @@ import {
   ListChecks,
   ListTodo,
   MessageSquare,
+  BellRing,
   Paperclip,
   Pencil,
   ShieldAlert,
@@ -44,6 +45,7 @@ import { FilesPanel } from '@/components/projects/files-panel';
 import { TeamPanel } from '@/components/projects/team-panel';
 import { ProjectFormDialog } from '@/components/projects/project-form-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
+import { RemindersDialog } from '@/components/projects/reminders-dialog';
 import { StagesPanel } from '@/components/projects/stages-panel';
 import { TimeCompletionCard, ViabilityCard } from '@/components/projects/viability-card';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -76,6 +78,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [remindersOpen, setRemindersOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<TaskWithRelations | null>(null);
 
   /**
@@ -167,6 +170,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <Button variant="outline" onClick={() => openTab('arquivos')}>
               <Paperclip className="size-4" />
               Anexar arquivo
+            </Button>
+            <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+              <BellRing className="size-4" />
+              Lembrete
             </Button>
             {canManage && (
               <Button variant="brand" onClick={() => setEditOpen(true)}>
@@ -497,6 +504,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         onOpenChange={setDeleteOpen}
         project={{ id: project.id, code: project.code, name: project.name }}
         redirectTo="/projetos"
+      />
+
+      <RemindersDialog
+        open={remindersOpen}
+        onOpenChange={setRemindersOpen}
+        projectId={projectId}
+        projectName={project.name}
       />
 
       <TaskDialog

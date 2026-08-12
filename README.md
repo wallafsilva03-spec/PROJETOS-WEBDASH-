@@ -153,6 +153,11 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   (`pg_cron` chamando `generate_deadline_alerts()`). Com a permissão concedida no sino, o alerta
   vira um **balão do navegador** quando a aba está escondida — em outra aba ou com a janela
   minimizada —, e continua como aviso dentro do app quando ela está à vista.
+- **Lembretes programados** — botão **Lembrete** no cabeçalho do projeto: você escreve o aviso,
+  marca dia e hora e escolhe se repete (uma vez, a cada hora, a cada 4 horas, todo dia ou toda
+  semana). A hora fica no banco, e não num timer do navegador, então o lembrete sobrevive a
+  recarregar a página e a trocar de máquina; se ninguém estava com o sistema aberto na hora
+  marcada, ele aparece na abertura seguinte. Com várias abas abertas, só uma avisa.
 - **Mural de indicadores (modo TV)** — botão **Modo TV** no rodapé da barra lateral (e no dashboard)
   abre `/tv` e a tela passa a ser só o mural. Seis lâminas girando sozinhas a cada 11s: panorama do
   portfólio em números grandes, saúde por situação, projetos que exigem atenção, próximas entregas,

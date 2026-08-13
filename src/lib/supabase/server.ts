@@ -32,7 +32,13 @@ export async function createClient(): Promise<SupabaseClient> {
   );
 }
 
-/** Sessão + perfil do usuário logado. Retorna null quando não autenticado. */
+/**
+ * Sessão + perfil do usuário logado. Retorna null quando não autenticado.
+ *
+ * Sem embutir o departamento, pelo mesmo motivo de `useSession`: o papel de
+ * acesso não pode depender de um relacionamento que o PostgREST possa recusar
+ * por ambiguidade. Quem precisa do departamento tem `profile.department_id`.
+ */
 export async function getCurrentProfile() {
   const supabase = await createClient();
   const {
@@ -41,11 +47,7 @@ export async function getCurrentProfile() {
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*, department:departments(id, name, color)')
-    .eq('id', user.id)
-    .single();
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
 
   return profile ?? null;
 }

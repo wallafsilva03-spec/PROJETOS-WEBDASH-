@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FolderKanban, LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { AlertTriangle, FolderKanban, LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { ProjectCard } from '@/components/projects/project-card';
@@ -21,6 +21,7 @@ import { useProjects, type ProjectFilters } from '@/hooks/use-projects';
 import { useDepartments } from '@/hooks/use-catalogs';
 import { useSession } from '@/hooks/use-session';
 import { useDebouncedValue } from '@/hooks/use-search';
+import { describeDbError } from '@/lib/supabase/errors';
 import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
 import { PROJECT_COLUMNS } from '@/lib/report-columns';
 import {
@@ -102,7 +103,12 @@ const STATE_TILES: {
 export function ProjectsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canCreateProject } = useSession();
+  const {
+    canCreateProject,
+    profileUnavailable,
+    profileError,
+    refetch: refetchSession,
+  } = useSession();
   const departments = useDepartments();
 
   const [dialogOpen, setDialogOpen] = React.useState(searchParams.get('novo') === '1');
@@ -259,6 +265,29 @@ export function ProjectsView() {
           </>
         }
       />
+
+      {/* O perfil não carregou: o papel é desconhecido, e a tela diz isso em vez
+          de simplesmente recolher as ações de quem talvez pudesse usá-las. */}
+      {profileUnavailable && (
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-xl border border-warning/40 bg-warning/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Não foi possível carregar o seu perfil de acesso</p>
+              <p className="text-xs text-muted-foreground">
+                As ações continuam disponíveis e o banco valida a permissão ao salvar.{' '}
+                {describeDbError(profileError, 'Tente recarregar a página.')}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => refetchSession()}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
 
       {/* Estados do portfólio — cada card é um filtro de um clique. */}
       <section aria-label="Estados do portfólio" className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">

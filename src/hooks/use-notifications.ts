@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
 import { useSession } from '@/hooks/use-session';
+import { useWebNotifications } from '@/hooks/use-web-notifications';
 import type { Notification } from '@/types/database';
 
 export function useNotifications(limit = 30) {
@@ -27,11 +28,33 @@ export function useNotifications(limit = 30) {
     },
   });
 
-  const onInsert = React.useCallback((payload: { eventType: string; new: Record<string, unknown> }) => {
-    if (payload.eventType !== 'INSERT') return;
-    const record = payload.new as unknown as Notification;
-    toast(record.title, { description: record.body ?? undefined });
-  }, []);
+  const web = useWebNotifications();
+
+  /**
+   * Um alerta, um aviso. Com a aba à vista, o toast dentro do app basta e é
+   * menos intrusivo; com a aba escondida — outra aba, janela minimizada — só
+   * o balão do navegador chega. Mandar os dois sempre faria a pessoa receber
+   * a mesma coisa duas vezes ao voltar para a aba.
+   */
+  const onInsert = React.useCallback(
+    (payload: { eventType: string; new: Record<string, unknown> }) => {
+      if (payload.eventType !== 'INSERT') return;
+      const record = payload.new as unknown as Notification;
+
+      if (typeof document !== 'undefined' && document.hidden) {
+        web.show({
+          title: record.title,
+          body: record.body,
+          tag: record.id,
+          href: record.project_id ? `/projetos/${record.project_id}` : undefined,
+        });
+        return;
+      }
+
+      toast(record.title, { description: record.body ?? undefined });
+    },
+    [web],
+  );
 
   useRealtime(
     'notifications',

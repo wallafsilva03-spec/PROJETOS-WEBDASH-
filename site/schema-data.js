@@ -472,6 +472,32 @@ const SCHEMA = {
       indexes: ['idx_notifications_user (user_id, is_read, created_at DESC)'],
     },
     {
+      name: 'reminders',
+      domain: 'governanca',
+      description:
+        'Lembretes programados pela própria pessoa: hora marcada, repetição opcional e aviso pelo navegador. ' +
+        'Diferente das notificações, que nascem de regra no banco. A hora fica aqui, e não num timer do navegador, ' +
+        'para o lembrete sobreviver a recarregar a página e a trocar de máquina.',
+      rls: 'Estritamente pessoal: cada usuário lê, cria, edita e apaga apenas os próprios lembretes.',
+      columns: [
+        { name: 'id', type: 'uuid', flags: ['PK'], default: 'gen_random_uuid()' },
+        { name: 'user_id', type: 'uuid', flags: ['NOT NULL', 'FK'], ref: 'profiles(id)', onDelete: 'CASCADE' },
+        { name: 'project_id', type: 'uuid', flags: ['FK'], ref: 'projects(id)', onDelete: 'CASCADE' },
+        { name: 'title', type: 'text', flags: ['NOT NULL'], note: 'Entre 2 e 120 caracteres.' },
+        { name: 'body', type: 'text' },
+        { name: 'next_at', type: 'timestamptz', flags: ['NOT NULL'], note: 'Quando avisar da próxima vez.' },
+        {
+          name: 'repeat_minutes',
+          type: 'integer',
+          note: 'Minutos entre um aviso e o seguinte; nulo avisa uma vez só. Mínimo de 5.',
+        },
+        { name: 'is_active', type: 'boolean', flags: ['NOT NULL'], default: 'true' },
+        { name: 'last_fired_at', type: 'timestamptz' },
+        { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
+      ],
+      indexes: ['idx_reminders_due (user_id, is_active, next_at)'],
+    },
+    {
       name: 'activity_log',
       domain: 'governanca',
       description: 'Centro de atividades: histórico legível do que a equipe fez, transmitido em tempo real.',

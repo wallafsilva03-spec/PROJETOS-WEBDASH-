@@ -11,6 +11,7 @@ import { GlobalSearch } from '@/components/layout/global-search';
 import { NotificationsBell } from '@/components/layout/notifications-bell';
 import { UserMenu } from '@/components/layout/user-menu';
 import { usePresenceHeartbeat } from '@/hooks/use-realtime';
+import { useReminderRunner } from '@/hooks/use-reminders';
 
 const STORAGE_KEY = 'webdash:sidebar-collapsed';
 
@@ -19,6 +20,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   usePresenceHeartbeat();
+
+  // Um relógio só para o app inteiro: montado aqui, confere os lembretes
+  // vencidos em qualquer tela, e não apenas na do projeto que os criou.
+  useReminderRunner();
 
   React.useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1');

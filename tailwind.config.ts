@@ -181,6 +181,67 @@ const config: Config = {
           '0%, 100%': { transform: 'translate3d(-5%, 0, 0) skewX(-2.5deg) scaleY(1)' },
           '50%': { transform: 'translate3d(5%, 0, 0) skewX(2.5deg) scaleY(1.06)' },
         },
+        /**
+         * O manifesto da marca: FORTALECER, CONECTAR, CRESCER e a assinatura.
+         *
+         * Um laço só, de 9s, usado pelos quatro elementos — o que muda entre
+         * eles é o `animation-delay`, e é dele que vem a entrada em sequência.
+         * Como a duração é a mesma para todos, o descompasso é o mesmo para
+         * sempre: entram um por vez, ficam juntos no alto do ciclo e saem na
+         * mesma ordem em que chegaram.
+         *
+         * O estado final é invisível de propósito, e o `backwards` do
+         * atalho de animação é o que segura cada um escondido durante o seu
+         * atraso. Sem ele os quatro apareceriam de cara na primeira volta.
+         */
+        'reveal-word': {
+          '0%': { opacity: '0', transform: 'translate3d(0, 16px, 0) scale(0.96)' },
+          '7%': { opacity: '1', transform: 'translate3d(0, 0, 0) scale(1)' },
+          '55%': { opacity: '1', transform: 'translate3d(0, 0, 0) scale(1)' },
+          '62%': { opacity: '0', transform: 'translate3d(0, -10px, 0) scale(0.98)' },
+          '100%': { opacity: '0', transform: 'translate3d(0, -10px, 0) scale(0.98)' },
+        },
+        /**
+         * A mesma ideia, mas para quando os quatro textos dividem um lugar só
+         * — a linha da barra lateral. Aqui não dá para acumular: cada um tem
+         * um quarto do ciclo (2,25s dos 9s) e precisa sair antes do próximo
+         * entrar, senão viram um borrão em cima do outro. Entra por baixo e
+         * sai por cima, como letreiro rolando.
+         */
+        'roll-item': {
+          '0%': { opacity: '0', transform: 'translate3d(0, 100%, 0)' },
+          '4%': { opacity: '1', transform: 'translate3d(0, 0, 0)' },
+          '21%': { opacity: '1', transform: 'translate3d(0, 0, 0)' },
+          '25%': { opacity: '0', transform: 'translate3d(0, -100%, 0)' },
+          '100%': { opacity: '0', transform: 'translate3d(0, -100%, 0)' },
+        },
+        /**
+         * Entrada dos blocos do mural de TV. Roda uma vez por lâmina — a
+         * lâmina é remontada a cada troca, e isso basta para a animação
+         * recomeçar. O escalonamento vem do `animation-delay` de cada bloco.
+         */
+        'tv-rise': {
+          from: { opacity: '0', transform: 'translate3d(0, 32px, 0) scale(0.98)' },
+          to: { opacity: '1', transform: 'translate3d(0, 0, 0) scale(1)' },
+        },
+        /** Barra que mostra quanto falta para a próxima lâmina. */
+        'tv-progress': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        /** Respiro lento dos números grandes — a tela nunca fica totalmente parada. */
+        'tv-breathe': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0)' },
+          '50%': { transform: 'translate3d(0, -6px, 0)' },
+        },
+        /** A assinatura chega abrindo as letras, não subindo como as palavras. */
+        'reveal-phrase': {
+          '0%': { opacity: '0', letterSpacing: '0.05em' },
+          '9%': { opacity: '1', letterSpacing: '0.28em' },
+          '55%': { opacity: '1', letterSpacing: '0.28em' },
+          '62%': { opacity: '0', letterSpacing: '0.32em' },
+          '100%': { opacity: '0', letterSpacing: '0.32em' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -194,6 +255,13 @@ const config: Config = {
         'sway-up': 'flow-up 6s ease-in-out infinite alternate',
         'aurora-drift': 'aurora-drift 9s ease-in-out infinite',
         curtain: 'curtain 8s ease-in-out infinite',
+        // `backwards` mantém cada elemento escondido enquanto o atraso corre.
+        'reveal-word': 'reveal-word 9s ease-in-out infinite backwards',
+        'reveal-phrase': 'reveal-phrase 9s ease-in-out infinite backwards',
+        'roll-item': 'roll-item 9s ease-in-out infinite backwards',
+        'tv-rise': 'tv-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards',
+        'tv-progress': 'tv-progress linear forwards',
+        'tv-breathe': 'tv-breathe 7s ease-in-out infinite',
       },
     },
   },

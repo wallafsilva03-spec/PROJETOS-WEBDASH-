@@ -1,5 +1,6 @@
 import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
-import { BrandPills, LogoMark } from '@/components/brand/logo';
+import { BrandManifesto, BrandManifestoInline } from '@/components/brand/manifesto';
+import { LogoMark } from '@/components/brand/logo';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -31,7 +32,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Kanban, Gantt, roadmap executivo, capacidade da equipe e indicadores de saúde dos projetos —
             atualizados em tempo real para todos os times.
           </p>
-          <BrandPills />
+          <BrandManifesto />
         </div>
 
         <p className="relative text-xs text-white/50">
@@ -49,13 +50,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <AuroraRail className="absolute inset-y-0 left-0 w-1 lg:hidden" duration="5s" />
 
         <div className="relative w-full max-w-sm">
+          {/* No celular o painel institucional não cabe: o manifesto vem aqui. */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <LogoMark className="size-10" />
-            <div>
+            {/* `flex-1`: sem isto a coluna encolhe até o texto "Grupo Moreno"
+                e o letreiro sai cortado no meio da assinatura. */}
+            <div className="min-w-0 flex-1">
               <p className="font-display font-semibold text-moreno-blue-600 dark:text-moreno-blue-200">
                 Grupo Moreno
               </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Gestão de Projetos</p>
+              <BrandManifestoInline tone="default" className="mt-0.5" />
             </div>
           </div>
 

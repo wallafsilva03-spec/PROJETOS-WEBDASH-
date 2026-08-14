@@ -26,6 +26,7 @@ import {
   PROJECT_STATUS_OPTIONS,
 } from '@/lib/constants';
 import { projectSchema, type ProjectInput } from '@/lib/validations';
+import { generateProjectCode, PROJECT_CODE_HINT } from '@/lib/project-code';
 import { formatCurrency, formatDelta } from '@/lib/format';
 import {
   useClients,
@@ -127,8 +128,17 @@ export function ProjectFormDialog({
   const defaultsRef = React.useRef(defaultValues);
   defaultsRef.current = defaultValues;
 
+  // Em ref, e não nas dependências do efeito, pelo mesmo motivo acima.
+  const editingRef = React.useRef(isEditing);
+  editingRef.current = isEditing;
+
   React.useEffect(() => {
-    if (open) reset(defaultsRef.current);
+    if (!open) return;
+
+    // O código do projeto novo é carimbado na abertura do formulário, para o
+    // horário ser o do cadastro — e não o de quando a tela foi montada.
+    const values = defaultsRef.current;
+    reset(editingRef.current ? values : { ...values, code: generateProjectCode() });
   }, [open, reset]);
 
   const selectedTags = watch('tags') ?? [];
@@ -194,8 +204,22 @@ export function ProjectFormDialog({
 
         <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Código" htmlFor="code" error={errors.code?.message} required>
-              <Input id="code" placeholder="PRJ-001" className="font-mono uppercase" {...register('code')} />
+            <Field
+              label="Código"
+              htmlFor="code"
+              error={errors.code?.message}
+              hint={isEditing ? undefined : PROJECT_CODE_HINT}
+              required
+            >
+              <Input
+                id="code"
+                placeholder="PRJ-001"
+                className={cn('font-mono uppercase', !isEditing && 'bg-secondary/60 text-muted-foreground')}
+                readOnly={!isEditing}
+                aria-readonly={!isEditing || undefined}
+                title={isEditing ? undefined : PROJECT_CODE_HINT}
+                {...register('code')}
+              />
             </Field>
 
             <Field label="Nome do projeto" htmlFor="name" error={errors.name?.message} required className="sm:col-span-2">

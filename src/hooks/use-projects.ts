@@ -4,8 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
-import { describeDbError, isSchemaOutdated, SETUP_HINT } from '@/lib/supabase/errors';
+import {
+  describeDbError,
+  isDuplicateProjectCode,
+  isSchemaOutdated,
+  SETUP_HINT,
+} from '@/lib/supabase/errors';
 import { fillProjectDefaults, withoutOptionalColumns } from '@/lib/project-compat';
+import { generateProjectCode, withCodeSuffix } from '@/lib/project-code';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
 import type {
@@ -141,15 +147,36 @@ export function useCreateProject() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const row = { ...payload, created_by: user?.id, owner_id: payload.owner_id ?? user?.id };
+      const row = {
+        ...payload,
+        code: payload.code || generateProjectCode(),
+        created_by: user?.id,
+        owner_id: payload.owner_id ?? user?.id,
+      };
+
       const insert = (values: Record<string, unknown>) =>
         supabase.from('projects').insert(values).select().single();
 
-      let { data, error } = await insert(row);
+      /**
+       * O código é o carimbo de ano-data-hora do cadastro, então dois projetos
+       * criados no mesmo segundo colidem na unicidade da coluna. Em vez de
+       * devolver erro para quem só clicou em salvar, tenta o sufixo.
+       */
+      const insertProject = async (values: Record<string, unknown>) => {
+        let result = await insert(values);
+
+        for (let attempt = 2; attempt <= 4 && isDuplicateProjectCode(result.error); attempt += 1) {
+          result = await insert({ ...values, code: withCodeSuffix(String(values.code), attempt) });
+        }
+
+        return result;
+      };
+
+      let { data, error } = await insertProject(row);
 
       // Banco ainda sem as colunas de viabilidade: grava o resto e avisa.
       if (error && isSchemaOutdated(error)) {
-        ({ data, error } = await insert(withoutOptionalColumns(row)));
+        ({ data, error } = await insertProject(withoutOptionalColumns(row)));
         if (!error) toast.warning(`Projeto criado sem viabilidade econômica e sem responsáveis. ${SETUP_HINT}`);
       }
 

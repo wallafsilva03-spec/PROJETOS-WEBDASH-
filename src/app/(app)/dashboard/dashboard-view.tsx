@@ -9,6 +9,7 @@ import {
   FolderKanban,
   Gauge,
   ListChecks,
+  MonitorPlay,
   Plus,
   Timer,
   TrendingUp,
@@ -50,14 +51,24 @@ export function DashboardView() {
         title={firstName ? `Olá, ${firstName}` : 'Dashboard'}
         description="Panorama do portfólio corporativo atualizado em tempo real."
         actions={
-          canCreateProject && (
-            <Button variant="brand" asChild>
-              <Link href="/projetos?novo=1">
-                <Plus className="size-4" />
-                Novo projeto
+          <>
+            {/* Mesma aba: a tela vira o mural e fica nele. A volta é pelo
+                botão de sair, dentro do próprio mural. */}
+            <Button variant="outline" asChild>
+              <Link href="/tv">
+                <MonitorPlay className="size-4" />
+                Modo TV
               </Link>
             </Button>
-          )
+            {canCreateProject && (
+              <Button variant="brand" asChild>
+                <Link href="/projetos?novo=1">
+                  <Plus className="size-4" />
+                  Novo projeto
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
 

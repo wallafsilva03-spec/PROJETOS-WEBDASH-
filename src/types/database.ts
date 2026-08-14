@@ -418,6 +418,31 @@ export interface Notification {
   created_at: string;
 }
 
+/**
+ * Lembrete que a própria pessoa programa — hora marcada, com ou sem
+ * repetição. Diferente das notificações, que nascem de regra no banco.
+ */
+export interface Reminder {
+  id: string;
+  user_id: string;
+  project_id: string | null;
+  title: string;
+  body: string | null;
+  /** Quando avisar da próxima vez. */
+  next_at: string;
+  /** Minutos entre um aviso e o seguinte. Nulo = avisa uma vez só. */
+  repeat_minutes: number | null;
+  is_active: boolean;
+  last_fired_at: string | null;
+  created_at: string;
+  project?: { id: string; name: string; code: string } | null;
+}
+
+export type ReminderInput = Pick<Reminder, 'title' | 'body' | 'next_at' | 'repeat_minutes'> & {
+  project_id?: string | null;
+  is_active?: boolean;
+};
+
 export interface ActivityFeedItem {
   id: string;
   created_at: string;

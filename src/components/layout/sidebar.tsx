@@ -4,10 +4,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { MonitorPlay, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { AuroraBackdrop, AuroraRail } from '@/components/brand/aurora';
 import { Logo, LogoMark } from '@/components/brand/logo';
+import { BrandManifestoInline } from '@/components/brand/manifesto';
 import { Hint } from '@/components/ui/misc';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-session';
@@ -104,13 +105,45 @@ export function Sidebar({
         ))}
       </div>
 
+      {/*
+        Modo TV fica fora das seções e colado no rodapé: não é um lugar do
+        sistema para onde se navega e se volta, é um jeito de deixar a tela
+        rodando. Some do fluxo do menu e continua à mão.
+      */}
+      <div className="relative border-t border-sidebar-border p-3">
+        {collapsed ? (
+          <Hint label="Modo TV">
+            <Link
+              href="/tv"
+              onClick={onNavigate}
+              className="flex items-center justify-center rounded-lg bg-white/10 p-2.5 text-white transition-colors hover:bg-white/20"
+              aria-label="Abrir o modo TV"
+            >
+              <MonitorPlay className="size-5" />
+            </Link>
+          </Hint>
+        ) : (
+          <Link
+            href="/tv"
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2.5 text-white transition-colors hover:bg-white/20"
+          >
+            <MonitorPlay className="size-5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Modo TV</span>
+              <span className="block truncate text-[11px] text-sidebar-muted">
+                Indicadores girando no telão
+              </span>
+            </span>
+          </Link>
+        )}
+      </div>
+
       {!collapsed && (
         <div className="relative border-t border-sidebar-border p-4">
           <div className="rounded-lg bg-white/5 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-accent">
-              Fortalecer · Conectar · Crescer
-            </p>
-            <p className="mt-1 text-xs text-sidebar-muted">
+            <BrandManifestoInline />
+            <p className="mt-1.5 text-xs text-sidebar-muted">
               Plataforma interna de gestão de projetos do Grupo Moreno.
             </p>
           </div>

@@ -110,7 +110,9 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   exportação. Os estados do portfólio (em atraso, em risco, dentro do previsto, vencendo em 7 dias
   e cada um dos status) são cartões e etiquetas clicáveis: um clique abre a lista só daquele
   estado. Os filtros ficam na URL, então o endereço pode ser guardado ou compartilhado — é para lá
-  que apontam os indicadores do dashboard. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
+  que apontam os indicadores do dashboard e a gestão por analista. O código do projeto novo é
+  gerado sozinho no formato **ano-data-hora** do cadastro (`2026-0811-143207`), único e já em ordem
+  cronológica. A exclusão do projeto fica no cabeçalho do detalhe, restrita a administradores e
   protegida por confirmação com o código do projeto.
 - **Detalhe do projeto** — 6 cartões de inteligência (execução, prazo, **conclusão por tempo**,
   esforço, escopo e **viabilidade econômica**) e 14 abas: **Kanban** (etapas por data de término,
@@ -128,10 +130,15 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   cartões de saúde e as etiquetas de status filtram o quadro em um clique. A seta ao lado do nome
   abre as **etapas do projeto na mesma linha do tempo**, com a cor da situação de cada uma.
 - **Calendário** — visões diária, semanal e mensal.
-- **Workload** — capacidade × alocação, disponibilidade e sobrecarga por pessoa.
+- **Workload** — capacidade × alocação, disponibilidade e sobrecarga por analista, com busca e
+  filtro de departamento.
+- **Arquivos** — só dentro do projeto: botão **Anexar arquivo** no cabeçalho, que abre a aba de
+  anexos. Quando o envio é recusado, o motivo fica escrito na própria aba (bucket ausente, falta de
+  permissão ou sessão expirada), em vez de sumir num aviso passageiro.
 - **Gestão por analista** — projetos agrupados por responsável, com todos os status, o que está em
-  atraso e há quantos dias, execução média, desvio e horas estimadas × realizadas. Cada linha abre
-  a lista de projetos da pessoa. **Restrita ao administrador.**
+  atraso e há quantos dias, execução média, desvio e horas estimadas × realizadas. Filtros de
+  busca, status e **departamento** (campo suspenso), e cada linha abre a lista de projetos da
+  pessoa. **Restrita ao administrador.**
 - **Dashboard Executivo** — Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por
   status/departamento/prioridade/gestor, projetos críticos, orçamento e **retorno financeiro do
   portfólio** (investimento × retorno esperado, benefício líquido e ROI por departamento).
@@ -141,6 +148,26 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Alertas** — o sino já reunia comentário, menção e tarefa atribuída; agora os alertas de **prazo
+  hoje**, **prazo amanhã** e **projeto atrasado** são gerados sozinhos todo dia às 08:00 de Brasília
+  (`pg_cron` chamando `generate_deadline_alerts()`). Com a permissão concedida no sino, o alerta
+  vira um **balão do navegador** quando a aba está escondida — em outra aba ou com a janela
+  minimizada —, e continua como aviso dentro do app quando ela está à vista.
+- **Lembretes programados** — botão **Lembrete** no cabeçalho do projeto: você escreve o aviso,
+  marca dia e hora e escolhe se repete (uma vez, a cada hora, a cada 4 horas, todo dia ou toda
+  semana). A hora fica no banco, e não num timer do navegador, então o lembrete sobrevive a
+  recarregar a página e a trocar de máquina; se ninguém estava com o sistema aberto na hora
+  marcada, ele aparece na abertura seguinte. Com várias abas abertas, só uma avisa.
+- **Mural de indicadores (modo TV)** — botão **Modo TV** no rodapé da barra lateral (e no dashboard)
+  abre `/tv` e a tela passa a ser só o mural. Seis lâminas girando sozinhas a cada 11s: panorama do
+  portfólio em números grandes, saúde por situação, projetos que exigem atenção, próximas entregas,
+  gestão por analista e a marca. Relógio, barra de tempo da lâmina, tela cheia, cursor que some
+  sozinho, setas do teclado ou do controle da TV para passar as lâminas, botão de sair e dados que
+  se atualizam pelo Realtime — feita para ficar ligada o dia inteiro sem ninguém tocar.
+- **Manifesto da marca em movimento** — FORTALECER, CONECTAR e CRESCER entram um por vez e a
+  assinatura **JEITO MORENO DE SER** fecha o ciclo, que recomeça sozinho. Em painel na tela de
+  login e como letreiro de uma linha no rodapé da barra lateral. É CSS puro: os elementos dividem
+  o mesmo laço de 9s e só mudam de atraso, então nunca saem de compasso.
 
 ### Inteligência do projeto (calculada no banco)
 

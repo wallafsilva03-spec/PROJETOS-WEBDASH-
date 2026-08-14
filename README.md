@@ -148,6 +148,10 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Analistas responsáveis** — o campo antes chamado "dono no sistema" virou **Analistas
+  responsáveis** e aceita até 8 pessoas. Todas podem editar o projeto; a primeira é a principal e
+  fica em `projects.owner_id`, de onde saem `owner_name` e os relatórios. As demais são gravadas
+  como gestoras em `project_members`, sem tocar em quem foi somado pela aba Equipe.
 - **Alertas** — o sino já reunia comentário, menção e tarefa atribuída; agora os alertas de **prazo
   hoje**, **prazo amanhã** e **projeto atrasado** são gerados sozinhos todo dia às 08:00 de Brasília
   (`pg_cron` chamando `generate_deadline_alerts()`). Com a permissão concedida no sino, o alerta

@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import { CatalogField } from '@/components/projects/catalog-field';
+import { AnalystsField } from '@/components/projects/analysts-field';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -35,7 +36,7 @@ import {
   useProfiles,
   useTags,
 } from '@/hooks/use-catalogs';
-import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
+import { useCreateProject, useProjectMembers, useUpdateProject } from '@/hooks/use-projects';
 import { useSession } from '@/hooks/use-session';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
@@ -48,6 +49,7 @@ const NONE = '__none__';
  */
 const NO_TAGS: string[] = [];
 const NO_RESPONSIBLES: string[] = [];
+const NO_ANALYSTS: string[] = [];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -83,6 +85,20 @@ export function ProjectFormDialog({
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
 
+  // Na edição, os analistas já gravados: o principal em `owner_id` e os
+  // demais como gestores do projeto.
+  const members = useProjectMembers(project?.id ?? '');
+
+  const analystIds = React.useMemo(() => {
+    if (!project) return NO_ANALYSTS;
+
+    const managers = (members.data ?? [])
+      .filter((member) => member.role_in_project === 'gestor' && member.user_id !== project.owner_id)
+      .map((member) => member.user_id);
+
+    return project.owner_id ? [project.owner_id, ...managers] : managers;
+  }, [project, members.data]);
+
   const defaultValues = React.useMemo<ProjectInput>(
     () => ({
       code: project?.code ?? '',
@@ -91,6 +107,7 @@ export function ProjectFormDialog({
       department_id: project?.department_id ?? null,
       client_id: project?.client_id ?? null,
       owner_id: project?.owner_id ?? null,
+      analyst_ids: analystIds,
       responsibles: project?.responsibles ?? NO_RESPONSIBLES,
       status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
@@ -106,7 +123,7 @@ export function ProjectFormDialog({
       financial_notes: project?.financial_notes ?? '',
       tags: currentTagIds,
     }),
-    [project, currentTagIds],
+    [project, currentTagIds, analystIds],
   );
 
   const {
@@ -176,11 +193,17 @@ export function ProjectFormDialog({
   }
 
   async function onSubmit(values: ProjectInput) {
+    const analysts = values.analyst_ids ?? [];
+
     const payload = {
       ...values,
       description: values.description || null,
       category: values.category || null,
       financial_notes: values.financial_notes || null,
+      // O primeiro analista é o principal, e é ele que fica em `owner_id` —
+      // é de lá que as views tiram `owner_name`. Os demais são gravados como
+      // gestores do projeto pela própria mutation.
+      owner_id: analysts[0] ?? null,
     };
 
     if (isEditing && project) {
@@ -294,25 +317,19 @@ export function ProjectFormDialog({
 
             <Controller
               control={control}
-              name="owner_id"
+              name="analyst_ids"
               render={({ field }) => (
-                <Field label="Dono no sistema" hint="Quem pode editar o projeto, além da gestão.">
-                  <Select
-                    value={field.value ?? NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Definir depois</SelectItem>
-                      {people.data?.map((person) => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field
+                  label="Analistas responsáveis"
+                  error={errors.analyst_ids?.message}
+                  hint="Quem responde e pode editar o projeto. O primeiro é o principal."
+                >
+                  <AnalystsField
+                    people={people.data ?? []}
+                    loading={people.isLoading}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
                 </Field>
               )}
             />

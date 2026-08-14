@@ -109,8 +109,13 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
             <div className="flex items-center gap-1.5">
               <Clock className="size-3.5 shrink-0" aria-hidden />
               <dt className="sr-only">Situação do prazo</dt>
+              {/* Encerrado mostra quanto levou; em curso, quanto falta. */}
               <dd className={cn(project.days_remaining < 0 && !isFinished && 'font-medium text-destructive')}>
-                {isFinished ? 'Encerrado' : formatDaysLabel(project.days_remaining)}
+                {isFinished
+                  ? project.realizacao_dias === null
+                    ? 'Encerrado'
+                    : `${project.realizacao_dias} dia(s) de realização`
+                  : formatDaysLabel(project.days_remaining)}
               </dd>
             </div>
             <div className="flex items-center gap-1.5">

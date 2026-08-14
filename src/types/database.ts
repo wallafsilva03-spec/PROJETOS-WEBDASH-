@@ -127,6 +127,11 @@ export interface Project {
   health: HealthStatus;
   start_date: string;
   due_date: string;
+  /**
+   * Prazo herdado, ainda não repactuado. `due_date` continua guardado; com
+   * isto ligado a tela mostra "A definir" e o projeto sai dos atrasados.
+   */
+  prazo_a_definir: boolean;
   actual_start_date: string | null;
   actual_end_date: string | null;
   budget: number;

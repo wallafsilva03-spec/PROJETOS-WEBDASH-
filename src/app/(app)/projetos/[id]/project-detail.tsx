@@ -258,7 +258,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               ? project.realizacao_dias === null
                 ? '—'
                 : project.realizacao_dias
-              : formatDaysLabel(project.days_remaining).split(' ')[0]}
+              : project.prazo_a_definir
+                ? 'A definir'
+                : formatDaysLabel(project.days_remaining).split(' ')[0]}
           </p>
           <dl className="mt-3 space-y-1 text-xs text-muted-foreground">
             <div className="flex justify-between">
@@ -270,7 +272,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <div className="flex justify-between">
               <dt>{isFinished ? 'Entrega' : 'Prazo final'}</dt>
               <dd className="font-medium text-foreground">
-                {formatDate(isFinished ? (project.actual_end_date ?? project.due_date) : project.due_date)}
+                {!isFinished && project.prazo_a_definir
+                  ? 'A definir'
+                  : formatDate(isFinished ? (project.actual_end_date ?? project.due_date) : project.due_date)}
               </dd>
             </div>
             {isFinished ? (

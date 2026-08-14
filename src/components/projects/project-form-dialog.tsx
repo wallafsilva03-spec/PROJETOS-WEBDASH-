@@ -18,6 +18,7 @@ import { Field } from '@/components/ui/label';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/misc';
 import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import { CatalogField } from '@/components/projects/catalog-field';
 import { AnalystsField } from '@/components/projects/analysts-field';
@@ -108,6 +109,7 @@ export function ProjectFormDialog({
       client_id: project?.client_id ?? null,
       owner_id: project?.owner_id ?? null,
       analyst_ids: analystIds,
+      prazo_a_definir: project?.prazo_a_definir ?? false,
       responsibles: project?.responsibles ?? NO_RESPONSIBLES,
       status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
@@ -422,9 +424,29 @@ export function ProjectFormDialog({
             <Field label="Data de início" htmlFor="start_date" error={errors.start_date?.message} required>
               <Input id="start_date" type="date" {...register('start_date')} />
             </Field>
-            <Field label="Prazo final" htmlFor="due_date" error={errors.due_date?.message} required>
-              <Input id="due_date" type="date" {...register('due_date')} />
-            </Field>
+            <Controller
+              control={control}
+              name="prazo_a_definir"
+              render={({ field }) => (
+                <Field
+                  label="Prazo final"
+                  htmlFor="due_date"
+                  error={errors.due_date?.message}
+                  hint="Sem prazo combinado, marque abaixo — o projeto sai dos atrasados."
+                  required
+                >
+                  <div className="space-y-2">
+                    {/* A data continua guardada mesmo com a marca ligada: ela
+                        volta a valer no instante em que a marca sair. */}
+                    <Input id="due_date" type="date" disabled={field.value} {...register('due_date')} />
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      Prazo a definir
+                    </label>
+                  </div>
+                </Field>
+              )}
+            />
             <Field label="Orçamento (R$)" htmlFor="budget" error={errors.budget?.message}>
               <Input id="budget" type="number" step="0.01" min="0" {...register('budget')} />
             </Field>

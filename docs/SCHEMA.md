@@ -353,6 +353,7 @@ Marcos do projeto, exibidos no roadmap executivo e na timeline.
 | `name` | `text` | NOT NULL | — | — |
 | `description` | `text` | — | — | — |
 | `due_date` | `date` | NOT NULL | — | — |
+| `prazo_a_definir` | `boolean` | NOT NULL | — | default `false`. Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai da conta de atrasados. |
 | `status` | `milestone_status` | NOT NULL | — | default `'pendente'` |
 | `completed_at` | `timestamptz` | — | — | — |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |

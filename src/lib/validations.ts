@@ -61,6 +61,7 @@ export const projectSchema = z
       .max(12, 'No máximo 12 responsáveis por projeto.')
       .default([]),
     category: z.string().trim().max(80).optional().or(z.literal('')),
+    prazo_a_definir: z.boolean().default(false),
     start_date: z.string().min(1, 'Informe a data de início.'),
     due_date: z.string().min(1, 'Informe o prazo final.'),
     budget: z.coerce.number().min(0, 'O orçamento não pode ser negativo.').default(0),

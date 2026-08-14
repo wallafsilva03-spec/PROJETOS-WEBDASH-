@@ -21,6 +21,7 @@ export const OPTIONAL_COLUMNS = [
   'return_period_months',
   'financial_notes',
   'responsibles',
+  'prazo_a_definir',
 ] as const;
 
 /** Remove do payload o que um banco antigo ainda não sabe gravar. */
@@ -68,6 +69,7 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
       responsibles: project.responsibles ?? [],
       // Banco que parou antes da migration 15 ainda não calcula a duração.
       realizacao_dias: project.realizacao_dias ?? null,
+      prazo_a_definir: project.prazo_a_definir ?? false,
     };
   }
 
@@ -99,5 +101,6 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
     stages_late: 0,
     stages_progress: null,
     realizacao_dias: null,
+    prazo_a_definir: false,
   };
 }

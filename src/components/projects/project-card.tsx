@@ -104,7 +104,9 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
             <div className="flex items-center gap-1.5">
               <CalendarDays className="size-3.5 shrink-0" aria-hidden />
               <dt className="sr-only">Prazo final</dt>
-              <dd>{formatDate(project.due_date)}</dd>
+              <dd className={cn(project.prazo_a_definir && 'italic text-muted-foreground')}>
+                {project.prazo_a_definir ? 'A definir' : formatDate(project.due_date)}
+              </dd>
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="size-3.5 shrink-0" aria-hidden />
@@ -115,7 +117,9 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
                   ? project.realizacao_dias === null
                     ? 'Encerrado'
                     : `${project.realizacao_dias} dia(s) de realização`
-                  : formatDaysLabel(project.days_remaining)}
+                  : project.prazo_a_definir
+                    ? 'Prazo a definir'
+                    : formatDaysLabel(project.days_remaining)}
               </dd>
             </div>
             <div className="flex items-center gap-1.5">

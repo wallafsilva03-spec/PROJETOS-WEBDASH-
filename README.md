@@ -148,6 +148,11 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Prazo** — projeto encerrado deixa de acumular atraso e passa a mostrar **quanto levou** (do
+  início real à entrega). Os que estavam atrasados hoje ganharam a marca **prazo a definir**: a tela
+  mostra "A definir", eles saem da conta de atrasados, e a data antiga continua guardada — a marca
+  cai sozinha quando um prazo novo é salvo, e há uma chave no formulário para ligar ou desligar
+  projeto a projeto.
 - **Analistas responsáveis** — o campo antes chamado "dono no sistema" virou **Analistas
   responsáveis** e aceita até 8 pessoas. Todas podem editar o projeto; a primeira é a principal e
   fica em `projects.owner_id`, de onde saem `owner_name` e os relatórios. As demais são gravadas

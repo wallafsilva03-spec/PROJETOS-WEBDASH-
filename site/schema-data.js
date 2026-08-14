@@ -324,6 +324,16 @@ const SCHEMA = {
         { name: 'name', type: 'text', flags: ['NOT NULL'] },
         { name: 'description', type: 'text' },
         { name: 'due_date', type: 'date', flags: ['NOT NULL'] },
+        {
+          name: 'prazo_a_definir',
+          type: 'boolean',
+          flags: ['NOT NULL'],
+          default: 'false',
+          note:
+            'Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto ' +
+            'isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai ' +
+            'da conta de atrasados.',
+        },
         { name: 'status', type: 'milestone_status', flags: ['NOT NULL'], default: "'pendente'" },
         { name: 'completed_at', type: 'timestamptz' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },

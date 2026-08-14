@@ -76,9 +76,12 @@ update public.projects
    and prazo_a_definir is not true;
 
 -- ---------------------------------------------------------------------
--- A coluna precisa chegar às telas. `create or replace view` só aceita
--- coluna nova no fim, e a `v_project_360` expande `v.*` — daí a recriação
--- das duas, junto com a `v_exec_financials`, que depende da 360.
+-- A coluna precisa chegar às telas, e vai pela `v_project_360` — nunca pela
+-- `v_project_overview`. A migration 05 refaz a overview a cada execução do
+-- setup.sql com `create or replace`, que recusa perder coluna; qualquer
+-- coluna nova ali faria a segunda execução parar em "cannot drop columns
+-- from view". Na overview muda só a expressão de `days_late` e
+-- `days_remaining`, que a 05 restaura e esta migration corrige de novo.
 -- ---------------------------------------------------------------------
 create or replace view public.v_project_overview
 with (security_invoker = on) as
@@ -141,17 +144,7 @@ select
   case
     when coalesce(te.actual_hours, 0) = 0 then null
     else round((coalesce(tk.estimated_hours, 0) / nullif(te.actual_hours, 0)) * 100, 2)
-  end                                                               as efficiency,
-  case
-    when p.status in ('concluido', 'cancelado')
-      then greatest(
-             coalesce(p.actual_end_date, current_date)
-               - coalesce(p.actual_start_date, p.start_date),
-             0
-           )
-    else null
-  end                                                               as realizacao_dias,
-  p.prazo_a_definir
+  end                                                               as efficiency
 from public.projects p
 left join public.departments d on d.id = p.department_id
 left join public.clients c     on c.id = p.client_id
@@ -180,16 +173,13 @@ left join lateral (
   from public.checklist_items ci where ci.project_id = p.id
 ) ck on true
 left join lateral (
-  select
-    count(*) filter (where r.status <> 'encerrado')            as open_risks,
-    coalesce(max(r.probability * r.impact), 0)                 as max_severity
+  select count(*) filter (where r.status not in ('mitigado', 'aceito')) as open_risks,
+         coalesce(max(r.severity) filter (where r.status not in ('mitigado', 'aceito')), 0) as max_severity
   from public.risks r where r.project_id = p.id
 ) rk on true
 left join lateral (
-  select
-    count(*)                                  as milestones_total,
-    count(*) filter (where ms2.is_done)       as milestones_done
-  from public.milestones ms2 where ms2.project_id = p.id
+  select count(*) as milestones_total, count(*) filter (where m.status = 'concluido') as milestones_done
+  from public.milestones m where m.project_id = p.id
 ) ms on true;
 
 drop view if exists public.v_exec_financials;
@@ -224,7 +214,17 @@ select
   coalesce(st.stages_done, 0)                                       as stages_done,
   coalesce(st.stages_running, 0)                                    as stages_running,
   coalesce(st.stages_late, 0)                                       as stages_late,
-  st.stages_progress                                                as stages_progress
+  st.stages_progress                                                as stages_progress,
+  case
+    when p.status in ('concluido', 'cancelado')
+      then greatest(
+             coalesce(p.actual_end_date, current_date)
+               - coalesce(p.actual_start_date, p.start_date),
+             0
+           )
+    else null
+  end                                                               as realizacao_dias,
+  p.prazo_a_definir
 from public.v_project_overview v
 join public.projects p on p.id = v.id
 left join lateral (

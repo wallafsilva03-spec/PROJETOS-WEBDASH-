@@ -81,21 +81,7 @@ select
   case
     when coalesce(te.actual_hours, 0) = 0 then null
     else round((coalesce(tk.estimated_hours, 0) / nullif(te.actual_hours, 0)) * 100, 2)
-  end                                                               as efficiency,
-
-  -- Quanto o projeto levou de fato. Usa as datas reais quando existem — o
-  -- trigger as carimba ao sair do backlog e ao concluir — e cai para as
-  -- planejadas quando o projeto é anterior a esse controle. Fica nulo
-  -- enquanto o projeto não terminou: não há duração de algo em curso.
-  case
-    when p.status in ('concluido', 'cancelado')
-      then greatest(
-             coalesce(p.actual_end_date, current_date)
-               - coalesce(p.actual_start_date, p.start_date),
-             0
-           )
-    else null
-  end                                                               as realizacao_dias
+  end                                                               as efficiency
 from public.projects p
 left join public.departments d on d.id = p.department_id
 left join public.clients c     on c.id = p.client_id
@@ -124,21 +110,22 @@ left join lateral (
   from public.checklist_items ci where ci.project_id = p.id
 ) ck on true
 left join lateral (
-  select
-    count(*) filter (where r.status <> 'encerrado')            as open_risks,
-    coalesce(max(r.probability * r.impact), 0)                 as max_severity
+  select count(*) filter (where r.status not in ('mitigado', 'aceito')) as open_risks,
+         coalesce(max(r.severity) filter (where r.status not in ('mitigado', 'aceito')), 0) as max_severity
   from public.risks r where r.project_id = p.id
 ) rk on true
 left join lateral (
-  select
-    count(*)                                  as milestones_total,
-    count(*) filter (where ms2.is_done)       as milestones_done
-  from public.milestones ms2 where ms2.project_id = p.id
+  select count(*) as milestones_total, count(*) filter (where m.status = 'concluido') as milestones_done
+  from public.milestones m where m.project_id = p.id
 ) ms on true;
 
--- `v_project_360` expande `v.*` e é criada depois desta view. Como a coluna
--- nova entra no fim e nenhuma sai, a expansão guardada continua batendo; só
--- é preciso recriá-la para que `realizacao_dias` chegue às telas.
+-- `realizacao_dias` entra na `v_project_360`, e não na `v_project_overview`.
+--
+-- É o que mantém o setup.sql repetível: a migration 05 refaz a overview com
+-- `create or replace`, que recusa perder coluna. Se a coluna nova morasse
+-- lá, a segunda execução do arquivo pararia em "cannot drop columns from
+-- view" — foi exatamente o que aconteceu ao testar. A 360 é derrubada e
+-- recriada aqui, então aceita colunas novas à vontade.
 drop view if exists public.v_exec_financials;
 drop view if exists public.v_project_360;
 
@@ -171,7 +158,21 @@ select
   coalesce(st.stages_done, 0)                                       as stages_done,
   coalesce(st.stages_running, 0)                                    as stages_running,
   coalesce(st.stages_late, 0)                                       as stages_late,
-  st.stages_progress                                                as stages_progress
+  st.stages_progress                                                as stages_progress,
+
+  -- Quanto o projeto levou de fato. Usa as datas reais quando existem — o
+  -- trigger as carimba ao sair do backlog e ao concluir — e cai para as
+  -- planejadas quando o projeto é anterior a esse controle. Fica nulo
+  -- enquanto o projeto não terminou: não há duração de algo em curso.
+  case
+    when p.status in ('concluido', 'cancelado')
+      then greatest(
+             coalesce(p.actual_end_date, current_date)
+               - coalesce(p.actual_start_date, p.start_date),
+             0
+           )
+    else null
+  end                                                               as realizacao_dias
 from public.v_project_overview v
 join public.projects p on p.id = v.id
 left join lateral (

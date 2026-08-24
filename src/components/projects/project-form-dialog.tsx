@@ -23,7 +23,10 @@ import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import { CatalogField } from '@/components/projects/catalog-field';
 import { AnalystsField } from '@/components/projects/analysts-field';
 import {
+  APROVACAO_OPTIONS,
+  AREA_OPTIONS,
   COMPLEXITY_OPTIONS,
+  MELHORIA_OPTIONS,
   PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
 } from '@/lib/constants';
@@ -115,6 +118,11 @@ export function ProjectFormDialog({
       priority: project?.priority ?? 'media',
       complexity: project?.complexity ?? 'media',
       category: project?.category ?? '',
+      area: project?.area ?? null,
+      aprovado_diretoria: project?.aprovado_diretoria ?? 'em_aprovacao',
+      lancado_redmine: project?.lancado_redmine ?? false,
+      data_medicao_aderencia: project?.data_medicao_aderencia ?? '',
+      melhoria_continua: project?.melhoria_continua ?? 'em_avaliacao',
       start_date: project?.start_date ?? today(),
       due_date: project?.due_date ?? inDays(30),
       budget: project?.budget ?? 0,
@@ -201,6 +209,8 @@ export function ProjectFormDialog({
       ...values,
       description: values.description || null,
       category: values.category || null,
+      // Sem data escolhida a medição fica em aberto — null, nunca string vazia.
+      data_medicao_aderencia: values.data_medicao_aderencia || null,
       financial_notes: values.financial_notes || null,
       // O primeiro analista é o principal, e é ele que fica em `owner_id` —
       // é de lá que as views tiram `owner_name`. Os demais são gravados como
@@ -454,6 +464,108 @@ export function ProjectFormDialog({
               <Input id="planned_hours" type="number" step="0.5" min="0" {...register('planned_hours')} />
             </Field>
           </div>
+
+          {/* Governança da Diretoria — o que o painel gerencial acompanha */}
+          <fieldset className="space-y-4 rounded-lg border p-4">
+            <legend className="px-1 text-sm font-semibold">Governança da Diretoria</legend>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Área do negócio, aprovação, formalização no Redmine, medição de aderência e Melhoria
+              Contínua — os campos que alimentam a visão gerencial do portfólio.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Controller
+                control={control}
+                name="area"
+                render={({ field }) => (
+                  <Field label="Área" hint="Macro-área do negócio, além do departamento executor.">
+                    <Select
+                      value={field.value ?? NONE}
+                      onValueChange={(value) => field.onChange(value === NONE ? null : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Não definida</SelectItem>
+                        {AREA_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="aprovado_diretoria"
+                render={({ field }) => (
+                  <Field label="Aprovado pela Diretoria">
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {APROVACAO_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="melhoria_continua"
+                render={({ field }) => (
+                  <Field label="Incorporar à Melhoria Contínua">
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MELHORIA_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Controller
+                control={control}
+                name="lancado_redmine"
+                render={({ field }) => (
+                  <Field label="Lançado no Redmine" hint="Marque quando a ação já estiver formalizada.">
+                    <label className="flex h-9 cursor-pointer items-center gap-2 text-sm">
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      {field.value ? 'Sim' : 'Não'}
+                    </label>
+                  </Field>
+                )}
+              />
+
+              <Field
+                label="Data prevista para medição de aderência"
+                htmlFor="data_medicao_aderencia"
+                error={errors.data_medicao_aderencia?.message}
+                hint="Quando a aderência será medida após a implantação. Em branco = ainda não programada."
+              >
+                <Input id="data_medicao_aderencia" type="date" {...register('data_medicao_aderencia')} />
+              </Field>
+            </div>
+          </fieldset>
 
           {/* Viabilidade econômica — retorno financeiro do projeto */}
           <fieldset className="space-y-4 rounded-lg border p-4">

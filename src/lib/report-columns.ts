@@ -1,12 +1,17 @@
 import type { ExportColumn } from '@/lib/export';
 import { formatDate, formatHours, formatPercent } from '@/lib/format';
 import {
+  APROVACAO_META,
+  areaLabel,
   HEALTH_META,
+  MELHORIA_META,
   PRIORITY_META,
   PROJECT_STATUS_META,
   PROJECT_STATUS_OPTIONS,
   ROLE_META,
   STAGE_STATUS_META,
+  STATUS_GERENCIAL_META,
+  statusGerencial,
   TASK_STATUS_META,
   VIABILITY_META,
 } from '@/lib/constants';
@@ -21,7 +26,13 @@ export const PROJECT_COLUMNS: ExportColumn<ProjectOverview>[] = [
   { header: 'Cliente', accessor: (p) => p.client_name ?? '—' },
   { header: 'Analista responsável', accessor: (p) => p.owner_name ?? '—' },
   { header: 'Responsáveis', accessor: (p) => p.responsibles?.join(', ') || '—', width: 2 },
+  { header: 'Área', accessor: (p) => areaLabel(p.area) },
   { header: 'Status', accessor: (p) => PROJECT_STATUS_META[p.status].label },
+  { header: 'Status gerencial', accessor: (p) => STATUS_GERENCIAL_META[statusGerencial(p.status)].label },
+  { header: 'Aprovado pela Diretoria', accessor: (p) => APROVACAO_META[p.aprovado_diretoria].label },
+  { header: 'Lançado no Redmine', accessor: (p) => (p.lancado_redmine ? 'Sim' : 'Não') },
+  { header: 'Medição de aderência', accessor: (p) => formatDate(p.data_medicao_aderencia) },
+  { header: 'Melhoria Contínua', accessor: (p) => MELHORIA_META[p.melhoria_continua].label },
   { header: 'Prioridade', accessor: (p) => PRIORITY_META[p.priority].label },
   { header: 'Saúde', accessor: (p) => HEALTH_META[p.health].label },
   { header: 'Início', accessor: (p) => formatDate(p.start_date) },

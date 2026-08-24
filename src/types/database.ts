@@ -33,6 +33,27 @@ export type RiskStatus = 'identificado' | 'em_mitigacao' | 'mitigado' | 'aceito'
 export type MilestoneStatus = 'pendente' | 'em_andamento' | 'concluido' | 'atrasado';
 export type StageStatus = 'nao_iniciada' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
 
+/** Macro-área do negócio a que o projeto pertence. Nulo = ainda não classificado. */
+export type ProjectArea = 'agricola' | 'adm' | 'industrial';
+
+/** Situação da aprovação pela Diretoria. */
+export type ApprovalStatus = 'sim' | 'nao' | 'em_aprovacao';
+
+/** Se o projeto será incorporado ao processo de Melhoria Contínua. */
+export type ImprovementStatus = 'sim' | 'nao' | 'em_avaliacao';
+
+/**
+ * Os cinco status que a Diretoria acompanha. Os oito status operacionais do
+ * projeto são agrupados neles pela `statusGerencial()` — mesma regra da
+ * função `public.status_gerencial()` no banco.
+ */
+export type StatusGerencial =
+  | 'concluido'
+  | 'em_andamento'
+  | 'paralisado'
+  | 'nao_iniciado'
+  | 'cancelado';
+
 /** Classificação de viabilidade devolvida por `public.viability_rating()`. */
 export type ViabilityRating =
   | 'sem_dados'
@@ -132,6 +153,19 @@ export interface Project {
    * isto ligado a tela mostra "A definir" e o projeto sai dos atrasados.
    */
   prazo_a_definir: boolean;
+
+  /* ------------------------------------------- Governança da Diretoria */
+  /** Agrícola, ADM ou Industrial. Nulo enquanto não classificado. */
+  area: ProjectArea | null;
+  /** Aprovação pela Diretoria: sim, não ou em aprovação. */
+  aprovado_diretoria: ApprovalStatus;
+  /** Projeto/ação já formalmente lançado no Redmine. */
+  lancado_redmine: boolean;
+  /** Data prevista para a medição de aderência após a implantação. */
+  data_medicao_aderencia: string | null;
+  /** Incorporação à Melhoria Contínua: sim, não ou em avaliação. */
+  melhoria_continua: ImprovementStatus;
+
   actual_start_date: string | null;
   actual_end_date: string | null;
   budget: number;
@@ -215,6 +249,12 @@ export interface ProjectOverview extends Omit<Project, 'position' | 'created_by'
    * depois de encerrado — não há duração de algo em curso.
    */
   realizacao_dias: number | null;
+
+  /**
+   * Dias até a medição de aderência prevista — negativo quando a data já
+   * passou. Nulo quando não há medição programada.
+   */
+  dias_para_medicao: number | null;
 }
 
 export interface ProjectStage {

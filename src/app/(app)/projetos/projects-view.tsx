@@ -21,19 +21,36 @@ import { useProjects, type ProjectFilters } from '@/hooks/use-projects';
 import { useDepartments } from '@/hooks/use-catalogs';
 import { useSession } from '@/hooks/use-session';
 import { useDebouncedValue } from '@/hooks/use-search';
-import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, PROJECT_STATUS_OPTIONS } from '@/lib/constants';
+import {
+  APROVACAO_OPTIONS,
+  AREA_META,
+  AREA_OPTIONS,
+  HEALTH_META,
+  MELHORIA_OPTIONS,
+  PRIORITY_META,
+  PROJECT_STATUS_META,
+  PROJECT_STATUS_OPTIONS,
+} from '@/lib/constants';
 import { PROJECT_COLUMNS } from '@/lib/report-columns';
 import {
   ALL,
+  hasGovernanceFilters,
   healthFilterLabel,
   healthList,
   isDueWithin,
   isHealthFilter,
+  isAreaFilter,
   isLate,
   isStatusFilter,
+  matchesGovernance,
   statusFilterLabel,
   statusList,
+  type AprovacaoFilter,
+  type AreaFilter,
+  type GovernanceQuery,
   type HealthFilter,
+  type MelhoriaFilter,
+  type RedmineFilter,
   type StatusFilter,
 } from '@/lib/project-filters';
 import { formatDate, formatDaysLabel, formatPercent } from '@/lib/format';
@@ -118,6 +135,11 @@ export function ProjectsView() {
   const status: StatusFilter = isStatusFilter(rawStatus) ? rawStatus : ALL;
   const health: HealthFilter = isHealthFilter(rawHealth) ? rawHealth : ALL;
   const departmentId = searchParams.get('depto') ?? ALL;
+  const rawArea = searchParams.get('area') ?? ALL;
+  const area: AreaFilter = isAreaFilter(rawArea) ? rawArea : ALL;
+  const aprovacao = (searchParams.get('aprovacao') ?? ALL) as AprovacaoFilter;
+  const redmine = (searchParams.get('redmine') ?? ALL) as RedmineFilter;
+  const melhoria = (searchParams.get('melhoria') ?? ALL) as MelhoriaFilter;
   const responsible = searchParams.get('responsavel') ?? '';
   const dueWithin = Number(searchParams.get('prazo')) || 0;
   const rawSort = searchParams.get('ordenar') ?? '';
@@ -180,8 +202,16 @@ export function ProjectsView() {
   // precisa continuar mostrando o portfólio inteiro mesmo com filtro ativo.
   const all = useProjects({ sort: 'due_date' });
 
+  const governance = React.useMemo<GovernanceQuery>(
+    () => ({ area, aprovacao, redmine, melhoria }),
+    [area, aprovacao, redmine, melhoria],
+  );
+
   const projects = React.useMemo(() => {
     let list = data ?? [];
+    // Governança da Diretoria: filtrada aqui pelo mesmo motivo do responsável
+    // — são colunas que bancos anteriores à migration 17 não têm.
+    list = list.filter((project) => matchesGovernance(project, governance));
     // Responsável e prazo são resolvidos aqui: o primeiro depende de uma
     // coluna que bancos antigos não têm, e o segundo é derivado da data.
     if (responsible) {
@@ -194,7 +224,7 @@ export function ProjectsView() {
     }
     if (dueWithin) list = list.filter((project) => isDueWithin(project, dueWithin));
     return list;
-  }, [data, responsible, dueWithin]);
+  }, [data, responsible, dueWithin, governance]);
 
   const counts = React.useMemo(() => {
     const list = all.data ?? [];
@@ -223,7 +253,8 @@ export function ProjectsView() {
     health !== ALL ||
     departmentId !== ALL ||
     Boolean(responsible) ||
-    Boolean(dueWithin);
+    Boolean(dueWithin) ||
+    hasGovernanceFilters(governance);
 
   function clearFilters() {
     setSearch('');
@@ -302,7 +333,7 @@ export function ProjectsView() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:flex-wrap lg:items-center">
             <Select value={status} onValueChange={(value) => setParams({ status: value, prazo: 0 })}>
               <SelectTrigger className="lg:w-44" aria-label="Filtrar por status">
                 <SelectValue />
@@ -343,6 +374,60 @@ export function ProjectsView() {
                 {departments.data?.map((department) => (
                   <SelectItem key={department.id} value={department.id}>
                     {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={area} onValueChange={(value) => setParams({ area: value })}>
+              <SelectTrigger className="lg:w-40" aria-label="Filtrar por área">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todas as áreas</SelectItem>
+                {AREA_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value="nao_definida">Área não definida</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={aprovacao} onValueChange={(value) => setParams({ aprovacao: value })}>
+              <SelectTrigger className="lg:w-44" aria-label="Filtrar por aprovação da Diretoria">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Toda aprovação</SelectItem>
+                {APROVACAO_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    Diretoria: {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={redmine} onValueChange={(value) => setParams({ redmine: value })}>
+              <SelectTrigger className="lg:w-40" aria-label="Filtrar por lançamento no Redmine">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Redmine: todos</SelectItem>
+                <SelectItem value="sim">Redmine: lançados</SelectItem>
+                <SelectItem value="nao">Redmine: pendentes</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={melhoria} onValueChange={(value) => setParams({ melhoria: value })}>
+              <SelectTrigger className="lg:w-44" aria-label="Filtrar por Melhoria Contínua">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Toda Melhoria Contínua</SelectItem>
+                {MELHORIA_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    Melhoria: {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -423,6 +508,11 @@ export function ProjectsView() {
               </Badge>
             )}
             {Boolean(dueWithin) && <Badge variant="warning">Vencem em {dueWithin} dia(s)</Badge>}
+            {area !== ALL && (
+              <Badge variant="outline">
+                Área: {area === 'nao_definida' ? 'Não definida' : AREA_META[area].label}
+              </Badge>
+            )}
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="size-3.5" />
               Limpar filtros
@@ -477,6 +567,7 @@ export function ProjectsView() {
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th scope="col" className="px-4 py-3 font-medium">Projeto</th>
                   <th scope="col" className="px-4 py-3 font-medium">Status</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Área</th>
                   <th scope="col" className="px-4 py-3 font-medium">Saúde</th>
                   <th scope="col" className="px-4 py-3 font-medium">Prioridade</th>
                   <th scope="col" className="px-4 py-3 font-medium">Responsável</th>
@@ -504,6 +595,15 @@ export function ProjectsView() {
                       >
                         {PROJECT_STATUS_META[project.status].label}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {project.area ? (
+                        <Badge variant="soft" className={AREA_META[project.area].className}>
+                          {AREA_META[project.area].label}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant="soft" className={HEALTH_META[project.health].className}>

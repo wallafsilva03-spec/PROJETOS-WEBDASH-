@@ -8,7 +8,13 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressWithDelta } from '@/components/ui/progress';
 import { Hint } from '@/components/ui/misc';
-import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, VIABILITY_META } from '@/lib/constants';
+import {
+  AREA_META,
+  HEALTH_META,
+  PRIORITY_META,
+  PROJECT_STATUS_META,
+  VIABILITY_META,
+} from '@/lib/constants';
 import { formatDate, formatDaysLabel, formatDelta, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
@@ -54,6 +60,11 @@ export function ProjectCard({ project, index = 0 }: { project: ProjectOverview; 
             <Badge variant="soft" className={status.className} dot={status.dot}>
               {status.label}
             </Badge>
+            {project.area && (
+              <Badge variant="soft" className={AREA_META[project.area].className}>
+                {AREA_META[project.area].label}
+              </Badge>
+            )}
             {project.responsibles?.slice(0, 2).map((name) => (
               <Badge key={name} variant="soft" className="bg-gradient-brand-soft">
                 {name}

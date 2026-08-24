@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import {
   AlarmClock,
@@ -10,6 +11,7 @@ import {
   Gauge,
   ListChecks,
   MonitorPlay,
+  PieChart,
   Plus,
   Timer,
   TrendingUp,
@@ -30,15 +32,20 @@ import { useProjects } from '@/hooks/use-projects';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { useSession } from '@/hooks/use-session';
 import { formatDate, formatDaysLabel, formatHours, formatNumber, formatPercent } from '@/lib/format';
-import { PRIORITY_META } from '@/lib/constants';
-import { portfolioHref } from '@/lib/project-filters';
+import { PRIORITY_META, STATUS_GERENCIAL_META } from '@/lib/constants';
+import { portfolioGerencial } from '@/lib/portfolio-gerencial';
+import { GERENCIAL_FILTER, portfolioHref } from '@/lib/project-filters';
 import { cn } from '@/lib/utils';
 
 export function DashboardView() {
   const { profile, canCreateProject } = useSession();
   const kpis = useDashboardKpis();
   const attention = useProjects({ health: ['em_risco', 'atrasado', 'critico'], sort: 'due_date' });
+  const portfolio = useProjects({ sort: 'due_date' });
   const myTasks = useMyTasks();
+
+  // Leitura gerencial do portfólio — o mesmo cálculo da tela da Diretoria.
+  const gerencial = React.useMemo(() => portfolioGerencial(portfolio.data ?? []), [portfolio.data]);
 
   const data = kpis.data;
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
@@ -71,6 +78,61 @@ export function DashboardView() {
           </>
         }
       />
+
+      {/* Faixa gerencial — a leitura do portfólio que a Diretoria pede primeiro. */}
+      <Card className="relative overflow-hidden p-5">
+        <span className="absolute inset-x-0 top-0 h-1 bg-gradient-brand" aria-hidden />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Status geral do portfólio
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatNumber(gerencial.total)} projeto(s) ·{' '}
+              {formatNumber(gerencial.concluidos)} concluído(s)
+            </p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/gerencial">
+              <PieChart className="size-4" />
+              Visão gerencial
+            </Link>
+          </Button>
+        </div>
+
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <Link
+            href="/gerencial"
+            className="rounded-lg bg-gradient-brand-soft p-3 transition-colors hover:bg-secondary"
+          >
+            <dt className="text-xs text-muted-foreground">% concluído</dt>
+            <dd className="font-display text-2xl font-semibold text-success">
+              {formatPercent(gerencial.percentConcluido)}
+            </dd>
+          </Link>
+          {(['em_andamento', 'paralisado', 'nao_iniciado', 'cancelado'] as const).map((status) => (
+            <Link
+              key={status}
+              href={portfolioHref({ status: GERENCIAL_FILTER[status] })}
+              className="rounded-lg bg-secondary p-3 transition-colors hover:bg-secondary/70"
+            >
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className={cn('size-1.5 rounded-full', STATUS_GERENCIAL_META[status].dot)}
+                  aria-hidden
+                />
+                % {STATUS_GERENCIAL_META[status].label.toLowerCase()}
+              </dt>
+              <dd className="font-display text-2xl font-semibold">
+                {formatPercent(gerencial.percent[status])}
+              </dd>
+              <dd className="text-[11px] text-muted-foreground">
+                {formatNumber(gerencial.contagem[status])} projeto(s)
+              </dd>
+            </Link>
+          ))}
+        </dl>
+      </Card>
 
       {kpis.isError ? (
         <ErrorState

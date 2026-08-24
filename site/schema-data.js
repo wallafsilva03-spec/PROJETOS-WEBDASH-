@@ -54,6 +54,21 @@ const SCHEMA = {
       values: ['nao_iniciada', 'em_andamento', 'pausada', 'concluida', 'cancelada'],
     },
     {
+      name: 'project_area',
+      description: 'Macro-área do negócio a que o projeto pertence — base da visão gerencial por área.',
+      values: ['agricola', 'adm', 'industrial'],
+    },
+    {
+      name: 'approval_status',
+      description: 'Situação da aprovação do projeto pela Diretoria.',
+      values: ['sim', 'nao', 'em_aprovacao'],
+    },
+    {
+      name: 'improvement_status',
+      description: 'Se o projeto será incorporado ao processo de Melhoria Contínua.',
+      values: ['sim', 'nao', 'em_avaliacao'],
+    },
+    {
       name: 'notification_type',
       description: 'Categoria da notificação em tempo real.',
       values: [
@@ -195,6 +210,47 @@ const SCHEMA = {
         { name: 'health', type: 'health_status', flags: ['NOT NULL', 'CALCULADO'], default: "'no_prazo'", note: 'Derivado por calc_health() no trigger project_intelligence.' },
         { name: 'start_date', type: 'date', flags: ['NOT NULL'], default: 'current_date' },
         { name: 'due_date', type: 'date', flags: ['NOT NULL'], note: 'CHECK garante due_date >= start_date.' },
+        {
+          name: 'prazo_a_definir',
+          type: 'boolean',
+          flags: ['NOT NULL'],
+          default: 'false',
+          note:
+            'Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto ' +
+            'isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai ' +
+            'da conta de atrasados.',
+        },
+        {
+          name: 'area',
+          type: 'project_area',
+          note: 'Agrícola, ADM ou Industrial. NULL = ainda não classificado. Não substitui o departamento executor.',
+        },
+        {
+          name: 'aprovado_diretoria',
+          type: 'approval_status',
+          flags: ['NOT NULL'],
+          default: "'em_aprovacao'",
+          note: 'Situação da aprovação pela Diretoria.',
+        },
+        {
+          name: 'lancado_redmine',
+          type: 'boolean',
+          flags: ['NOT NULL'],
+          default: 'false',
+          note: 'Verdadeiro quando o projeto/ação já foi formalmente lançado no Redmine.',
+        },
+        {
+          name: 'data_medicao_aderencia',
+          type: 'date',
+          note: 'Data prevista para a medição de aderência após a implantação. NULL = ainda não programada.',
+        },
+        {
+          name: 'melhoria_continua',
+          type: 'improvement_status',
+          flags: ['NOT NULL'],
+          default: "'em_avaliacao'",
+          note: 'Se o projeto será incorporado ao processo de Melhoria Contínua.',
+        },
         { name: 'actual_start_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido quando o projeto sai do backlog ou de não iniciado.' },
         { name: 'actual_end_date', type: 'date', flags: ['CALCULADO'], note: 'Preenchido ao concluir.' },
         { name: 'budget', type: 'numeric(14,2)', flags: ['NOT NULL'], default: '0' },
@@ -217,6 +273,7 @@ const SCHEMA = {
         'idx_projects_due_date', 'idx_projects_health',
         'idx_projects_name_trgm (GIN/trigram para busca)',
         'idx_projects_responsibles (GIN sobre o array de responsáveis)',
+        'idx_projects_area', 'idx_projects_medicao_aderencia (parcial, data_medicao_aderencia não nula)',
       ],
     },
     {
@@ -324,16 +381,6 @@ const SCHEMA = {
         { name: 'name', type: 'text', flags: ['NOT NULL'] },
         { name: 'description', type: 'text' },
         { name: 'due_date', type: 'date', flags: ['NOT NULL'] },
-        {
-          name: 'prazo_a_definir',
-          type: 'boolean',
-          flags: ['NOT NULL'],
-          default: 'false',
-          note:
-            'Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto ' +
-            'isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai ' +
-            'da conta de atrasados.',
-        },
         { name: 'status', type: 'milestone_status', flags: ['NOT NULL'], default: "'pendente'" },
         { name: 'completed_at', type: 'timestamptz' },
         { name: 'created_at', type: 'timestamptz', flags: ['NOT NULL'], default: 'now()' },
@@ -567,7 +614,7 @@ const SCHEMA = {
     {
       name: 'v_project_360',
       description:
-        'Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio) e o resumo das etapas.',
+        'Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio), o resumo das etapas e a governança da Diretoria (área, aprovação, lançamento no Redmine, medição de aderência com dias_para_medicao e Melhoria Contínua).',
       usedBy: 'Portfólio, cards de projeto, detalhe do projeto e relatórios.',
     },
     {
@@ -577,6 +624,12 @@ const SCHEMA = {
       usedBy: 'Organograma de etapas, kanban de etapas, linha do tempo e relatório de etapas.',
     },
     {
+      name: 'v_portfolio_areas',
+      description:
+        'Projetos por área (Agrícola, ADM, Industrial e não definida) contados nos cinco status gerenciais, com aprovados pela Diretoria, lançados no Redmine e destinados à Melhoria Contínua.',
+      usedBy: 'Visão gerencial.',
+    },
+    {
       name: 'v_exec_financials',
       description: 'Orçamento, custo, retorno esperado e realizado, benefício líquido e ROI por departamento.',
       usedBy: 'Dashboard executivo.',
@@ -584,6 +637,12 @@ const SCHEMA = {
   ],
 
   functions: [
+    {
+      name: 'status_gerencial(project_status)',
+      kind: 'Leitura',
+      description:
+        'Reduz os oito status operacionais aos cinco que a Diretoria acompanha: concluido, em_andamento, paralisado, nao_iniciado e cancelado.',
+    },
     { name: 'current_app_role()', kind: 'RLS', description: 'Papel do usuário logado. SECURITY DEFINER para evitar recursão nas policies.' },
     { name: 'is_admin()', kind: 'RLS', description: 'Verdadeiro para administrador.' },
     { name: 'is_manager()', kind: 'RLS', description: 'Verdadeiro para administrador e analista — quem enxerga todo o portfólio.' },

@@ -6,7 +6,7 @@
 **Motor:** Supabase (PostgreSQL 15+)  
 **Migrations:** `supabase/migrations`
 
-O banco tem **23 tabelas**, **16 views**, **26 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
+O banco tem **23 tabelas**, **17 views**, **27 functions** e **13 grupos de triggers**, com Row Level Security ativa em todas as tabelas.
 
 ## Sumário
 
@@ -224,6 +224,12 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `health` | `health_status` | NOT NULL, CALCULADO | — | default `'no_prazo'`. Derivado por calc_health() no trigger project_intelligence. |
 | `start_date` | `date` | NOT NULL | — | default `current_date` |
 | `due_date` | `date` | NOT NULL | — | CHECK garante due_date >= start_date. |
+| `prazo_a_definir` | `boolean` | NOT NULL | — | default `false`. Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai da conta de atrasados. |
+| `area` | `project_area` | — | — | Agrícola, ADM ou Industrial. NULL = ainda não classificado. Não substitui o departamento executor. |
+| `aprovado_diretoria` | `approval_status` | NOT NULL | — | default `'em_aprovacao'`. Situação da aprovação pela Diretoria. |
+| `lancado_redmine` | `boolean` | NOT NULL | — | default `false`. Verdadeiro quando o projeto/ação já foi formalmente lançado no Redmine. |
+| `data_medicao_aderencia` | `date` | — | — | Data prevista para a medição de aderência após a implantação. NULL = ainda não programada. |
+| `melhoria_continua` | `improvement_status` | NOT NULL | — | default `'em_avaliacao'`. Se o projeto será incorporado ao processo de Melhoria Contínua. |
 | `actual_start_date` | `date` | CALCULADO | — | Preenchido quando o projeto sai do backlog ou de não iniciado. |
 | `actual_end_date` | `date` | CALCULADO | — | Preenchido ao concluir. |
 | `budget` | `numeric(14,2)` | NOT NULL | — | default `0` |
@@ -240,7 +246,7 @@ Núcleo do portfólio. progress e health são calculados por trigger a partir da
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
 | `updated_at` | `timestamptz` | NOT NULL | — | default `now()` |
 
-**Índices e restrições:** `idx_projects_status (parcial, is_archived = false)`, `idx_projects_owner`, `idx_projects_department`, `idx_projects_client`, `idx_projects_due_date`, `idx_projects_health`, `idx_projects_name_trgm (GIN/trigram para busca)`, `idx_projects_responsibles (GIN sobre o array de responsáveis)`
+**Índices e restrições:** `idx_projects_status (parcial, is_archived = false)`, `idx_projects_owner`, `idx_projects_department`, `idx_projects_client`, `idx_projects_due_date`, `idx_projects_health`, `idx_projects_name_trgm (GIN/trigram para busca)`, `idx_projects_responsibles (GIN sobre o array de responsáveis)`, `idx_projects_area`, `idx_projects_medicao_aderencia (parcial, data_medicao_aderencia não nula)`
 
 **RLS:** Enxergam: administrador, analista, dono, criador e membros da equipe. Criam: administrador, analista e líder. Editam: gestão, dono ou líder membro. Excluem: apenas administrador.
 
@@ -353,7 +359,6 @@ Marcos do projeto, exibidos no roadmap executivo e na timeline.
 | `name` | `text` | NOT NULL | — | — |
 | `description` | `text` | — | — | — |
 | `due_date` | `date` | NOT NULL | — | — |
-| `prazo_a_definir` | `boolean` | NOT NULL | — | default `false`. Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai da conta de atrasados. |
 | `status` | `milestone_status` | NOT NULL | — | default `'pendente'` |
 | `completed_at` | `timestamptz` | — | — | — |
 | `created_at` | `timestamptz` | NOT NULL | — | default `now()` |
@@ -586,6 +591,9 @@ Trilha de auditoria preenchida por trigger genérico em projects, tasks, project
 | `risk_status` | `identificado`, `em_mitigacao`, `mitigado`, `aceito`, `materializado` | Ciclo de vida do risco. |
 | `milestone_status` | `pendente`, `em_andamento`, `concluido`, `atrasado` | Situação do marco. |
 | `stage_status` | `nao_iniciada`, `em_andamento`, `pausada`, `concluida`, `cancelada` | Situação da etapa do projeto no organograma de execução. |
+| `project_area` | `agricola`, `adm`, `industrial` | Macro-área do negócio a que o projeto pertence — base da visão gerencial por área. |
+| `approval_status` | `sim`, `nao`, `em_aprovacao` | Situação da aprovação do projeto pela Diretoria. |
+| `improvement_status` | `sim`, `nao`, `em_avaliacao` | Se o projeto será incorporado ao processo de Melhoria Contínua. |
 | `notification_type` | `comentario`, `mencao`, `tarefa_atribuida`, `tarefa_status`, `prazo_hoje`, `prazo_amanha`, `projeto_atrasado`, `projeto_risco`, `checklist`, `arquivo`, `sistema` | Categoria da notificação em tempo real. |
 | `audit_action` | `INSERT`, `UPDATE`, `DELETE` | Operação registrada na auditoria. |
 
@@ -608,14 +616,16 @@ Todas criadas com `security_invoker = on`: a RLS do usuário logado continua val
 | `v_roadmap` | Projetos com seus marcos, prontos para o roadmap executivo. | Roadmap. |
 | `v_activity_feed` | Atividades com nome e avatar do autor e código do projeto. | Centro de atividades. |
 | `v_risk_heatmap` | Riscos em aberto agrupados por probabilidade e impacto. | Heatmap de riscos. |
-| `v_project_360` | Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio) e o resumo das etapas. | Portfólio, cards de projeto, detalhe do projeto e relatórios. |
+| `v_project_360` | Tudo de v_project_overview mais a viabilidade econômica (benefício líquido, ROI planejado e realizado, payback e classificação), a conclusão por tempo (percentual do prazo consumido, índice de ritmo, data projetada de término e desvio), o resumo das etapas e a governança da Diretoria (área, aprovação, lançamento no Redmine, medição de aderência com dias_para_medicao e Melhoria Contínua). | Portfólio, cards de projeto, detalhe do projeto e relatórios. |
 | `v_project_stages` | Etapas com duração em dias corridos e úteis, avanço previsto, desvio, percentual de prazo consumido, dias restantes, dias de atraso, sinalização de etapa atrasada e o autor do cadastro (created_by). | Organograma de etapas, kanban de etapas, linha do tempo e relatório de etapas. |
+| `v_portfolio_areas` | Projetos por área (Agrícola, ADM, Industrial e não definida) contados nos cinco status gerenciais, com aprovados pela Diretoria, lançados no Redmine e destinados à Melhoria Contínua. | Visão gerencial. |
 | `v_exec_financials` | Orçamento, custo, retorno esperado e realizado, benefício líquido e ROI por departamento. | Dashboard executivo. |
 
 ## Functions
 
 | Função | Categoria | Descrição |
 | ------ | --------- | --------- |
+| `status_gerencial(project_status)` | Leitura | Reduz os oito status operacionais aos cinco que a Diretoria acompanha: concluido, em_andamento, paralisado, nao_iniciado e cancelado. |
 | `current_app_role()` | RLS | Papel do usuário logado. SECURITY DEFINER para evitar recursão nas policies. |
 | `is_admin()` | RLS | Verdadeiro para administrador. |
 | `is_manager()` | RLS | Verdadeiro para administrador e analista — quem enxerga todo o portfólio. |

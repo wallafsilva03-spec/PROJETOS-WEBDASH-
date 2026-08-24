@@ -214,7 +214,12 @@ export function useCreateProject() {
       // Banco ainda sem as colunas de viabilidade: grava o resto e avisa.
       if (error && isSchemaOutdated(error)) {
         ({ data, error } = await insertProject(withoutOptionalColumns(row)));
-        if (!error) toast.warning(`Projeto criado sem viabilidade econômica e sem responsáveis. ${SETUP_HINT}`);
+        if (!error) {
+          toast.warning(
+            'Projeto criado sem viabilidade econômica, responsáveis e governança da Diretoria. ' +
+              SETUP_HINT,
+          );
+        }
       }
 
       if (error) throw error;
@@ -259,7 +264,11 @@ export function useUpdateProject() {
 
       if (error && isSchemaOutdated(error)) {
         ({ data, error } = await update(withoutOptionalColumns(payload)));
-        if (!error) toast.warning(`Viabilidade econômica e responsáveis não gravados. ${SETUP_HINT}`);
+        if (!error) {
+          toast.warning(
+            `Viabilidade econômica, responsáveis e governança da Diretoria não gravados. ${SETUP_HINT}`,
+          );
+        }
       }
 
       if (error) throw error;

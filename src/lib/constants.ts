@@ -1,11 +1,15 @@
 import type {
   AppRole,
+  ApprovalStatus,
   ComplexityLevel,
   HealthStatus,
+  ImprovementStatus,
   PriorityLevel,
+  ProjectArea,
   ProjectStatus,
   RiskStatus,
   StageStatus,
+  StatusGerencial,
   StoredAppRole,
   TaskStatus,
   ViabilityRating,
@@ -253,6 +257,174 @@ export const VIABILITY_META: Record<
     description: 'ROI acima de 50% — prioridade natural no portfólio.',
   },
 };
+
+
+/* ==================================================================
+ * Visão gerencial — o vocabulário que a Diretoria usa
+ * ================================================================== */
+
+/**
+ * Os oito status operacionais agrupados nos cinco que a Diretoria acompanha.
+ * Mesma regra da função `public.status_gerencial()` — mudou aqui, muda lá.
+ */
+export const STATUS_GERENCIAL_DE: Record<ProjectStatus, StatusGerencial> = {
+  concluido: 'concluido',
+  cancelado: 'cancelado',
+  pausado: 'paralisado',
+  nao_iniciado: 'nao_iniciado',
+  backlog: 'nao_iniciado',
+  planejamento: 'em_andamento',
+  em_desenvolvimento: 'em_andamento',
+  homologacao: 'em_andamento',
+};
+
+export function statusGerencial(status: ProjectStatus): StatusGerencial {
+  return STATUS_GERENCIAL_DE[status] ?? 'em_andamento';
+}
+
+/** Status operacionais que compõem cada status gerencial — usado nos filtros. */
+export const STATUS_GERENCIAL_STATUSES: Record<StatusGerencial, ProjectStatus[]> = {
+  concluido: ['concluido'],
+  em_andamento: ['planejamento', 'em_desenvolvimento', 'homologacao'],
+  paralisado: ['pausado'],
+  nao_iniciado: ['nao_iniciado', 'backlog'],
+  cancelado: ['cancelado'],
+};
+
+export const STATUS_GERENCIAL_META: Record<
+  StatusGerencial,
+  Meta & { chart: string; description: string }
+> = {
+  concluido: {
+    label: 'Concluído',
+    className: PROJECT_STATUS_META.concluido.className,
+    dot: 'bg-moreno-green-500',
+    chart: 'hsl(var(--chart-1))',
+    description: 'Ação entregue.',
+  },
+  em_andamento: {
+    label: 'Em andamento',
+    className: PROJECT_STATUS_META.em_desenvolvimento.className,
+    dot: 'bg-moreno-lime-500',
+    chart: 'hsl(var(--chart-2))',
+    description: 'Em planejamento, desenvolvimento ou homologação.',
+  },
+  paralisado: {
+    label: 'Paralisado',
+    className: PROJECT_STATUS_META.pausado.className,
+    dot: 'bg-orange-400',
+    chart: 'hsl(var(--chart-4))',
+    description: 'Execução interrompida.',
+  },
+  nao_iniciado: {
+    label: 'Não iniciado',
+    className: PROJECT_STATUS_META.nao_iniciado.className,
+    dot: 'bg-slate-400',
+    chart: 'hsl(var(--chart-5))',
+    description: 'Cadastrado, sem execução — inclui o backlog.',
+  },
+  cancelado: {
+    label: 'Cancelado',
+    className: PROJECT_STATUS_META.cancelado.className,
+    dot: 'bg-rose-500',
+    chart: 'hsl(var(--chart-6))',
+    description: 'Retirado do portfólio.',
+  },
+};
+
+/** Ordem de leitura dos status na visão gerencial. */
+export const STATUS_GERENCIAL_ORDER: StatusGerencial[] = [
+  'concluido',
+  'em_andamento',
+  'paralisado',
+  'nao_iniciado',
+  'cancelado',
+];
+
+/** Macro-áreas do negócio. `nao_definida` não é valor do banco: é o nulo. */
+export const AREA_META: Record<ProjectArea, Meta> = {
+  agricola: {
+    label: 'Agrícola',
+    className: 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200',
+    dot: 'bg-moreno-green-500',
+  },
+  adm: {
+    label: 'ADM',
+    className: 'bg-moreno-blue-50 text-moreno-blue-700 dark:bg-moreno-blue-900/50 dark:text-moreno-blue-200',
+    dot: 'bg-moreno-blue-400',
+  },
+  industrial: {
+    label: 'Industrial',
+    className: 'bg-moreno-lime-50 text-moreno-lime-800 dark:bg-moreno-lime-900/40 dark:text-moreno-lime-200',
+    dot: 'bg-moreno-lime-500',
+  },
+};
+
+export const AREA_ORDER: ProjectArea[] = ['agricola', 'adm', 'industrial'];
+
+export const AREA_OPTIONS = AREA_ORDER.map((value) => ({ value, label: AREA_META[value].label }));
+
+/** Rótulo da área tolerante ao projeto ainda não classificado. */
+export function areaLabel(area?: ProjectArea | null) {
+  return area ? AREA_META[area].label : 'Não definida';
+}
+
+export const APROVACAO_META: Record<ApprovalStatus, Meta> = {
+  sim: {
+    label: 'Aprovado pela Diretoria',
+    className: 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200',
+    dot: 'bg-moreno-green-500',
+  },
+  em_aprovacao: {
+    label: 'Em aprovação',
+    className: 'bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    dot: 'bg-amber-500',
+  },
+  nao: {
+    label: 'Não aprovado',
+    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    dot: 'bg-slate-400',
+  },
+};
+
+/** Rótulo curto, para o formulário — o do card já vem com o contexto. */
+export const APROVACAO_OPTIONS: { value: ApprovalStatus; label: string }[] = [
+  { value: 'sim', label: 'Sim' },
+  { value: 'nao', label: 'Não' },
+  { value: 'em_aprovacao', label: 'Em aprovação' },
+];
+
+export const MELHORIA_META: Record<ImprovementStatus, Meta> = {
+  sim: {
+    label: 'Melhoria Contínua',
+    className: 'bg-moreno-lime-50 text-moreno-lime-800 dark:bg-moreno-lime-900/40 dark:text-moreno-lime-200',
+    dot: 'bg-moreno-lime-500',
+  },
+  em_avaliacao: {
+    label: 'Em avaliação para Melhoria Contínua',
+    className: 'bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    dot: 'bg-amber-500',
+  },
+  nao: {
+    label: 'Fora da Melhoria Contínua',
+    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    dot: 'bg-slate-400',
+  },
+};
+
+export const MELHORIA_OPTIONS: { value: ImprovementStatus; label: string }[] = [
+  { value: 'sim', label: 'Sim' },
+  { value: 'nao', label: 'Não' },
+  { value: 'em_avaliacao', label: 'Em avaliação' },
+];
+
+export const REDMINE_OPTIONS = [
+  { value: 'sim', label: 'Sim' },
+  { value: 'nao', label: 'Não' },
+];
+
+/** Dias a partir dos quais a medição de aderência é tratada como próxima. */
+export const MEDICAO_PROXIMA_DIAS = 30;
 
 /**
  * Áreas que costumam responder por um projeto. São sugestões: o campo aceita

@@ -6,6 +6,7 @@ import {
   KanbanSquare,
   LayoutDashboard,
   Map,
+  PieChart,
   Settings,
   ShieldAlert,
   Users,
@@ -53,6 +54,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Direção',
     items: [
+      {
+        href: '/gerencial',
+        label: 'Visão Gerencial',
+        icon: PieChart,
+        description: 'Portfólio por status, área e governança',
+      },
       {
         href: '/executivo',
         label: 'Dashboard Executivo',

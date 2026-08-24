@@ -57,7 +57,15 @@ import { useProject } from '@/hooks/use-projects';
 import { useGantt, useTasks } from '@/hooks/use-tasks';
 import { useMilestones } from '@/hooks/use-project-details';
 import { useSession } from '@/hooks/use-session';
-import { HEALTH_META, PRIORITY_META, PROJECT_STATUS_META, COMPLEXITY_META } from '@/lib/constants';
+import {
+  APROVACAO_META,
+  AREA_META,
+  COMPLEXITY_META,
+  HEALTH_META,
+  MELHORIA_META,
+  PRIORITY_META,
+  PROJECT_STATUS_META,
+} from '@/lib/constants';
 import { TASK_COLUMNS } from '@/lib/report-columns';
 import {
   formatCompactCurrency,
@@ -206,8 +214,55 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           Prioridade {priority.label}
         </Badge>
         <Badge variant="outline">Complexidade {COMPLEXITY_META[project.complexity].label}</Badge>
+        {project.area && (
+          <Badge variant="soft" className={AREA_META[project.area].className} dot={AREA_META[project.area].dot}>
+            Área {AREA_META[project.area].label}
+          </Badge>
+        )}
         {project.category && <Badge variant="outline">{project.category}</Badge>}
         {project.client_name && <Badge variant="outline">Cliente: {project.client_name}</Badge>}
+      </div>
+
+      {/* Governança da Diretoria — o que o painel gerencial acompanha */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant="soft"
+          className={APROVACAO_META[project.aprovado_diretoria].className}
+          dot={APROVACAO_META[project.aprovado_diretoria].dot}
+        >
+          {APROVACAO_META[project.aprovado_diretoria].label}
+        </Badge>
+        <Badge
+          variant="soft"
+          className={
+            project.lancado_redmine
+              ? 'bg-moreno-green-50 text-moreno-green-700 dark:bg-moreno-green-900/50 dark:text-moreno-green-200'
+              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+          }
+          dot={project.lancado_redmine ? 'bg-moreno-green-500' : 'bg-slate-400'}
+        >
+          {project.lancado_redmine ? 'Lançado no Redmine' : 'Pendente no Redmine'}
+        </Badge>
+        <Badge
+          variant="soft"
+          className={MELHORIA_META[project.melhoria_continua].className}
+          dot={MELHORIA_META[project.melhoria_continua].dot}
+        >
+          {MELHORIA_META[project.melhoria_continua].label}
+        </Badge>
+        {project.data_medicao_aderencia && (
+          <Badge
+            variant={
+              (project.dias_para_medicao ?? 0) < 0
+                ? 'destructive'
+                : (project.dias_para_medicao ?? 0) <= 7
+                  ? 'warning'
+                  : 'outline'
+            }
+          >
+            Medição de aderência: {formatDate(project.data_medicao_aderencia)}
+          </Badge>
+        )}
       </div>
 
       {project.responsibles.length > 0 && (

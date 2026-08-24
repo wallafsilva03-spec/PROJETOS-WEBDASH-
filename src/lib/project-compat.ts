@@ -22,6 +22,11 @@ export const OPTIONAL_COLUMNS = [
   'financial_notes',
   'responsibles',
   'prazo_a_definir',
+  'area',
+  'aprovado_diretoria',
+  'lancado_redmine',
+  'data_medicao_aderencia',
+  'melhoria_continua',
 ] as const;
 
 /** Remove do payload o que um banco antigo ainda não sabe gravar. */
@@ -55,6 +60,25 @@ function viabilityOf(budget: number, expectedReturn: number): ViabilityRating {
 }
 
 /**
+ * Governança da Diretoria — as colunas da migration 17. Banco que ainda não
+ * a recebeu devolve tudo indefinido, e a tela lê os padrões daqui.
+ */
+function governanceDefaults(project: ProjectOverview) {
+  const medicao = project.data_medicao_aderencia ?? null;
+
+  return {
+    area: project.area ?? null,
+    aprovado_diretoria: project.aprovado_diretoria ?? 'em_aprovacao',
+    lancado_redmine: project.lancado_redmine ?? false,
+    data_medicao_aderencia: medicao,
+    melhoria_continua: project.melhoria_continua ?? 'em_avaliacao',
+    // A view calcula o mesmo número; aqui ele é derivado para o banco antigo.
+    dias_para_medicao:
+      project.dias_para_medicao ?? (medicao ? daysBetween(today(), medicao) : null),
+  } satisfies Partial<ProjectOverview>;
+}
+
+/**
  * Completa uma linha de `v_project_overview` com os campos de
  * `v_project_360`, para a tela funcionar igual em banco antigo.
  */
@@ -70,6 +94,7 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
       // Banco que parou antes da migration 15 ainda não calcula a duração.
       realizacao_dias: project.realizacao_dias ?? null,
       prazo_a_definir: project.prazo_a_definir ?? false,
+      ...governanceDefaults(project),
     };
   }
 
@@ -102,5 +127,6 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
     stages_progress: null,
     realizacao_dias: null,
     prazo_a_definir: false,
+    ...governanceDefaults(project),
   };
 }

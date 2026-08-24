@@ -139,6 +139,19 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   atraso e há quantos dias, execução média, desvio e horas estimadas × realizadas. Filtros de
   busca, status e **departamento** (campo suspenso), e cada linha abre a lista de projetos da
   pessoa. **Restrita ao administrador.**
+- **Visão Gerencial** — o portfólio como a Diretoria lê: **% de projetos concluídos** em destaque,
+  KPIs de total, em andamento, não iniciado e paralisado, distribuição por status (quantidade e
+  percentual), **Área × Status** (Agrícola, ADM e Industrial) em barras empilhadas e tabela com o
+  percentual dentro de cada área, e os indicadores de gestão — aprovados pela Diretoria, em
+  aprovação, lançados no Redmine, pendentes de lançamento, Melhoria Contínua e em avaliação — além
+  das medições de aderência previstas. Filtros de área, status, aprovação, Redmine, Melhoria
+  Contínua, responsável e período valem para todos os indicadores e gráficos ao mesmo tempo, e
+  cada número leva ao portfólio com o mesmo recorte.
+- **Governança da Diretoria nos projetos** — cada projeto tem **Área** (Agrícola / ADM /
+  Industrial), **Aprovado pela Diretoria** (Sim / Não / Em aprovação), **Lançado no Redmine**
+  (Sim / Não), **Data prevista para medição de aderência** e **Incorporar à Melhoria Contínua**
+  (Sim / Não / Em avaliação). Os campos são editáveis no formulário, aparecem no detalhe e no card
+  do projeto, filtram o portfólio e entram nos relatórios exportados.
 - **Dashboard Executivo** — Lead Time, Cycle Time, velocidade, saúde do portfólio, distribuição por
   status/departamento/prioridade/gestor, projetos críticos, orçamento e **retorno financeiro do
   portfólio** (investimento × retorno esperado, benefício líquido e ROI por departamento).

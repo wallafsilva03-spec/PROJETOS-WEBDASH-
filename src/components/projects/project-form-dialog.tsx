@@ -436,9 +436,22 @@ export function ProjectFormDialog({
                   required
                 >
                   <div className="space-y-2">
-                    {/* A data continua guardada mesmo com a marca ligada: ela
-                        volta a valer no instante em que a marca sair. */}
-                    <Input id="due_date" type="date" disabled={field.value} {...register('due_date')} />
+                    {/*
+                      `readOnly`, e nunca `disabled`: campo desabilitado não é
+                      enviado com o formulário, então a data sumia do envio, o
+                      Zod reprovava em "Informe o prazo final" e o salvamento
+                      inteiro morria — inclusive a descrição que a pessoa
+                      tinha acabado de escrever. Só de leitura, a data segue
+                      guardada e volta a valer quando a marca sair.
+                    */}
+                    <Input
+                      id="due_date"
+                      type="date"
+                      readOnly={field.value}
+                      aria-readonly={field.value || undefined}
+                      className={cn(field.value && 'bg-secondary/60 text-muted-foreground')}
+                      {...register('due_date')}
+                    />
                     <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                       Prazo a definir

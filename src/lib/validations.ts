@@ -32,7 +32,7 @@ export const projectSchema = z
   .object({
     code: requiredText('Código', 2, 20).regex(/^[A-Za-z0-9-]+$/, 'Use apenas letras, números e hífen.'),
     name: requiredText('Nome', 3, 160),
-    description: z.string().trim().max(10000).optional().or(z.literal('')),
+    description: z.string().trim().max(4000).optional().or(z.literal('')),
     department_id: z.string().uuid().nullable().optional(),
     client_id: z.string().uuid().nullable().optional(),
     owner_id: z.string().uuid().nullable().optional(),

@@ -248,26 +248,51 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </Card>
 
         <Card className="p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Prazo</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {isFinished ? 'Realização' : 'Prazo'}
+          </p>
+          {/* Encerrado não tem prazo a cobrar: o número que interessa é
+              quanto levou, do início real à entrega. */}
           <p className="mt-1 font-display text-3xl font-semibold">
-            {isFinished ? 'Encerrado' : formatDaysLabel(project.days_remaining).split(' ')[0]}
+            {isFinished
+              ? project.realizacao_dias === null
+                ? '—'
+                : project.realizacao_dias
+              : project.prazo_a_definir
+                ? 'A definir'
+                : formatDaysLabel(project.days_remaining).split(' ')[0]}
           </p>
           <dl className="mt-3 space-y-1 text-xs text-muted-foreground">
             <div className="flex justify-between">
               <dt>Início</dt>
-              <dd className="font-medium text-foreground">{formatDate(project.start_date)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Prazo final</dt>
-              <dd className="font-medium text-foreground">{formatDate(project.due_date)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Dias úteis restantes</dt>
               <dd className="font-medium text-foreground">
-                {Math.max(project.business_days_remaining, 0)}
+                {formatDate(project.actual_start_date ?? project.start_date)}
               </dd>
             </div>
-            {project.days_late > 0 && (
+            <div className="flex justify-between">
+              <dt>{isFinished ? 'Entrega' : 'Prazo final'}</dt>
+              <dd className="font-medium text-foreground">
+                {!isFinished && project.prazo_a_definir
+                  ? 'A definir'
+                  : formatDate(isFinished ? (project.actual_end_date ?? project.due_date) : project.due_date)}
+              </dd>
+            </div>
+            {isFinished ? (
+              <div className="flex justify-between">
+                <dt>Duração</dt>
+                <dd className="font-medium text-foreground">
+                  {project.realizacao_dias === null ? '—' : `${project.realizacao_dias} dia(s)`}
+                </dd>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <dt>Dias úteis restantes</dt>
+                <dd className="font-medium text-foreground">
+                  {Math.max(project.business_days_remaining, 0)}
+                </dd>
+              </div>
+            )}
+            {!isFinished && project.days_late > 0 && (
               <div className="flex justify-between text-destructive">
                 <dt>Atraso</dt>
                 <dd className="font-medium">{project.days_late} dia(s)</dd>

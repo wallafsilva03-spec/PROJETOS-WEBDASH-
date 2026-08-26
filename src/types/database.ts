@@ -127,6 +127,11 @@ export interface Project {
   health: HealthStatus;
   start_date: string;
   due_date: string;
+  /**
+   * Prazo herdado, ainda não repactuado. `due_date` continua guardado; com
+   * isto ligado a tela mostra "A definir" e o projeto sai dos atrasados.
+   */
+  prazo_a_definir: boolean;
   actual_start_date: string | null;
   actual_end_date: string | null;
   budget: number;
@@ -204,6 +209,12 @@ export interface ProjectOverview extends Omit<Project, 'position' | 'created_by'
   stages_late: number;
   /** Avanço das etapas ponderado pelo peso de cada uma. */
   stages_progress: number | null;
+
+  /**
+   * Dias que o projeto levou, do começo real à entrega. Só vem preenchido
+   * depois de encerrado — não há duração de algo em curso.
+   */
+  realizacao_dias: number | null;
 }
 
 export interface ProjectStage {

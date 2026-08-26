@@ -36,6 +36,14 @@ export const projectSchema = z
     department_id: z.string().uuid().nullable().optional(),
     client_id: z.string().uuid().nullable().optional(),
     owner_id: z.string().uuid().nullable().optional(),
+    /**
+     * Analistas responsáveis, em ordem. O primeiro vira `owner_id`; os demais
+     * entram como gestores do projeto e ganham o mesmo poder de edição.
+     */
+    analyst_ids: z
+      .array(z.string().uuid())
+      .max(8, 'No máximo 8 analistas responsáveis por projeto.')
+      .default([]),
     status: z.enum([
       'nao_iniciado',
       'backlog',
@@ -53,6 +61,7 @@ export const projectSchema = z
       .max(12, 'No máximo 12 responsáveis por projeto.')
       .default([]),
     category: z.string().trim().max(80).optional().or(z.literal('')),
+    prazo_a_definir: z.boolean().default(false),
     start_date: z.string().min(1, 'Informe a data de início.'),
     due_date: z.string().min(1, 'Informe o prazo final.'),
     budget: z.coerce.number().min(0, 'O orçamento não pode ser negativo.').default(0),

@@ -135,13 +135,50 @@ export function useProjectMembers(projectId: string) {
   });
 }
 
-type ProjectPayload = Partial<Project> & { tags?: string[] };
+type ProjectPayload = Partial<Project> & { tags?: string[]; analyst_ids?: string[] };
+
+/**
+ * Sincroniza os analistas responsáveis como gestores do projeto.
+ *
+ * Só mexe nas linhas com `role_in_project = 'gestor'`. Quem foi somado pela
+ * aba Equipe entra como `membro` e fica intocado — do contrário, salvar o
+ * formulário do projeto apagaria a equipe montada em outro lugar.
+ */
+async function syncProjectAnalysts(projectId: string, analystIds: string[]) {
+  const supabase = createClient();
+
+  const { data: current } = await supabase
+    .from('project_members')
+    .select('user_id, role_in_project')
+    .eq('project_id', projectId)
+    .eq('role_in_project', 'gestor');
+
+  const before = (current ?? []).map((row) => row.user_id as string);
+  const removed = before.filter((id) => !analystIds.includes(id));
+
+  if (analystIds.length) {
+    await supabase
+      .from('project_members')
+      .upsert(
+        analystIds.map((user_id) => ({ project_id: projectId, user_id, role_in_project: 'gestor' })),
+      );
+  }
+
+  if (removed.length) {
+    await supabase
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('role_in_project', 'gestor')
+      .in('user_id', removed);
+  }
+}
 
 export function useCreateProject() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ tags = [], ...payload }: ProjectPayload) => {
+    mutationFn: async ({ tags = [], analyst_ids: analystIds = [], ...payload }: ProjectPayload) => {
       const supabase = createClient();
       const {
         data: { user },
@@ -183,11 +220,16 @@ export function useCreateProject() {
       if (error) throw error;
       const project = data as Project;
 
-      if (project.owner_id) {
-        await supabase
-          .from('project_members')
-          .upsert({ project_id: project.id, user_id: project.owner_id, role_in_project: 'gestor' });
-      }
+      // Todos os analistas responsáveis viram gestores; o primeiro já está
+      // em `owner_id`, mas entra aqui também para a permissão não depender
+      // de qual dos dois caminhos a RLS consultar.
+      const analysts = analystIds.length
+        ? analystIds
+        : project.owner_id
+          ? [project.owner_id]
+          : [];
+
+      if (analysts.length) await syncProjectAnalysts(project.id, analysts);
 
       if (tags.length) {
         await supabase.from('project_tags').insert(tags.map((tag_id) => ({ project_id: project.id, tag_id })));
@@ -208,7 +250,7 @@ export function useUpdateProject() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, tags, ...payload }: ProjectPayload & { id: string }) => {
+    mutationFn: async ({ id, tags, analyst_ids: analystIds, ...payload }: ProjectPayload & { id: string }) => {
       const supabase = createClient();
       const update = (values: Record<string, unknown>) =>
         supabase.from('projects').update(values).eq('id', id).select().single();
@@ -228,6 +270,8 @@ export function useUpdateProject() {
           await supabase.from('project_tags').insert(tags.map((tag_id) => ({ project_id: id, tag_id })));
         }
       }
+
+      if (analystIds) await syncProjectAnalysts(id, analystIds);
 
       return data as Project;
     },

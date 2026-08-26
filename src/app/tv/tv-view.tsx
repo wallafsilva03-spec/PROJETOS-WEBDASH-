@@ -234,7 +234,7 @@ export function TvView() {
   const soon = React.useMemo(
     () =>
       list
-        .filter((project) => isDueWithin(project, 15))
+        .filter((project) => !project.prazo_a_definir && isDueWithin(project, 15))
         .sort((a, b) => a.days_remaining - b.days_remaining)
         .slice(0, 5),
     [list],

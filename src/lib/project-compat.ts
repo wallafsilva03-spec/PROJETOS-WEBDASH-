@@ -21,6 +21,7 @@ export const OPTIONAL_COLUMNS = [
   'return_period_months',
   'financial_notes',
   'responsibles',
+  'prazo_a_definir',
 ] as const;
 
 /** Remove do payload o que um banco antigo ainda não sabe gravar. */
@@ -62,7 +63,15 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
 
   // A view nova já traz tudo, menos os responsáveis quando o banco parou na
   // migration 08 — daí o campo ser normalizado nos dois caminhos.
-  if ('viability' in row) return { ...project, responsibles: project.responsibles ?? [] };
+  if ('viability' in row) {
+    return {
+      ...project,
+      responsibles: project.responsibles ?? [],
+      // Banco que parou antes da migration 15 ainda não calcula a duração.
+      realizacao_dias: project.realizacao_dias ?? null,
+      prazo_a_definir: project.prazo_a_definir ?? false,
+    };
+  }
 
   const budget = Number(project.budget) || 0;
   const elapsed = daysBetween(project.start_date, today()) + 1;
@@ -91,5 +100,7 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
     stages_running: 0,
     stages_late: 0,
     stages_progress: null,
+    realizacao_dias: null,
+    prazo_a_definir: false,
   };
 }

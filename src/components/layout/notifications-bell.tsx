@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   Bell,
@@ -18,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger, Separator, Switch } from '@/components/ui/misc';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useNotifications } from '@/hooks/use-notifications';
-import { useWebNotifications } from '@/hooks/use-web-notifications';
+import { SHOW_RESULT_MESSAGE, useWebNotifications } from '@/hooks/use-web-notifications';
 import { formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/database';
@@ -49,6 +50,28 @@ export function NotificationsBell() {
   const [open, setOpen] = React.useState(false);
   const { items, unreadCount, markAllRead, markRead, isLoading } = useNotifications();
   const web = useWebNotifications();
+  const [testando, setTestando] = React.useState(false);
+
+  /**
+   * Cinco segundos de espera de propósito: com a aba à vista, muitos sistemas
+   * engolem o balão ou o mostram por um instante. O teste só prova alguma
+   * coisa se a pessoa tiver tempo de sair da aba.
+   */
+  function testar() {
+    setTestando(true);
+    setOpen(false);
+
+    window.setTimeout(() => {
+      const result = web.show({
+        title: 'Aviso de teste',
+        body: 'Se você está lendo isto fora da aba, está funcionando.',
+        tag: 'teste',
+      });
+
+      setTestando(false);
+      if (result !== 'shown') toast.error(SHOW_RESULT_MESSAGE[result]);
+    }, 5000);
+  }
 
   function openNotification(notification: Notification) {
     if (!notification.is_read) markRead.mutate(notification.id);
@@ -160,12 +183,23 @@ export function NotificationsBell() {
               Avisos bloqueados neste navegador. Libere no cadeado da barra de endereço.
             </p>
           ) : web.permission === 'granted' ? (
-            <label className="flex cursor-pointer items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground">
-                Avisar no navegador quando eu estiver em outra aba
-              </span>
-              <Switch checked={web.enabled} onCheckedChange={web.setPreference} />
-            </label>
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  Avisar no navegador quando eu estiver em outra aba
+                </span>
+                <Switch checked={web.enabled} onCheckedChange={web.setPreference} />
+              </label>
+
+              {/*
+                Sem isto não havia como saber se o aviso funciona: ele só
+                dispara quando alguém comenta, menciona ou um prazo vence, e
+                aí já é tarde para descobrir que o navegador estava bloqueando.
+              */}
+              <Button variant="ghost" size="sm" className="w-full" onClick={testar} disabled={testando}>
+                {testando ? 'Troque de aba… o aviso sai em 5s' : 'Testar aviso'}
+              </Button>
+            </div>
           ) : (
             <Button variant="outline" size="sm" className="w-full" onClick={() => void web.request()}>
               <Bell className="size-3.5" />

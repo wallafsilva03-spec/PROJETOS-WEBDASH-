@@ -3431,6 +3431,551 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- ORIGEM: supabase/migrations/20250503000000_analistas_responsaveis.sql
+-- ---------------------------------------------------------------------
+
+-- =====================================================================
+-- Fase 5 · Migration 14 — Mais de um analista respondendo pelo projeto
+-- =====================================================================
+--
+-- O projeto tinha um "dono no sistema" só: `projects.owner_id`. Agora a tela
+-- deixa marcar vários analistas responsáveis, e todos precisam poder editar o
+-- projeto — senão o campo vira enfeite.
+--
+-- O primeiro escolhido continua em `owner_id`, porque é dele que as views
+-- tiram `owner_name` e é ele o registro histórico de quem responde primeiro.
+-- Os demais entram em `project_members` com `role_in_project = 'gestor'`, que
+-- já era o papel gravado para o dono desde o começo.
+--
+-- Falta a permissão acompanhar: `can_manage_project()` olhava o papel da
+-- pessoa no **perfil** (`profiles.role = 'lider'`), e não o papel dela **no
+-- projeto**. Quem fosse marcado como gestor de um projeto sem ser líder da
+-- casa continuava sem poder editar.
+--
+-- Nada é removido: a condição nova entra somando às que já existiam.
+-- =====================================================================
+
+create or replace function public.can_manage_project(p_project_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_manager()
+      -- Primeiro analista responsável (o antigo "dono no sistema").
+      or exists (
+           select 1 from public.projects pr
+            where pr.id = p_project_id and pr.owner_id = auth.uid()
+         )
+      -- Demais analistas responsáveis, marcados como gestores do projeto.
+      or exists (
+           select 1 from public.project_members m
+            where m.project_id = p_project_id
+              and m.user_id = auth.uid()
+              and m.role_in_project = 'gestor'
+         )
+      -- Líder da casa que participa do projeto — regra original, mantida.
+      or exists (
+           select 1
+             from public.project_members m
+             join public.profiles p on p.id = m.user_id
+            where m.project_id = p_project_id
+              and m.user_id = auth.uid()
+              and p.role = 'lider'
+         );
+$$;
+
+-- ---------------------------------------------------------------------
+-- ORIGEM: supabase/migrations/20250504000000_prazo_projeto_encerrado.sql
+-- ---------------------------------------------------------------------
+
+-- =====================================================================
+-- Fase 5 · Migration 15 — Projeto encerrado não fica "em atraso"
+-- =====================================================================
+--
+-- `days_late` era `greatest(current_date - due_date, 0)`, sem olhar o status.
+-- Um projeto entregue em julho com prazo em junho continuava somando um dia
+-- de atraso por dia, para sempre — o atraso crescia depois de o trabalho ter
+-- acabado. O mesmo para `days_remaining`, que ficava cada vez mais negativo.
+--
+-- A saúde já estava certa: `calc_health()` devolve 'no_prazo' para concluído
+-- e cancelado desde o começo. Era só a contagem de dias que continuava
+-- correndo.
+--
+-- Entra também `realizacao_dias`: quanto o projeto levou de fato, do começo
+-- real à entrega. É o número que interessa depois de encerrado — o prazo já
+-- não tem o que cobrar.
+--
+-- Só a expressão das colunas muda. Nenhuma tabela é tocada, nenhum dado é
+-- reescrito, e o `create or replace` mantém nome, tipo e ordem — por isso a
+-- `v_project_360`, que lê `v.*` daqui, continua válida sem ser recriada.
+-- =====================================================================
+
+create or replace view public.v_project_overview
+with (security_invoker = on) as
+select
+  p.id,
+  p.code,
+  p.name,
+  p.description,
+  p.status,
+  p.priority,
+  p.complexity,
+  p.category,
+  p.health,
+  p.start_date,
+  p.due_date,
+  p.actual_start_date,
+  p.actual_end_date,
+  p.budget,
+  p.cost,
+  p.planned_hours,
+  p.progress,
+  p.is_archived,
+  p.created_at,
+  p.updated_at,
+  p.department_id,
+  d.name  as department_name,
+  d.color as department_color,
+  p.client_id,
+  c.name  as client_name,
+  p.owner_id,
+  o.full_name  as owner_name,
+  o.avatar_url as owner_avatar,
+  coalesce(tm.team_count, 0)              as team_count,
+  coalesce(tk.total_tasks, 0)             as total_tasks,
+  coalesce(tk.done_tasks, 0)              as done_tasks,
+  coalesce(tk.late_tasks, 0)              as late_tasks,
+  coalesce(tk.estimated_hours, 0)         as tasks_estimated_hours,
+  coalesce(te.actual_hours, 0)            as actual_hours,
+  coalesce(ck.checklist_total, 0)         as checklist_total,
+  coalesce(ck.checklist_done, 0)          as checklist_done,
+  coalesce(rk.open_risks, 0)              as open_risks,
+  coalesce(rk.max_severity, 0)            as max_risk_severity,
+  coalesce(ms.milestones_total, 0)        as milestones_total,
+  coalesce(ms.milestones_done, 0)         as milestones_done,
+  public.expected_progress(p.start_date, p.due_date)                as expected_progress,
+  round(p.progress - public.expected_progress(p.start_date, p.due_date), 2) as progress_delta,
+
+  -- Encerrado não tem mais prazo correndo: zera em vez de seguir contando.
+  case
+    when p.status in ('concluido', 'cancelado') then 0
+    else (p.due_date - current_date)
+  end                                                               as days_remaining,
+  case
+    when p.status in ('concluido', 'cancelado') then 0
+    else greatest(current_date - p.due_date, 0)
+  end                                                               as days_late,
+
+  public.business_days(current_date, p.due_date)                    as business_days_remaining,
+  public.business_days(p.start_date, p.due_date)                    as business_days_total,
+  case
+    when coalesce(te.actual_hours, 0) = 0 then null
+    else round((coalesce(tk.estimated_hours, 0) / nullif(te.actual_hours, 0)) * 100, 2)
+  end                                                               as efficiency
+from public.projects p
+left join public.departments d on d.id = p.department_id
+left join public.clients c     on c.id = p.client_id
+left join public.profiles o    on o.id = p.owner_id
+left join lateral (
+  select count(*) as team_count from public.project_members m where m.project_id = p.id
+) tm on true
+left join lateral (
+  select
+    count(*)                                            as total_tasks,
+    count(*) filter (where t.status = 'concluido')      as done_tasks,
+    count(*) filter (
+      where t.status <> 'concluido' and t.due_date < current_date
+    )                                                   as late_tasks,
+    coalesce(sum(t.estimated_hours), 0)                 as estimated_hours
+  from public.tasks t where t.project_id = p.id
+) tk on true
+left join lateral (
+  select coalesce(sum(e.hours), 0) as actual_hours
+  from public.time_entries e where e.project_id = p.id
+) te on true
+left join lateral (
+  select
+    count(*)                                       as checklist_total,
+    count(*) filter (where ci.is_done)             as checklist_done
+  from public.checklist_items ci where ci.project_id = p.id
+) ck on true
+left join lateral (
+  select count(*) filter (where r.status not in ('mitigado', 'aceito')) as open_risks,
+         coalesce(max(r.severity) filter (where r.status not in ('mitigado', 'aceito')), 0) as max_severity
+  from public.risks r where r.project_id = p.id
+) rk on true
+left join lateral (
+  select count(*) as milestones_total, count(*) filter (where m.status = 'concluido') as milestones_done
+  from public.milestones m where m.project_id = p.id
+) ms on true;
+
+-- `realizacao_dias` entra na `v_project_360`, e não na `v_project_overview`.
+--
+-- É o que mantém o setup.sql repetível: a migration 05 refaz a overview com
+-- `create or replace`, que recusa perder coluna. Se a coluna nova morasse
+-- lá, a segunda execução do arquivo pararia em "cannot drop columns from
+-- view" — foi exatamente o que aconteceu ao testar. A 360 é derrubada e
+-- recriada aqui, então aceita colunas novas à vontade.
+drop view if exists public.v_exec_financials;
+drop view if exists public.v_project_360;
+
+create view public.v_project_360
+with (security_invoker = on) as
+select
+  v.*,
+  p.expected_return,
+  p.actual_return,
+  p.return_period_months,
+  p.financial_notes,
+  (p.expected_return - p.budget)                                   as net_benefit,
+  (p.actual_return - p.cost)                                       as net_benefit_real,
+  public.project_roi(p.budget, p.expected_return)                  as roi_percent,
+  public.project_roi(p.cost, p.actual_return)                      as roi_real_percent,
+  public.payback_months(p.budget, p.expected_return, p.return_period_months) as payback_months,
+  public.viability_rating(
+    p.budget,
+    p.expected_return,
+    public.project_roi(p.budget, p.expected_return)
+  )                                                                as viability,
+  public.time_elapsed_percent(p.start_date, p.due_date, p.actual_end_date) as time_elapsed_percent,
+  public.schedule_index(p.progress, v.expected_progress)            as schedule_index,
+  public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) as forecast_end_date,
+  case
+    when public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) is null then null
+    else public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) - p.due_date
+  end                                                               as forecast_delay_days,
+  coalesce(st.stages_total, 0)                                      as stages_total,
+  coalesce(st.stages_done, 0)                                       as stages_done,
+  coalesce(st.stages_running, 0)                                    as stages_running,
+  coalesce(st.stages_late, 0)                                       as stages_late,
+  st.stages_progress                                                as stages_progress,
+
+  -- Quanto o projeto levou de fato. Usa as datas reais quando existem — o
+  -- trigger as carimba ao sair do backlog e ao concluir — e cai para as
+  -- planejadas quando o projeto é anterior a esse controle. Fica nulo
+  -- enquanto o projeto não terminou: não há duração de algo em curso.
+  case
+    when p.status in ('concluido', 'cancelado')
+      then greatest(
+             coalesce(p.actual_end_date, current_date)
+               - coalesce(p.actual_start_date, p.start_date),
+             0
+           )
+    else null
+  end                                                               as realizacao_dias
+from public.v_project_overview v
+join public.projects p on p.id = v.id
+left join lateral (
+  select
+    count(*)                                                as stages_total,
+    count(*) filter (where s.status = 'concluida')          as stages_done,
+    count(*) filter (where s.status = 'em_andamento')       as stages_running,
+    count(*) filter (
+      where s.status not in ('concluida', 'cancelada') and s.end_date < current_date
+    )                                                       as stages_late,
+    round(
+      sum(s.weight * s.progress) filter (where s.status <> 'cancelada')
+        / nullif(sum(s.weight) filter (where s.status <> 'cancelada'), 0),
+      2
+    )                                                       as stages_progress
+  from public.project_stages s
+  where s.project_id = p.id
+) st on true;
+
+grant select on public.v_project_360 to authenticated;
+
+-- Recriada igual à migration 08 — só precisou cair junto por depender da 360.
+create view public.v_exec_financials
+with (security_invoker = on) as
+select
+  coalesce(v.department_name, 'Sem departamento') as chave,
+  coalesce(v.department_color, '#94a3b8')         as cor,
+  count(*)                                        as total,
+  coalesce(sum(v.budget), 0)                      as orcamento,
+  coalesce(sum(v.cost), 0)                        as custo,
+  coalesce(sum(v.expected_return), 0)             as retorno_esperado,
+  coalesce(sum(v.actual_return), 0)               as retorno_realizado,
+  coalesce(sum(v.expected_return - v.budget), 0)  as beneficio_liquido,
+  public.project_roi(sum(v.budget), sum(v.expected_return)) as roi_percent
+from public.v_project_360 v
+where v.is_archived = false
+group by 1, 2;
+
+grant select on public.v_exec_financials to authenticated;
+
+-- ---------------------------------------------------------------------
+-- ORIGEM: supabase/migrations/20250505000000_prazo_a_definir.sql
+-- ---------------------------------------------------------------------
+
+-- =====================================================================
+-- Fase 5 · Migration 16 — Prazo a definir
+-- =====================================================================
+--
+-- Os prazos herdados não valem: muito projeto entrou com data provisória e
+-- hoje aparece atrasado sem que ninguém tenha combinado nada. Enquanto o
+-- prazo de verdade não é repactuado, esses projetos passam a mostrar "A
+-- definir" e saem da conta de atrasados.
+--
+-- A data antiga NÃO é apagada. Ela continua em `due_date`, intacta, e volta a
+-- valer no instante em que a marca sair. O que entra é uma marca ao lado —
+-- reversível por um clique no formulário do projeto.
+--
+-- Manter a data também é o que segura o resto de pé: `expected_progress()`,
+-- Gantt, roadmap e calendário contam com uma data sempre presente, e um nulo
+-- ali quebraria os quatro.
+-- =====================================================================
+
+alter table public.projects
+  add column if not exists prazo_a_definir boolean not null default false;
+
+comment on column public.projects.prazo_a_definir is
+  'Prazo herdado, ainda não repactuado. A data em due_date continua guardada; '
+  'enquanto isto for verdadeiro a tela mostra "A definir" e o projeto não '
+  'entra na conta de atrasados.';
+
+-- ---------------------------------------------------------------------
+-- Saúde: quem está com prazo a definir não é atrasado — é indefinido.
+--
+-- A regra fica no gatilho, e não em `calc_health()`: mudar a assinatura da
+-- função criaria uma sobrecarga de cinco e outra de seis argumentos, e a
+-- ambiguidade entre as duas é o tipo de coisa que aparece meses depois.
+-- ---------------------------------------------------------------------
+create or replace function public.tg_project_intelligence()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status = 'concluido' then
+    new.progress := 100;
+    if new.actual_end_date is null then
+      new.actual_end_date := current_date;
+    end if;
+  elsif new.status <> 'backlog' and new.actual_start_date is null then
+    new.actual_start_date := current_date;
+  end if;
+
+  if new.prazo_a_definir then
+    -- Sem prazo combinado não há atraso a declarar.
+    new.health := 'no_prazo';
+  else
+    new.health := public.calc_health(
+      new.status, new.start_date, new.due_date, new.progress, new.priority
+    );
+  end if;
+
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- Marcação inicial: o que está em atraso hoje e ainda em aberto.
+--
+-- Concluído e cancelado ficam de fora de propósito — nesses o prazo já não
+-- cobra nada, e o cartão passou a mostrar a duração da realização.
+--
+-- O próprio UPDATE dispara o gatilho acima, então a saúde é recalculada na
+-- mesma passada. `where prazo_a_definir is not true` deixa a migration
+-- repetível sem reescrever o que já foi ajustado à mão.
+-- ---------------------------------------------------------------------
+update public.projects
+   set prazo_a_definir = true
+ where status not in ('concluido', 'cancelado')
+   and health in ('atrasado', 'critico')
+   and prazo_a_definir is not true;
+
+-- ---------------------------------------------------------------------
+-- A coluna precisa chegar às telas, e vai pela `v_project_360` — nunca pela
+-- `v_project_overview`. A migration 05 refaz a overview a cada execução do
+-- setup.sql com `create or replace`, que recusa perder coluna; qualquer
+-- coluna nova ali faria a segunda execução parar em "cannot drop columns
+-- from view". Na overview muda só a expressão de `days_late` e
+-- `days_remaining`, que a 05 restaura e esta migration corrige de novo.
+-- ---------------------------------------------------------------------
+create or replace view public.v_project_overview
+with (security_invoker = on) as
+select
+  p.id,
+  p.code,
+  p.name,
+  p.description,
+  p.status,
+  p.priority,
+  p.complexity,
+  p.category,
+  p.health,
+  p.start_date,
+  p.due_date,
+  p.actual_start_date,
+  p.actual_end_date,
+  p.budget,
+  p.cost,
+  p.planned_hours,
+  p.progress,
+  p.is_archived,
+  p.created_at,
+  p.updated_at,
+  p.department_id,
+  d.name  as department_name,
+  d.color as department_color,
+  p.client_id,
+  c.name  as client_name,
+  p.owner_id,
+  o.full_name  as owner_name,
+  o.avatar_url as owner_avatar,
+  coalesce(tm.team_count, 0)              as team_count,
+  coalesce(tk.total_tasks, 0)             as total_tasks,
+  coalesce(tk.done_tasks, 0)              as done_tasks,
+  coalesce(tk.late_tasks, 0)              as late_tasks,
+  coalesce(tk.estimated_hours, 0)         as tasks_estimated_hours,
+  coalesce(te.actual_hours, 0)            as actual_hours,
+  coalesce(ck.checklist_total, 0)         as checklist_total,
+  coalesce(ck.checklist_done, 0)          as checklist_done,
+  coalesce(rk.open_risks, 0)              as open_risks,
+  coalesce(rk.max_severity, 0)            as max_risk_severity,
+  coalesce(ms.milestones_total, 0)        as milestones_total,
+  coalesce(ms.milestones_done, 0)         as milestones_done,
+  public.expected_progress(p.start_date, p.due_date)                as expected_progress,
+  round(p.progress - public.expected_progress(p.start_date, p.due_date), 2) as progress_delta,
+
+  -- Encerrado não tem prazo correndo; prazo a definir não tem prazo nenhum.
+  case
+    when p.status in ('concluido', 'cancelado') or p.prazo_a_definir then 0
+    else (p.due_date - current_date)
+  end                                                               as days_remaining,
+  case
+    when p.status in ('concluido', 'cancelado') or p.prazo_a_definir then 0
+    else greatest(current_date - p.due_date, 0)
+  end                                                               as days_late,
+
+  public.business_days(current_date, p.due_date)                    as business_days_remaining,
+  public.business_days(p.start_date, p.due_date)                    as business_days_total,
+  case
+    when coalesce(te.actual_hours, 0) = 0 then null
+    else round((coalesce(tk.estimated_hours, 0) / nullif(te.actual_hours, 0)) * 100, 2)
+  end                                                               as efficiency
+from public.projects p
+left join public.departments d on d.id = p.department_id
+left join public.clients c     on c.id = p.client_id
+left join public.profiles o    on o.id = p.owner_id
+left join lateral (
+  select count(*) as team_count from public.project_members m where m.project_id = p.id
+) tm on true
+left join lateral (
+  select
+    count(*)                                            as total_tasks,
+    count(*) filter (where t.status = 'concluido')      as done_tasks,
+    count(*) filter (
+      where t.status <> 'concluido' and t.due_date < current_date
+    )                                                   as late_tasks,
+    coalesce(sum(t.estimated_hours), 0)                 as estimated_hours
+  from public.tasks t where t.project_id = p.id
+) tk on true
+left join lateral (
+  select coalesce(sum(e.hours), 0) as actual_hours
+  from public.time_entries e where e.project_id = p.id
+) te on true
+left join lateral (
+  select
+    count(*)                                       as checklist_total,
+    count(*) filter (where ci.is_done)             as checklist_done
+  from public.checklist_items ci where ci.project_id = p.id
+) ck on true
+left join lateral (
+  select count(*) filter (where r.status not in ('mitigado', 'aceito')) as open_risks,
+         coalesce(max(r.severity) filter (where r.status not in ('mitigado', 'aceito')), 0) as max_severity
+  from public.risks r where r.project_id = p.id
+) rk on true
+left join lateral (
+  select count(*) as milestones_total, count(*) filter (where m.status = 'concluido') as milestones_done
+  from public.milestones m where m.project_id = p.id
+) ms on true;
+
+drop view if exists public.v_exec_financials;
+drop view if exists public.v_project_360;
+
+create view public.v_project_360
+with (security_invoker = on) as
+select
+  v.*,
+  p.expected_return,
+  p.actual_return,
+  p.return_period_months,
+  p.financial_notes,
+  (p.expected_return - p.budget)                                   as net_benefit,
+  (p.actual_return - p.cost)                                       as net_benefit_real,
+  public.project_roi(p.budget, p.expected_return)                  as roi_percent,
+  public.project_roi(p.cost, p.actual_return)                      as roi_real_percent,
+  public.payback_months(p.budget, p.expected_return, p.return_period_months) as payback_months,
+  public.viability_rating(
+    p.budget,
+    p.expected_return,
+    public.project_roi(p.budget, p.expected_return)
+  )                                                                as viability,
+  public.time_elapsed_percent(p.start_date, p.due_date, p.actual_end_date) as time_elapsed_percent,
+  public.schedule_index(p.progress, v.expected_progress)            as schedule_index,
+  public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) as forecast_end_date,
+  case
+    when public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) is null then null
+    else public.forecast_end_date(p.start_date, p.due_date, p.progress, p.actual_end_date) - p.due_date
+  end                                                               as forecast_delay_days,
+  coalesce(st.stages_total, 0)                                      as stages_total,
+  coalesce(st.stages_done, 0)                                       as stages_done,
+  coalesce(st.stages_running, 0)                                    as stages_running,
+  coalesce(st.stages_late, 0)                                       as stages_late,
+  st.stages_progress                                                as stages_progress,
+  case
+    when p.status in ('concluido', 'cancelado')
+      then greatest(
+             coalesce(p.actual_end_date, current_date)
+               - coalesce(p.actual_start_date, p.start_date),
+             0
+           )
+    else null
+  end                                                               as realizacao_dias,
+  p.prazo_a_definir
+from public.v_project_overview v
+join public.projects p on p.id = v.id
+left join lateral (
+  select
+    count(*)                                                as stages_total,
+    count(*) filter (where s.status = 'concluida')          as stages_done,
+    count(*) filter (where s.status = 'em_andamento')       as stages_running,
+    count(*) filter (
+      where s.status not in ('concluida', 'cancelada') and s.end_date < current_date
+    )                                                       as stages_late,
+    round(
+      sum(s.weight * s.progress) filter (where s.status <> 'cancelada')
+        / nullif(sum(s.weight) filter (where s.status <> 'cancelada'), 0),
+      2
+    )                                                       as stages_progress
+  from public.project_stages s
+  where s.project_id = p.id
+) st on true;
+
+grant select on public.v_project_360 to authenticated;
+
+create view public.v_exec_financials
+with (security_invoker = on) as
+select
+  coalesce(v.department_name, 'Sem departamento') as chave,
+  coalesce(v.department_color, '#94a3b8')         as cor,
+  count(*)                                        as total,
+  coalesce(sum(v.budget), 0)                      as orcamento,
+  coalesce(sum(v.cost), 0)                        as custo,
+  coalesce(sum(v.expected_return), 0)             as retorno_esperado,
+  coalesce(sum(v.actual_return), 0)               as retorno_realizado,
+  coalesce(sum(v.expected_return - v.budget), 0)  as beneficio_liquido,
+  public.project_roi(sum(v.budget), sum(v.expected_return)) as roi_percent
+from public.v_project_360 v
+where v.is_archived = false
+group by 1, 2;
+
+grant select on public.v_exec_financials to authenticated;
+
+-- ---------------------------------------------------------------------
 -- ORIGEM: supabase/seed.sql (departamentos, clientes e tags do Grupo Moreno)
 -- ---------------------------------------------------------------------
 

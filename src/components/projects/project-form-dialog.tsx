@@ -18,8 +18,10 @@ import { Field } from '@/components/ui/label';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/misc';
 import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import { CatalogField } from '@/components/projects/catalog-field';
+import { AnalystsField } from '@/components/projects/analysts-field';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -35,7 +37,7 @@ import {
   useProfiles,
   useTags,
 } from '@/hooks/use-catalogs';
-import { useCreateProject, useUpdateProject } from '@/hooks/use-projects';
+import { useCreateProject, useProjectMembers, useUpdateProject } from '@/hooks/use-projects';
 import { useSession } from '@/hooks/use-session';
 import { cn } from '@/lib/utils';
 import type { ProjectOverview } from '@/types/database';
@@ -48,6 +50,7 @@ const NONE = '__none__';
  */
 const NO_TAGS: string[] = [];
 const NO_RESPONSIBLES: string[] = [];
+const NO_ANALYSTS: string[] = [];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -83,6 +86,20 @@ export function ProjectFormDialog({
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
 
+  // Na edição, os analistas já gravados: o principal em `owner_id` e os
+  // demais como gestores do projeto.
+  const members = useProjectMembers(project?.id ?? '');
+
+  const analystIds = React.useMemo(() => {
+    if (!project) return NO_ANALYSTS;
+
+    const managers = (members.data ?? [])
+      .filter((member) => member.role_in_project === 'gestor' && member.user_id !== project.owner_id)
+      .map((member) => member.user_id);
+
+    return project.owner_id ? [project.owner_id, ...managers] : managers;
+  }, [project, members.data]);
+
   const defaultValues = React.useMemo<ProjectInput>(
     () => ({
       code: project?.code ?? '',
@@ -91,6 +108,8 @@ export function ProjectFormDialog({
       department_id: project?.department_id ?? null,
       client_id: project?.client_id ?? null,
       owner_id: project?.owner_id ?? null,
+      analyst_ids: analystIds,
+      prazo_a_definir: project?.prazo_a_definir ?? false,
       responsibles: project?.responsibles ?? NO_RESPONSIBLES,
       status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
@@ -106,7 +125,7 @@ export function ProjectFormDialog({
       financial_notes: project?.financial_notes ?? '',
       tags: currentTagIds,
     }),
-    [project, currentTagIds],
+    [project, currentTagIds, analystIds],
   );
 
   const {
@@ -176,11 +195,17 @@ export function ProjectFormDialog({
   }
 
   async function onSubmit(values: ProjectInput) {
+    const analysts = values.analyst_ids ?? [];
+
     const payload = {
       ...values,
       description: values.description || null,
       category: values.category || null,
       financial_notes: values.financial_notes || null,
+      // O primeiro analista é o principal, e é ele que fica em `owner_id` —
+      // é de lá que as views tiram `owner_name`. Os demais são gravados como
+      // gestores do projeto pela própria mutation.
+      owner_id: analysts[0] ?? null,
     };
 
     if (isEditing && project) {
@@ -294,25 +319,19 @@ export function ProjectFormDialog({
 
             <Controller
               control={control}
-              name="owner_id"
+              name="analyst_ids"
               render={({ field }) => (
-                <Field label="Dono no sistema" hint="Quem pode editar o projeto, além da gestão.">
-                  <Select
-                    value={field.value ?? NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Definir depois</SelectItem>
-                      {people.data?.map((person) => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field
+                  label="Analistas responsáveis"
+                  error={errors.analyst_ids?.message}
+                  hint="Quem responde e pode editar o projeto. O primeiro é o principal."
+                >
+                  <AnalystsField
+                    people={people.data ?? []}
+                    loading={people.isLoading}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
                 </Field>
               )}
             />
@@ -405,9 +424,42 @@ export function ProjectFormDialog({
             <Field label="Data de início" htmlFor="start_date" error={errors.start_date?.message} required>
               <Input id="start_date" type="date" {...register('start_date')} />
             </Field>
-            <Field label="Prazo final" htmlFor="due_date" error={errors.due_date?.message} required>
-              <Input id="due_date" type="date" {...register('due_date')} />
-            </Field>
+            <Controller
+              control={control}
+              name="prazo_a_definir"
+              render={({ field }) => (
+                <Field
+                  label="Prazo final"
+                  htmlFor="due_date"
+                  error={errors.due_date?.message}
+                  hint="Sem prazo combinado, marque abaixo — o projeto sai dos atrasados."
+                  required
+                >
+                  <div className="space-y-2">
+                    {/*
+                      `readOnly`, e nunca `disabled`: campo desabilitado não é
+                      enviado com o formulário, então a data sumia do envio, o
+                      Zod reprovava em "Informe o prazo final" e o salvamento
+                      inteiro morria — inclusive a descrição que a pessoa
+                      tinha acabado de escrever. Só de leitura, a data segue
+                      guardada e volta a valer quando a marca sair.
+                    */}
+                    <Input
+                      id="due_date"
+                      type="date"
+                      readOnly={field.value}
+                      aria-readonly={field.value || undefined}
+                      className={cn(field.value && 'bg-secondary/60 text-muted-foreground')}
+                      {...register('due_date')}
+                    />
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      Prazo a definir
+                    </label>
+                  </div>
+                </Field>
+              )}
+            />
             <Field label="Orçamento (R$)" htmlFor="budget" error={errors.budget?.message}>
               <Input id="budget" type="number" step="0.01" min="0" {...register('budget')} />
             </Field>

@@ -20,6 +20,16 @@ import * as React from 'react';
 
 export type NotificationPermissionState = 'unsupported' | 'default' | 'granted' | 'denied';
 
+/** Por que o balão apareceu — ou por que não apareceu. */
+export type ShowResult = 'shown' | 'no-permission' | 'disabled' | 'unsupported' | 'failed';
+
+export const SHOW_RESULT_MESSAGE: Record<Exclude<ShowResult, 'shown'>, string> = {
+  'no-permission': 'O navegador ainda não liberou os avisos. Clique em “Avisar mesmo em outra aba”.',
+  disabled: 'Os avisos estão desligados na chave ao lado.',
+  unsupported: 'Este navegador não sabe avisar fora da aba.',
+  failed: 'O navegador recusou o aviso. Em janela anônima e em alguns celulares isso é bloqueado.',
+};
+
 export interface WebNotificationInput {
   title: string;
   body?: string | null;
@@ -63,9 +73,16 @@ export function useWebNotifications() {
     return result as NotificationPermissionState;
   }, [setPreference]);
 
+  /**
+   * Devolve o que aconteceu, em vez de falhar calado. Sem isso não há como
+   * dizer à pessoa por que o balão não apareceu — e "não funciona" sem motivo
+   * é o pior lugar para se estar.
+   */
   const show = React.useCallback(
-    ({ title, body, tag, href }: WebNotificationInput) => {
-      if (!enabled || readPermission() !== 'granted') return;
+    ({ title, body, tag, href }: WebNotificationInput): ShowResult => {
+      if (!('Notification' in window)) return 'unsupported';
+      if (readPermission() !== 'granted') return 'no-permission';
+      if (!enabled) return 'disabled';
 
       try {
         // Sem `icon`: o projeto não publica um arquivo estático de ícone, e
@@ -78,9 +95,12 @@ export function useWebNotifications() {
           if (href) window.location.href = href;
           notification.close();
         };
+
+        return 'shown';
       } catch {
-        // Alguns navegadores exigem service worker para `new Notification`.
-        // Não é motivo para derrubar o aviso dentro do app, que já apareceu.
+        // Alguns navegadores só constroem Notification a partir de um service
+        // worker. Não derruba nada; o aviso dentro do app continua valendo.
+        return 'failed';
       }
     },
     [enabled],

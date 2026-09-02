@@ -42,6 +42,15 @@ export type ViabilityRating =
   | 'viavel'
   | 'estrategico';
 
+/** Área da Diretoria a que o projeto pertence. */
+export type ProjectArea = 'agricola' | 'administrativo' | 'industrial';
+
+/** Aprovação da Diretoria. */
+export type ApprovalStatus = 'sim' | 'nao' | 'em_aprovacao';
+
+/** Entrada na Melhoria Contínua. */
+export type ImprovementStatus = 'sim' | 'nao' | 'em_avaliacao';
+
 export type NotificationType =
   | 'comentario'
   | 'mencao'
@@ -132,6 +141,17 @@ export interface Project {
    * isto ligado a tela mostra "A definir" e o projeto sai dos atrasados.
    */
   prazo_a_definir: boolean;
+
+  /* ------------------------------------------------------ Governança */
+  /** Área da Diretoria. Nula enquanto o projeto não foi classificado. */
+  area: ProjectArea | null;
+  diretoria_aprovacao: ApprovalStatus;
+  /** Se a ação já foi lançada no Redmine. */
+  redmine_lancado: boolean;
+  /** Data prevista para medir a aderência depois da implantação. */
+  aderencia_prazo: string | null;
+  melhoria_continua: ImprovementStatus;
+
   actual_start_date: string | null;
   actual_end_date: string | null;
   budget: number;

@@ -22,6 +22,11 @@ export const OPTIONAL_COLUMNS = [
   'financial_notes',
   'responsibles',
   'prazo_a_definir',
+  'area',
+  'diretoria_aprovacao',
+  'redmine_lancado',
+  'aderencia_prazo',
+  'melhoria_continua',
 ] as const;
 
 /** Remove do payload o que um banco antigo ainda não sabe gravar. */
@@ -70,6 +75,11 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
       // Banco que parou antes da migration 15 ainda não calcula a duração.
       realizacao_dias: project.realizacao_dias ?? null,
       prazo_a_definir: project.prazo_a_definir ?? false,
+      area: project.area ?? null,
+      diretoria_aprovacao: project.diretoria_aprovacao ?? 'em_aprovacao',
+      redmine_lancado: project.redmine_lancado ?? false,
+      aderencia_prazo: project.aderencia_prazo ?? null,
+      melhoria_continua: project.melhoria_continua ?? 'em_avaliacao',
     };
   }
 
@@ -102,5 +112,10 @@ export function fillProjectDefaults(row: Record<string, unknown>): ProjectOvervi
     stages_progress: null,
     realizacao_dias: null,
     prazo_a_definir: false,
+    area: null,
+    diretoria_aprovacao: 'em_aprovacao',
+    redmine_lancado: false,
+    aderencia_prazo: null,
+    melhoria_continua: 'em_avaliacao',
   };
 }

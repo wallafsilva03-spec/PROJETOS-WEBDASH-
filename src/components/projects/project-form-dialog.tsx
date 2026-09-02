@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/misc';
 import { ResponsiblesField } from '@/components/projects/responsibles-field';
 import { CatalogField } from '@/components/projects/catalog-field';
 import { AnalystsField } from '@/components/projects/analysts-field';
+import { AREA_OPTIONS } from '@/lib/portfolio-overview';
 import {
   COMPLEXITY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -110,6 +111,11 @@ export function ProjectFormDialog({
       owner_id: project?.owner_id ?? null,
       analyst_ids: analystIds,
       prazo_a_definir: project?.prazo_a_definir ?? false,
+      area: project?.area ?? null,
+      diretoria_aprovacao: project?.diretoria_aprovacao ?? 'em_aprovacao',
+      redmine_lancado: project?.redmine_lancado ?? false,
+      aderencia_prazo: project?.aderencia_prazo ?? '',
+      melhoria_continua: project?.melhoria_continua ?? 'em_avaliacao',
       responsibles: project?.responsibles ?? NO_RESPONSIBLES,
       status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
@@ -202,6 +208,7 @@ export function ProjectFormDialog({
       description: values.description || null,
       category: values.category || null,
       financial_notes: values.financial_notes || null,
+      aderencia_prazo: values.aderencia_prazo || null,
       // O primeiro analista é o principal, e é ele que fica em `owner_id` —
       // é de lá que as views tiram `owner_name`. Os demais são gravados como
       // gestores do projeto pela própria mutation.
@@ -467,6 +474,102 @@ export function ProjectFormDialog({
               <Input id="planned_hours" type="number" step="0.5" min="0" {...register('planned_hours')} />
             </Field>
           </div>
+
+          {/* Governança — o que a Diretoria acompanha nas reuniões */}
+          <fieldset className="space-y-4 rounded-lg border p-4">
+            <legend className="px-1 text-sm font-semibold">Governança</legend>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Alimenta o painel da Diretoria: distribuição por área, aprovação e acompanhamento.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Controller
+                control={control}
+                name="area"
+                render={({ field }) => (
+                  <Field label="Área" hint="Agrupa o portfólio no gráfico gerencial.">
+                    <Select
+                      value={field.value ?? NONE}
+                      onValueChange={(value) => field.onChange(value === NONE ? null : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Sem área</SelectItem>
+                        {AREA_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="diretoria_aprovacao"
+                render={({ field }) => (
+                  <Field label="Aprovado pela Diretoria">
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sim">Sim</SelectItem>
+                        <SelectItem value="nao">Não</SelectItem>
+                        <SelectItem value="em_aprovacao">Em aprovação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="melhoria_continua"
+                render={({ field }) => (
+                  <Field label="Melhoria Contínua" hint="Se a ação entra no processo.">
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sim">Sim</SelectItem>
+                        <SelectItem value="nao">Não</SelectItem>
+                        <SelectItem value="em_avaliacao">Em avaliação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Prazo para medir aderência"
+                htmlFor="aderencia_prazo"
+                hint="Data prevista para a medição depois da implantação."
+              >
+                <Input id="aderencia_prazo" type="date" {...register('aderencia_prazo')} />
+              </Field>
+
+              <Controller
+                control={control}
+                name="redmine_lancado"
+                render={({ field }) => (
+                  <Field label="Redmine" hint="Se o projeto/ação já foi lançado lá.">
+                    <label className="flex h-10 cursor-pointer items-center gap-2 text-sm">
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      {field.value ? 'Lançado no Redmine' : 'Ainda não lançado'}
+                    </label>
+                  </Field>
+                )}
+              />
+            </div>
+          </fieldset>
 
           {/* Viabilidade econômica — retorno financeiro do projeto */}
           <fieldset className="space-y-4 rounded-lg border p-4">

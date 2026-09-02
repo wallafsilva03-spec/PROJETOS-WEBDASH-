@@ -61,6 +61,21 @@ const SCHEMA = {
         'prazo_amanha', 'projeto_atrasado', 'projeto_risco', 'checklist', 'arquivo', 'sistema',
       ],
     },
+    {
+      name: 'project_area',
+      description: 'Área da Diretoria usada no gráfico gerencial do portfólio.',
+      values: ['agricola', 'administrativo', 'industrial'],
+    },
+    {
+      name: 'approval_status',
+      description: 'Aprovação da Diretoria sobre o projeto/ação.',
+      values: ['sim', 'nao', 'em_aprovacao'],
+    },
+    {
+      name: 'improvement_status',
+      description: 'Entrada do projeto/ação na Melhoria Contínua.',
+      values: ['sim', 'nao', 'em_avaliacao'],
+    },
     { name: 'audit_action', description: 'Operação registrada na auditoria.', values: ['INSERT', 'UPDATE', 'DELETE'] },
   ],
 
@@ -324,6 +339,37 @@ const SCHEMA = {
         { name: 'name', type: 'text', flags: ['NOT NULL'] },
         { name: 'description', type: 'text' },
         { name: 'due_date', type: 'date', flags: ['NOT NULL'] },
+        {
+          name: 'area',
+          type: 'project_area',
+          note: 'Área da Diretoria: agrícola, administrativo ou industrial. Nula enquanto não classificada.',
+        },
+        {
+          name: 'diretoria_aprovacao',
+          type: 'approval_status',
+          flags: ['NOT NULL'],
+          default: "'em_aprovacao'",
+          note: 'Aprovação da Diretoria: sim, não ou em aprovação.',
+        },
+        {
+          name: 'redmine_lancado',
+          type: 'boolean',
+          flags: ['NOT NULL'],
+          default: 'false',
+          note: 'Se o projeto/ação já foi lançado no Redmine.',
+        },
+        {
+          name: 'aderencia_prazo',
+          type: 'date',
+          note: 'Data prevista para medir a aderência depois da implantação.',
+        },
+        {
+          name: 'melhoria_continua',
+          type: 'improvement_status',
+          flags: ['NOT NULL'],
+          default: "'em_avaliacao'",
+          note: 'Se a ação entra na Melhoria Contínua: sim, não ou em avaliação.',
+        },
         {
           name: 'prazo_a_definir',
           type: 'boolean',

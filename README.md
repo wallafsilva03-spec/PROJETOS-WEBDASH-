@@ -148,6 +148,14 @@ Quatro perfis aplicados via **Row Level Security**, não no frontend:
   **etapas dos projetos** e capacidade da equipe, em Excel, CSV e PDF com cabeçalho institucional.
 - **Atividades** — feed em tempo real + trilha de auditoria (valor antigo × novo).
 - **Configurações** — perfil, capacidade semanal, permissões e paleta da marca.
+- **Leitura gerencial (Diretoria)** — no dashboard, no executivo e no topo do Kanban: **percentual de
+  projetos concluídos** e a distribuição em cinco situações — concluído, em andamento, paralisado,
+  não iniciado e cancelado —, com barra empilhada e o número absoluto abaixo. Ao lado, o **gráfico
+  por área** (Agrícola, Administrativo, Industrial), mostrando quanto cada área pesa no portfólio e
+  como ela se distribui por dentro.
+- **Governança do projeto** — no formulário: **área**, **aprovado pela Diretoria** (sim / não / em
+  aprovação), **lançado no Redmine** (sim / não), **prazo para medir aderência** e **Melhoria
+  Contínua** (sim / não / em avaliação). Todos entram também na exportação do portfólio.
 - **Prazo** — projeto encerrado deixa de acumular atraso e passa a mostrar **quanto levou** (do
   início real à entrega). Os que estavam atrasados hoje ganharam a marca **prazo a definir**: a tela
   mostra "A definir", eles saem da conta de atrasados, e a data antiga continua guardada — a marca

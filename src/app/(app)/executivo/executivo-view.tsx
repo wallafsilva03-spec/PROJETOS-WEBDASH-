@@ -22,7 +22,7 @@ import {
 import { Activity, AlertTriangle, FlaskConical, Gauge, Repeat, Timer, TrendingUp } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
-import { AreaBreakdown, PortfolioShare } from '@/components/dashboard/portfolio-share';
+import { AreaBreakdown, GovernanceShare, PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { Button } from '@/components/ui/button';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -239,6 +239,7 @@ export function ExecutivoView() {
           description="Percentual sobre todos os projetos não arquivados."
         />
         <AreaBreakdown projects={allProjects.data ?? []} />
+        <GovernanceShare projects={allProjects.data ?? []} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">

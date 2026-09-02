@@ -3,10 +3,12 @@
 import { Card } from '@/components/ui/card';
 import {
   buildAreaMatrix,
+  buildGovernanceShare,
   buildStatusShare,
   completionRate,
   type AreaRow,
   type BucketShare,
+  type GovernanceSlice,
 } from '@/lib/portfolio-overview';
 import { formatNumber, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -166,6 +168,68 @@ export function AreaBreakdown({
           <AreaLine key={row.id} row={row} />
         ))}
       </ul>
+    </Card>
+  );
+}
+
+/**
+ * Aprovação da Diretoria e lançamento no Redmine, lado a lado.
+ *
+ * Cada grupo é uma barra que soma 100% dentro de si, com o número de
+ * abertura em destaque — quanto já foi aprovado, quanto já foi lançado. É a
+ * resposta às duas perguntas que a Diretoria faz sempre.
+ */
+export function GovernanceShare({
+  projects,
+  className,
+}: {
+  projects: ProjectOverview[];
+  className?: string;
+}) {
+  const groups = buildGovernanceShare(projects);
+
+  return (
+    <Card className={cn('p-5', className)}>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Aprovação e registro
+      </p>
+
+      <div className="mt-4 grid gap-6 sm:grid-cols-2">
+        {groups.map((group) => (
+          <div key={group.id}>
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{group.label}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{group.hint}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-display text-2xl font-semibold leading-none">
+                  {formatPercent(group.headline, 1)}
+                </p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {group.headlineLabel}
+                </p>
+              </div>
+            </div>
+
+            <ShareBar
+              buckets={group.slices as unknown as BucketShare[]}
+              className="mt-3"
+            />
+
+            <ul className="mt-2 space-y-1">
+              {group.slices.map((slice: GovernanceSlice) => (
+                <li key={slice.id} className="flex items-center gap-2 text-xs">
+                  <span className={cn('size-2 shrink-0 rounded-full', slice.tone)} aria-hidden />
+                  <span className="flex-1 truncate text-muted-foreground">{slice.label}</span>
+                  <span className="font-medium tabular-nums">{formatPercent(slice.percent, 1)}</span>
+                  <span className="w-8 text-right text-muted-foreground tabular-nums">{slice.total}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

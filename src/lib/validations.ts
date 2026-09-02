@@ -72,6 +72,13 @@ export const projectSchema = z
 
     start_date: z.string().min(1, 'Informe a data de início.'),
     due_date: z.string().min(1, 'Informe o prazo final.'),
+    /**
+     * Datas reais: é delas que sai o tempo de realização mostrado no projeto
+     * encerrado. O gatilho preenche sozinho quando estão vazias, e respeita o
+     * que for informado à mão.
+     */
+    actual_start_date: z.string().optional().or(z.literal('')),
+    actual_end_date: z.string().optional().or(z.literal('')),
     budget: z.coerce.number().min(0, 'O orçamento não pode ser negativo.').default(0),
     planned_hours: z.coerce.number().min(0, 'As horas planejadas não podem ser negativas.').default(0),
     expected_return: z.coerce.number().min(0, 'O retorno esperado não pode ser negativo.').default(0),
@@ -91,7 +98,14 @@ export const projectSchema = z
   .refine((data) => new Date(data.due_date) >= new Date(data.start_date), {
     path: ['due_date'],
     message: 'O prazo final deve ser igual ou posterior ao início.',
-  });
+  })
+  .refine(
+    (data) =>
+      !data.actual_start_date ||
+      !data.actual_end_date ||
+      new Date(data.actual_end_date) >= new Date(data.actual_start_date),
+    { path: ['actual_end_date'], message: 'A conclusão real deve ser igual ou posterior ao início real.' },
+  );
 export type ProjectInput = z.infer<typeof projectSchema>;
 
 /* --------------------------------------------------------------- Tarefa */

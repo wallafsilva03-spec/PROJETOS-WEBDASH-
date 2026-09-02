@@ -116,6 +116,8 @@ export function ProjectFormDialog({
       redmine_lancado: project?.redmine_lancado ?? false,
       aderencia_prazo: project?.aderencia_prazo ?? '',
       melhoria_continua: project?.melhoria_continua ?? 'em_avaliacao',
+      actual_start_date: project?.actual_start_date ?? '',
+      actual_end_date: project?.actual_end_date ?? '',
       responsibles: project?.responsibles ?? NO_RESPONSIBLES,
       status: project?.status ?? 'nao_iniciado',
       priority: project?.priority ?? 'media',
@@ -174,6 +176,17 @@ export function ProjectFormDialog({
     name: ['budget', 'expected_return', 'return_period_months'],
   });
 
+  const [realStart, realEnd] = useWatch({ control, name: ['actual_start_date', 'actual_end_date'] });
+
+  /** Mesma conta da view: fim menos início, nunca negativa. */
+  const realizacaoDias = React.useMemo(() => {
+    if (!realStart || !realEnd) return null;
+    const dias = Math.round(
+      (new Date(`${realEnd}T00:00:00`).getTime() - new Date(`${realStart}T00:00:00`).getTime()) / 86_400_000,
+    );
+    return Number.isFinite(dias) ? Math.max(dias, 0) : null;
+  }, [realStart, realEnd]);
+
   const preview = React.useMemo(() => {
     const investment = Number(budget) || 0;
     const gain = Number(expectedReturn) || 0;
@@ -209,6 +222,8 @@ export function ProjectFormDialog({
       category: values.category || null,
       financial_notes: values.financial_notes || null,
       aderencia_prazo: values.aderencia_prazo || null,
+      actual_start_date: values.actual_start_date || null,
+      actual_end_date: values.actual_end_date || null,
       // O primeiro analista é o principal, e é ele que fica em `owner_id` —
       // é de lá que as views tiram `owner_name`. Os demais são gravados como
       // gestores do projeto pela própria mutation.
@@ -474,6 +489,38 @@ export function ProjectFormDialog({
               <Input id="planned_hours" type="number" step="0.5" min="0" {...register('planned_hours')} />
             </Field>
           </div>
+
+          {/*
+            Datas reais. Ficam aqui, e não escondidas, porque é delas que sai
+            o "tempo de realização" do projeto encerrado — antes disto não
+            havia como corrigir a duração de um projeto importado com data
+            errada.
+          */}
+          <fieldset className="space-y-2 rounded-lg border p-4">
+            <legend className="px-1 text-sm font-semibold">Execução real</legend>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Quando o trabalho começou e terminou de fato. É o que define o tempo de realização do
+              projeto concluído. Em branco, o sistema carimba sozinho ao iniciar e ao concluir.
+            </p>
+
+            <div className="grid gap-4 pt-2 sm:grid-cols-3">
+              <Field label="Início real" htmlFor="actual_start_date">
+                <Input id="actual_start_date" type="date" {...register('actual_start_date')} />
+              </Field>
+              <Field
+                label="Conclusão real"
+                htmlFor="actual_end_date"
+                error={errors.actual_end_date?.message}
+              >
+                <Input id="actual_end_date" type="date" {...register('actual_end_date')} />
+              </Field>
+              <Field label="Tempo de realização" hint="Calculado a partir das duas datas.">
+                <div className="flex h-10 items-center rounded-lg bg-secondary/60 px-3 text-sm">
+                  {realizacaoDias === null ? '—' : `${realizacaoDias} dia(s)`}
+                </div>
+              </Field>
+            </div>
+          </fieldset>
 
           {/* Governança — o que a Diretoria acompanha nas reuniões */}
           <fieldset className="space-y-4 rounded-lg border p-4">

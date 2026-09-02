@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FolderKanban, LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
+import { AreaBreakdown, GovernanceShare, PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { ProjectCard } from '@/components/projects/project-card';
 import { ProjectFormDialog } from '@/components/projects/project-form-dialog';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -259,6 +260,27 @@ export function ProjectsView() {
           </>
         }
       />
+
+      {/*
+        Leitura em percentual do que está na tela. Segue os filtros de
+        propósito: filtrar por departamento e ver o percentual daquele
+        departamento é o uso natural, e um resumo fixo do portfólio inteiro
+        contradiria a lista logo abaixo.
+      */}
+      <section aria-label="Indicadores em percentual" className="grid gap-4 xl:grid-cols-2">
+        <PortfolioShare
+          projects={projects}
+          title={hasFilters ? 'Visão geral do recorte' : 'Visão geral do portfólio'}
+          description={
+            hasFilters
+              ? 'Percentual sobre os projetos que atendem aos filtros aplicados.'
+              : 'Percentual sobre todos os projetos não arquivados.'
+          }
+        />
+        <GovernanceShare projects={projects} />
+      </section>
+
+      <AreaBreakdown projects={projects} />
 
       {/* Estados do portfólio — cada card é um filtro de um clique. */}
       <section aria-label="Estados do portfólio" className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">

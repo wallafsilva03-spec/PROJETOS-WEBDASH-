@@ -175,15 +175,22 @@ function DraggableStage({
       {onDelete && (
         <button
           type="button"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
             onDelete();
           }}
+          /*
+            Sempre visível, e não só ao passar o mouse. Em tela de toque não
+            existe hover: o botão ficava em `opacity-0` para sempre e não
+            havia como excluir etapa nenhuma pelo tablet ou pela TV. Discreto
+            em repouso, vermelho ao aproximar.
+          */
           className={cn(
-            'absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground transition-all',
-            'opacity-0 hover:bg-destructive/10 hover:text-destructive',
-            'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'group-hover/card:opacity-100',
+            'absolute right-1.5 top-1.5 rounded-md p-1 transition-colors',
+            'text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'group-hover/card:text-muted-foreground',
           )}
           aria-label={`Excluir etapa ${stage.name}`}
           title="Excluir etapa"

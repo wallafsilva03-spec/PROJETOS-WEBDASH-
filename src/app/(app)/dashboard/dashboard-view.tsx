@@ -19,7 +19,7 @@ import {
 
 import { PageHeader } from '@/components/layout/page-header';
 import { KpiCard } from '@/components/dashboard/kpi-card';
-import { AreaBreakdown, PortfolioShare } from '@/components/dashboard/portfolio-share';
+import { AreaBreakdown, GovernanceShare, PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { ActivityFeed } from '@/components/dashboard/activity-feed';
 import { ProjectCard } from '@/components/projects/project-card';
 import { Button } from '@/components/ui/button';
@@ -172,6 +172,7 @@ export function DashboardView() {
               description="Percentual sobre todos os projetos não arquivados."
             />
             <AreaBreakdown projects={portfolio} />
+            <GovernanceShare projects={portfolio} />
           </section>
 
           <section className="grid gap-4 lg:grid-cols-3">

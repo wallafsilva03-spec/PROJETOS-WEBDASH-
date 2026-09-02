@@ -161,3 +161,82 @@ export function buildAreaMatrix(projects: Pick<ProjectOverview, 'status' | 'area
 
   return rows;
 }
+
+/* -------------------------------------------------------------- Governança */
+
+export interface GovernanceSlice {
+  id: string;
+  label: string;
+  tone: string;
+  total: number;
+  percent: number;
+}
+
+export interface GovernanceGroup {
+  id: 'diretoria' | 'redmine';
+  label: string;
+  hint: string;
+  slices: GovernanceSlice[];
+  /** O número de abertura: quanto já está aprovado / já foi lançado. */
+  headline: number;
+  headlineLabel: string;
+}
+
+/**
+ * Aprovação da Diretoria e lançamento no Redmine, em percentual.
+ *
+ * As duas leituras vêm juntas porque respondem à mesma pergunta de reunião:
+ * do que está no portfólio, quanto já passou pelo crivo e quanto já foi
+ * registrado. Cada grupo soma 100% dentro de si.
+ */
+export function buildGovernanceShare(
+  projects: Pick<ProjectOverview, 'diretoria_aprovacao' | 'redmine_lancado'>[],
+): GovernanceGroup[] {
+  const total = projects.length;
+  const share = (count: number) => (total ? (count / total) * 100 : 0);
+
+  const aprovados = projects.filter((p) => p.diretoria_aprovacao === 'sim').length;
+  const reprovados = projects.filter((p) => p.diretoria_aprovacao === 'nao').length;
+  const emAprovacao = projects.filter((p) => p.diretoria_aprovacao === 'em_aprovacao').length;
+
+  const noRedmine = projects.filter((p) => p.redmine_lancado).length;
+  const foraRedmine = total - noRedmine;
+
+  return [
+    {
+      id: 'diretoria',
+      label: 'Aprovação da Diretoria',
+      hint: 'Sobre os projetos do recorte.',
+      headline: share(aprovados),
+      headlineLabel: 'aprovados',
+      slices: [
+        { id: 'sim', label: 'Aprovados', tone: 'bg-moreno-green-500', total: aprovados, percent: share(aprovados) },
+        {
+          id: 'em_aprovacao',
+          label: 'Em aprovação',
+          tone: 'bg-amber-500',
+          total: emAprovacao,
+          percent: share(emAprovacao),
+        },
+        { id: 'nao', label: 'Não aprovados', tone: 'bg-rose-500', total: reprovados, percent: share(reprovados) },
+      ],
+    },
+    {
+      id: 'redmine',
+      label: 'Lançamento no Redmine',
+      hint: 'Quanto já foi registrado lá.',
+      headline: share(noRedmine),
+      headlineLabel: 'lançados',
+      slices: [
+        { id: 'sim', label: 'Lançados', tone: 'bg-moreno-blue-500', total: noRedmine, percent: share(noRedmine) },
+        {
+          id: 'nao',
+          label: 'Não lançados',
+          tone: 'bg-slate-400',
+          total: foraRedmine,
+          percent: share(foraRedmine),
+        },
+      ],
+    },
+  ];
+}

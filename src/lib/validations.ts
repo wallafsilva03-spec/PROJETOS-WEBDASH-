@@ -62,6 +62,14 @@ export const projectSchema = z
       .default([]),
     category: z.string().trim().max(80).optional().or(z.literal('')),
     prazo_a_definir: z.boolean().default(false),
+
+    /* Governança — o que a Diretoria acompanha. */
+    area: z.enum(['agricola', 'administrativo', 'industrial']).nullable().optional(),
+    diretoria_aprovacao: z.enum(['sim', 'nao', 'em_aprovacao']).default('em_aprovacao'),
+    redmine_lancado: z.boolean().default(false),
+    aderencia_prazo: z.string().optional().or(z.literal('')),
+    melhoria_continua: z.enum(['sim', 'nao', 'em_avaliacao']).default('em_avaliacao'),
+
     start_date: z.string().min(1, 'Informe a data de início.'),
     due_date: z.string().min(1, 'Informe o prazo final.'),
     budget: z.coerce.number().min(0, 'O orçamento não pode ser negativo.').default(0),

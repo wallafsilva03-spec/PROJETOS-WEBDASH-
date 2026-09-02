@@ -22,6 +22,7 @@ import {
 import { Activity, AlertTriangle, FlaskConical, Gauge, Repeat, Timer, TrendingUp } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
+import { AreaBreakdown, PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { Button } from '@/components/ui/button';
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import { ExportMenu } from '@/components/projects/export-menu';
@@ -227,6 +228,18 @@ export function ExecutivoView() {
           />
         </section>
       )}
+
+      {/*
+        O recorte por área que a Diretoria pede, antes do detalhe por status:
+        quanto cada área pesa no portfólio e como ela está distribuída.
+      */}
+      <section aria-label="Leitura gerencial" className="grid gap-4 xl:grid-cols-2">
+        <PortfolioShare
+          projects={allProjects.data ?? []}
+          description="Percentual sobre todos os projetos não arquivados."
+        />
+        <AreaBreakdown projects={allProjects.data ?? []} />
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

@@ -353,6 +353,11 @@ Marcos do projeto, exibidos no roadmap executivo e na timeline.
 | `name` | `text` | NOT NULL | — | — |
 | `description` | `text` | — | — | — |
 | `due_date` | `date` | NOT NULL | — | — |
+| `area` | `project_area` | — | — | Área da Diretoria: agrícola, administrativo ou industrial. Nula enquanto não classificada. |
+| `diretoria_aprovacao` | `approval_status` | NOT NULL | — | default `'em_aprovacao'`. Aprovação da Diretoria: sim, não ou em aprovação. |
+| `redmine_lancado` | `boolean` | NOT NULL | — | default `false`. Se o projeto/ação já foi lançado no Redmine. |
+| `aderencia_prazo` | `date` | — | — | Data prevista para medir a aderência depois da implantação. |
+| `melhoria_continua` | `improvement_status` | NOT NULL | — | default `'em_avaliacao'`. Se a ação entra na Melhoria Contínua: sim, não ou em avaliação. |
 | `prazo_a_definir` | `boolean` | NOT NULL | — | default `false`. Prazo herdado, ainda não repactuado. A data em due_date continua guardada; enquanto isto for verdadeiro a tela mostra "A definir", a saúde vira no_prazo e o projeto sai da conta de atrasados. |
 | `status` | `milestone_status` | NOT NULL | — | default `'pendente'` |
 | `completed_at` | `timestamptz` | — | — | — |
@@ -587,6 +592,9 @@ Trilha de auditoria preenchida por trigger genérico em projects, tasks, project
 | `milestone_status` | `pendente`, `em_andamento`, `concluido`, `atrasado` | Situação do marco. |
 | `stage_status` | `nao_iniciada`, `em_andamento`, `pausada`, `concluida`, `cancelada` | Situação da etapa do projeto no organograma de execução. |
 | `notification_type` | `comentario`, `mencao`, `tarefa_atribuida`, `tarefa_status`, `prazo_hoje`, `prazo_amanha`, `projeto_atrasado`, `projeto_risco`, `checklist`, `arquivo`, `sistema` | Categoria da notificação em tempo real. |
+| `project_area` | `agricola`, `administrativo`, `industrial` | Área da Diretoria usada no gráfico gerencial do portfólio. |
+| `approval_status` | `sim`, `nao`, `em_aprovacao` | Aprovação da Diretoria sobre o projeto/ação. |
+| `improvement_status` | `sim`, `nao`, `em_avaliacao` | Entrada do projeto/ação na Melhoria Contínua. |
 | `audit_action` | `INSERT`, `UPDATE`, `DELETE` | Operação registrada na auditoria. |
 
 ## Views

@@ -14,12 +14,35 @@ import type { AnalystSummary } from '@/lib/analyst-overview';
 import type { GanttTask, ProjectOverview, ProjectStageView, WorkloadRow } from '@/types/database';
 
 /** Colunas padronizadas do relatório de portfólio. */
+const AREA_LABEL: Record<string, string> = {
+  agricola: 'Agrícola',
+  administrativo: 'Administrativo',
+  industrial: 'Industrial',
+};
+
+const APPROVAL_LABEL: Record<string, string> = {
+  sim: 'Sim',
+  nao: 'Não',
+  em_aprovacao: 'Em aprovação',
+};
+
+const IMPROVEMENT_LABEL: Record<string, string> = {
+  sim: 'Sim',
+  nao: 'Não',
+  em_avaliacao: 'Em avaliação',
+};
+
 export const PROJECT_COLUMNS: ExportColumn<ProjectOverview>[] = [
   { header: 'Código', accessor: (p) => p.code },
   { header: 'Projeto', accessor: (p) => p.name, width: 4 },
   { header: 'Departamento', accessor: (p) => p.department_name ?? '—' },
   { header: 'Cliente', accessor: (p) => p.client_name ?? '—' },
   { header: 'Analista responsável', accessor: (p) => p.owner_name ?? '—' },
+  { header: 'Área', accessor: (p) => AREA_LABEL[p.area ?? ''] ?? '—' },
+  { header: 'Aprovado pela Diretoria', accessor: (p) => APPROVAL_LABEL[p.diretoria_aprovacao] ?? '—' },
+  { header: 'Redmine', accessor: (p) => (p.redmine_lancado ? 'Sim' : 'Não') },
+  { header: 'Prazo de aderência', accessor: (p) => (p.aderencia_prazo ? formatDate(p.aderencia_prazo) : '—') },
+  { header: 'Melhoria Contínua', accessor: (p) => IMPROVEMENT_LABEL[p.melhoria_continua] ?? '—' },
   { header: 'Responsáveis', accessor: (p) => p.responsibles?.join(', ') || '—', width: 2 },
   { header: 'Status', accessor: (p) => PROJECT_STATUS_META[p.status].label },
   { header: 'Prioridade', accessor: (p) => PRIORITY_META[p.priority].label },

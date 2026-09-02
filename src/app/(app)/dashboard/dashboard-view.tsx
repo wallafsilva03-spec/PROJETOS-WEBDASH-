@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import {
   AlarmClock,
@@ -18,6 +19,7 @@ import {
 
 import { PageHeader } from '@/components/layout/page-header';
 import { KpiCard } from '@/components/dashboard/kpi-card';
+import { AreaBreakdown, PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { ActivityFeed } from '@/components/dashboard/activity-feed';
 import { ProjectCard } from '@/components/projects/project-card';
 import { Button } from '@/components/ui/button';
@@ -38,9 +40,12 @@ export function DashboardView() {
   const { profile, canCreateProject } = useSession();
   const kpis = useDashboardKpis();
   const attention = useProjects({ health: ['em_risco', 'atrasado', 'critico'], sort: 'due_date' });
+  // Portfólio inteiro: a leitura gerencial é sobre o total, não sobre um recorte.
+  const all = useProjects({ sort: 'name' });
   const myTasks = useMyTasks();
 
   const data = kpis.data;
+  const portfolio = React.useMemo(() => all.data ?? [], [all.data]);
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
   const conclusionRate = data?.total_tarefas ? (data.tarefas_concluidas / data.total_tarefas) * 100 : 0;
 
@@ -154,6 +159,19 @@ export function DashboardView() {
               tone="lime"
               hint="Conectados nos últimos 2 minutos"
             />
+          </section>
+
+          {/*
+            A leitura de abertura para a Diretoria: quanto por cento do
+            portfólio está concluído, como o resto se distribui e o mesmo
+            recorte por área.
+          */}
+          <section aria-label="Leitura gerencial" className="grid gap-4 xl:grid-cols-2">
+            <PortfolioShare
+              projects={portfolio}
+              description="Percentual sobre todos os projetos não arquivados."
+            />
+            <AreaBreakdown projects={portfolio} />
           </section>
 
           <section className="grid gap-4 lg:grid-cols-3">

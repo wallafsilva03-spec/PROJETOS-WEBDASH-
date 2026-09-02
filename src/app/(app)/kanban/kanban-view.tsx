@@ -5,6 +5,7 @@ import { startOfDay } from 'date-fns';
 import { KanbanSquare } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
+import { PortfolioShare } from '@/components/dashboard/portfolio-share';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StagesKanban } from '@/components/views/stages-kanban';
@@ -18,6 +19,7 @@ const ALL = '__all__';
 
 export function KanbanView() {
   const { data: projects } = useProjects({ sort: 'name' });
+  const portfolio = React.useMemo(() => projects ?? [], [projects]);
   const { isManager, profile } = useSession();
   const [selected, setSelected] = React.useState(ALL);
 
@@ -68,6 +70,16 @@ export function KanbanView() {
             </SelectContent>
           </Select>
         }
+      />
+
+      {/*
+        Abre pela leitura gerencial: o quadro abaixo mostra etapas, e a
+        Diretoria pergunta primeiro pelo portfólio inteiro, em percentual.
+      */}
+      <PortfolioShare
+        projects={portfolio}
+        className="mb-6"
+        description="Situação de todos os projetos, sobre o total do portfólio."
       />
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

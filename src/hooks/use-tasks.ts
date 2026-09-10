@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { qk } from '@/lib/query-keys';
 import type { GanttTask, Task, TaskDependency, TaskStatus, TaskWithRelations } from '@/types/database';
 
-const TASK_SELECT = '*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)';
+const TASK_SELECT =
+  '*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url), project:projects(id, name, code)';
 
 export function useTasks(projectId?: string) {
   return useQuery({
@@ -30,7 +31,7 @@ export function useTasks(projectId?: string) {
 export function useMyTasks() {
   return useQuery({
     queryKey: ['tasks', 'mine'],
-    queryFn: async (): Promise<(TaskWithRelations & { project: { id: string; name: string; code: string } })[]> => {
+    queryFn: async (): Promise<TaskWithRelations[]> => {
       const supabase = createClient();
       const {
         data: { user },
@@ -39,7 +40,7 @@ export function useMyTasks() {
 
       const { data, error } = await supabase
         .from('tasks')
-        .select(`${TASK_SELECT}, project:projects(id, name, code)`)
+        .select(TASK_SELECT)
         .eq('assignee_id', user.id)
         .neq('status', 'concluido')
         .order('due_date', { ascending: true, nullsFirst: false })
@@ -82,15 +83,25 @@ export function useTaskDependencies(projectId: string) {
   });
 }
 
-function useTaskInvalidation(projectId: string) {
+/**
+ * Invalida o que depende de tarefas.
+ *
+ * Sem `projectId` — o quadro geral, que mistura vários projetos — não dá para
+ * mirar a chave de um projeto só: aí invalida o prefixo inteiro de tarefas.
+ */
+function useTaskInvalidation(projectId?: string) {
   const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: qk.tasks(projectId) });
-    queryClient.invalidateQueries({ queryKey: qk.gantt(projectId) });
-    queryClient.invalidateQueries({ queryKey: qk.project(projectId) });
-    queryClient.invalidateQueries({ queryKey: qk.burn(projectId) });
+  return (fallbackProjectId?: string) => {
+    const id = projectId ?? fallbackProjectId;
+
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['gantt'] });
     queryClient.invalidateQueries({ queryKey: qk.kpis });
-    queryClient.invalidateQueries({ queryKey: ['tasks', 'mine'] });
+
+    if (id) {
+      queryClient.invalidateQueries({ queryKey: qk.project(id) });
+      queryClient.invalidateQueries({ queryKey: qk.burn(id) });
+    }
   };
 }
 
@@ -121,7 +132,7 @@ export function useCreateTask(projectId: string) {
   });
 }
 
-export function useUpdateTask(projectId: string) {
+export function useUpdateTask(projectId?: string) {
   const invalidate = useTaskInvalidation(projectId);
 
   return useMutation({
@@ -130,7 +141,7 @@ export function useUpdateTask(projectId: string) {
       if (error) throw error;
       return data as Task;
     },
-    onSuccess: () => invalidate(),
+    onSuccess: (task) => invalidate(task.project_id),
     onError: (error: Error) => toast.error(`Falha ao atualizar a tarefa: ${error.message}`),
   });
 }
@@ -151,16 +162,24 @@ export function useDeleteTask(projectId: string) {
   });
 }
 
+interface MoveTaskInput {
+  taskId: string;
+  status: TaskStatus;
+  position: number;
+  /** Projeto da tarefa — necessário no quadro que mistura vários projetos. */
+  projectId?: string;
+}
+
 /**
  * Drag & drop do Kanban com atualização otimista:
  * o card muda de coluna imediatamente e o Realtime confirma para os demais usuários.
  */
-export function useMoveTask(projectId: string) {
+export function useMoveTask(projectId?: string) {
   const queryClient = useQueryClient();
   const invalidate = useTaskInvalidation(projectId);
 
   return useMutation({
-    mutationFn: async ({ taskId, status, position }: { taskId: string; status: TaskStatus; position: number }) => {
+    mutationFn: async ({ taskId, status, position }: MoveTaskInput) => {
       const { error } = await createClient().rpc('move_task', {
         p_task_id: taskId,
         p_status: status,
@@ -183,7 +202,7 @@ export function useMoveTask(projectId: string) {
       if (context?.previous) queryClient.setQueryData(qk.tasks(projectId), context.previous);
       toast.error(`Não foi possível mover a tarefa: ${error.message}`);
     },
-    onSettled: () => invalidate(),
+    onSettled: (_data, _error, variables) => invalidate(variables.projectId),
   });
 }
 

@@ -43,7 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Planejamento',
     items: [
-      { href: '/kanban', label: 'Kanban', icon: KanbanSquare, description: 'Etapas por data de término' },
+      { href: '/kanban', label: 'Kanban', icon: KanbanSquare, description: 'Etapas e tarefas em quadro' },
       { href: '/cronograma', label: 'Cronograma', icon: GanttChartSquare, description: 'Gantt consolidado' },
       { href: '/roadmap', label: 'Roadmap', icon: Map, description: 'Visão executiva por mês' },
       { href: '/calendario', label: 'Calendário', icon: CalendarDays, description: 'Diário, semanal e mensal' },

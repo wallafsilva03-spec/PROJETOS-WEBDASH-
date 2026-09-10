@@ -23,7 +23,13 @@ export type ProjectStatus =
   | 'concluido'
   | 'cancelado';
 
-export type TaskStatus = 'backlog' | 'planejamento' | 'em_desenvolvimento' | 'homologacao' | 'concluido';
+export type TaskStatus =
+  | 'nao_iniciado'
+  | 'backlog'
+  | 'planejamento'
+  | 'em_desenvolvimento'
+  | 'homologacao'
+  | 'concluido';
 
 export type PriorityLevel = 'baixa' | 'media' | 'alta' | 'critica';
 export type ComplexityLevel = 'baixa' | 'media' | 'alta' | 'muito_alta';
@@ -300,6 +306,8 @@ export interface Task {
 
 export interface TaskWithRelations extends Task {
   assignee: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
+  /** Projeto da tarefa — o quadro geral mistura vários e precisa identificar. */
+  project?: Pick<Project, 'id' | 'name' | 'code'> | null;
 }
 
 export interface GanttTask {

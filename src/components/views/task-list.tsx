@@ -216,6 +216,21 @@ function TaskRow({
   const priority = PRIORITY_META[task.priority];
 
   const doneSubtasks = subtasks.filter((item) => item.status === 'concluido').length;
+
+  /**
+   * Marcar a mãe marca as filhas junto. É o mesmo caminho que o banco faz ao
+   * contrário (fechou todas as filhas, fecha a mãe); sem isto, uma mãe fechada
+   * à mão com filha aberta seria reaberta na próxima mexida na filha.
+   */
+  function toggleDone(done: boolean) {
+    const status = done ? 'concluido' : 'em_desenvolvimento';
+    updateTask.mutate({ id: task.id, status });
+    for (const subtask of subtasks) {
+      if ((subtask.status === 'concluido') !== done) {
+        updateTask.mutate({ id: subtask.id, status });
+      }
+    }
+  }
   // Com subtarefas o progresso mostrado é a média delas; sem elas, o da própria tarefa.
   const progress = subtasks.length
     ? Math.round(subtasks.reduce((total, item) => total + item.progress, 0) / subtasks.length)
@@ -236,10 +251,10 @@ function TaskRow({
           </button>
           <Checkbox
             checked={task.status === 'concluido'}
-            onCheckedChange={(checked) =>
-              updateTask.mutate({ id: task.id, status: checked === true ? 'concluido' : 'em_desenvolvimento' })
+            onCheckedChange={(checked) => toggleDone(checked === true)}
+            aria-label={
+              subtasks.length ? `Concluir ${task.title} e suas subtarefas` : `Concluir ${task.title}`
             }
-            aria-label={`Concluir ${task.title}`}
           />
         </div>
       </td>

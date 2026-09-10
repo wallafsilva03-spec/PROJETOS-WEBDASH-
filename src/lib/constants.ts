@@ -31,6 +31,7 @@ export const CHART_COLORS = [
 type Meta = { label: string; className: string; dot: string };
 
 export const KANBAN_COLUMNS: { id: TaskStatus; label: string; accent: string }[] = [
+  { id: 'nao_iniciado', label: 'Não iniciado', accent: 'bg-slate-300' },
   { id: 'backlog', label: 'Backlog', accent: 'bg-slate-400' },
   { id: 'planejamento', label: 'Planejamento', accent: 'bg-moreno-blue-400' },
   { id: 'em_desenvolvimento', label: 'Em Desenvolvimento', accent: 'bg-moreno-lime-500' },
@@ -82,6 +83,7 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, Meta> = {
 };
 
 export const TASK_STATUS_META: Record<TaskStatus, Meta> = {
+  nao_iniciado: PROJECT_STATUS_META.nao_iniciado,
   backlog: PROJECT_STATUS_META.backlog,
   planejamento: PROJECT_STATUS_META.planejamento,
   em_desenvolvimento: PROJECT_STATUS_META.em_desenvolvimento,

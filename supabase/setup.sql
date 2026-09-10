@@ -4265,6 +4265,33 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- ORIGEM: supabase/migrations/20250508000000_status_tarefa_nao_iniciada.sql
+-- ---------------------------------------------------------------------
+
+-- =====================================================================
+-- Fase 5 · Migration 19 — Status "não iniciado" para tarefas
+-- =====================================================================
+--
+-- O projeto já tem "não iniciado" desde a migration 10; a tarefa não tinha.
+-- Quem planeja o cronograma precisa registrar a tarefa que está combinada
+-- mas ainda não começou, e "Backlog" não diz isso: backlog é o que ainda
+-- nem foi puxado para o plano.
+--
+-- `add value ... before 'backlog'` mantém o enum ordenado do começo ao fim
+-- do ciclo de vida, na mesma posição que o status de projeto ocupa.
+--
+-- Atenção do Postgres: um valor novo de enum só pode ser comparado como
+-- literal depois que a transação que o criou terminar. Por isso este arquivo
+-- não usa 'nao_iniciado' em nenhuma comparação — nenhuma function ou view
+-- do banco precisou mudar, porque todas comparam apenas com 'concluido'.
+--
+-- O padrão da coluna continua sendo 'backlog': tarefa que já existia não
+-- muda de estado por causa desta migration.
+-- =====================================================================
+
+alter type public.task_status add value if not exists 'nao_iniciado' before 'backlog';
+
+-- ---------------------------------------------------------------------
 -- ORIGEM: supabase/seed.sql (departamentos, clientes e tags do Grupo Moreno)
 -- ---------------------------------------------------------------------
 

@@ -99,7 +99,7 @@ export const taskSchema = z
   .object({
     title: requiredText('Título', 3, 200),
     description: z.string().trim().max(4000).optional().or(z.literal('')),
-    status: z.enum(['backlog', 'planejamento', 'em_desenvolvimento', 'homologacao', 'concluido']),
+    status: z.enum(['nao_iniciado', 'backlog', 'planejamento', 'em_desenvolvimento', 'homologacao', 'concluido']),
     priority: z.enum(['baixa', 'media', 'alta', 'critica']),
     assignee_id: z.string().uuid().nullable().optional(),
     start_date: z.string().optional().or(z.literal('')),

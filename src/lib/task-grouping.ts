@@ -9,6 +9,39 @@ export type TaskSortKey = 'position' | 'due_date' | 'priority' | 'title' | 'prog
 export const NO_ASSIGNEE = '__sem_responsavel__';
 export const ALL_TASKS = '__todas__';
 
+/**
+ * Três níveis, no modelo do Monday: tarefa principal, subtarefa e item.
+ * O banco aceita mais (é `parent_task_id` apontando para a mesma tabela),
+ * mas a partir do quarto nível a leitura em tabela deixa de caber na tela.
+ */
+export const MAX_TASK_DEPTH = 2;
+
+/** Como cada nível é chamado na tela. */
+export const TASK_LEVELS = [
+  { singular: 'tarefa', plural: 'tarefas', article: 'a', of: 'das tarefas' },
+  { singular: 'subtarefa', plural: 'subtarefas', article: 'a', of: 'das subtarefas' },
+  { singular: 'item', plural: 'itens', article: 'o', of: 'dos itens' },
+  // Quarto nível não é criável, mas o rótulo evita um undefined em tela.
+  { singular: 'item', plural: 'itens', article: 'o', of: 'dos itens' },
+] as const;
+
+/** Tudo que pendura abaixo de uma tarefa, em qualquer nível. */
+export function collectDescendants(
+  taskId: string,
+  childrenOf: Map<string, TaskWithRelations[]>,
+): TaskWithRelations[] {
+  const out: TaskWithRelations[] = [];
+  const queue = [...(childrenOf.get(taskId) ?? [])];
+
+  while (queue.length) {
+    const task = queue.shift() as TaskWithRelations;
+    out.push(task);
+    queue.push(...(childrenOf.get(task.id) ?? []));
+  }
+
+  return out;
+}
+
 export const PRIORITY_ORDER: Record<PriorityLevel, number> = { critica: 4, alta: 3, media: 2, baixa: 1 };
 
 export interface TaskColumn {
@@ -29,9 +62,11 @@ export function isLateTask(task: TaskWithRelations) {
 }
 
 /**
- * Separa tarefas principais das subtarefas.
- * Subtarefa cuja mãe não está na lista (filtrada ou removida) volta a ser raiz,
- * senão ela sumiria da tela.
+ * Separa as tarefas de topo do resto e indexa os filhos por pai — vale para
+ * qualquer nível, então `childrenOf.get(subtarefa.id)` devolve os itens dela.
+ *
+ * Filho cujo pai não está na lista (filtrado ou removido) volta a ser raiz,
+ * senão ele sumiria da tela.
  */
 export function splitSubtasks(tasks: TaskWithRelations[]) {
   const childrenOf = new Map<string, TaskWithRelations[]>();

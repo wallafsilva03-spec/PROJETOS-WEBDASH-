@@ -111,7 +111,7 @@ export function TasksBoard({
               checked={includeSubtasks}
               onCheckedChange={(checked) => setIncludeSubtasks(checked === true)}
             />
-            Subtarefas como card
+            Subtarefas e itens como card
           </label>
         )}
 

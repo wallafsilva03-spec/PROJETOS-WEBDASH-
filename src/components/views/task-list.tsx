@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, CornerDownRight, ListChecks, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, CornerDownRight, Dot, ListChecks, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,7 +17,10 @@ import { PRIORITY_META, TASK_STATUS_META } from '@/lib/constants';
 import { formatHours, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
+  MAX_TASK_DEPTH,
+  TASK_LEVELS,
   buildTaskColumns,
+  collectDescendants,
   isLateTask,
   sortTasks,
   splitSubtasks,
@@ -29,7 +32,10 @@ import {
 import { useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types/database';
 
-/** Célula de prazo editável no próprio grid — é assim que se dá prazo a cada subtarefa. */
+/** Recuo de cada nível, em rem — o que dá a leitura de árvore. */
+const INDENT = ['0.5rem', '2.25rem', '4rem'];
+
+/** Célula de prazo editável no próprio grid — cada nível tem o prazo dele. */
 function DueDateCell({
   task,
   onChange,
@@ -56,83 +62,21 @@ function DueDateCell({
   );
 }
 
-/* --------------------------------------------------------------- Subtarefa */
-function SubtaskRow({
-  task,
+/** Linha de criação rápida do nível de baixo: título + prazo, direto na lista. */
+function ChildComposer({
   projectId,
-  onOpen,
+  parentId,
+  depth,
 }: {
-  task: TaskWithRelations;
   projectId: string;
-  onOpen: () => void;
+  parentId: string;
+  /** Nível de quem está sendo criado (1 = subtarefa, 2 = item). */
+  depth: number;
 }) {
-  const updateTask = useUpdateTask(projectId);
-  const status = TASK_STATUS_META[task.status];
-
-  return (
-    <tr className="bg-secondary/20 text-[13px] transition-colors hover:bg-secondary/40">
-      <td className="py-2 pl-9 pr-2">
-        <Checkbox
-          checked={task.status === 'concluido'}
-          onCheckedChange={(checked) =>
-            updateTask.mutate({ id: task.id, status: checked === true ? 'concluido' : 'em_desenvolvimento' })
-          }
-          aria-label={`Concluir ${task.title}`}
-        />
-      </td>
-      <td className="px-2 py-2">
-        <span className="flex items-center gap-2">
-          <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
-          <button type="button" onClick={onOpen} className="text-left hover:text-primary">
-            <span className={cn(task.status === 'concluido' && 'text-muted-foreground line-through')}>
-              {task.title}
-            </span>
-          </button>
-        </span>
-      </td>
-      <td className="px-4 py-2">
-        <Badge variant="soft" className={cn('text-[10px]', status.className)} dot={status.dot}>
-          {status.label}
-        </Badge>
-      </td>
-      <td className="px-4 py-2">
-        {task.assignee ? (
-          <span className="flex items-center gap-2">
-            <UserAvatar
-              userId={task.assignee.id}
-              name={task.assignee.full_name}
-              src={task.assignee.avatar_url}
-              className="size-5"
-            />
-            <span className="truncate text-xs">{task.assignee.full_name}</span>
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </td>
-      <td className="px-2 py-2">
-        <DueDateCell
-          task={task}
-          saving={updateTask.isPending}
-          onChange={(value) => updateTask.mutate({ id: task.id, due_date: value })}
-        />
-      </td>
-      <td className="px-4 py-2 text-xs text-muted-foreground">{formatHours(task.estimated_hours)}</td>
-      <td className="px-4 py-2">
-        <div className="flex items-center gap-2">
-          <Progress value={task.progress} className="h-1.5 flex-1" />
-          <span className="w-9 text-right text-xs">{formatPercent(task.progress)}</span>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/** Linha de criação rápida: título + prazo, direto na lista. */
-function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId: string }) {
   const createTask = useCreateTask(projectId);
   const [title, setTitle] = React.useState('');
   const [dueDate, setDueDate] = React.useState('');
+  const level = TASK_LEVELS[depth];
 
   async function submit() {
     const cleaned = title.trim();
@@ -142,7 +86,7 @@ function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId:
       title: cleaned,
       parent_task_id: parentId,
       due_date: dueDate || null,
-      status: 'backlog',
+      status: 'nao_iniciado',
       priority: 'media',
     });
 
@@ -151,8 +95,8 @@ function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId:
   }
 
   return (
-    <tr className="bg-secondary/20">
-      <td className="py-2 pl-9 pr-2">
+    <tr className={depth === 1 ? 'bg-secondary/20' : 'bg-secondary/30'}>
+      <td className="py-2 pr-2" style={{ paddingLeft: INDENT[depth] }}>
         <Plus className="size-4 text-muted-foreground" aria-hidden />
       </td>
       <td className="px-2 py-2" colSpan={3}>
@@ -165,9 +109,9 @@ function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId:
               void submit();
             }
           }}
-          placeholder="Adicionar subtarefa e pressionar Enter"
+          placeholder={`Adicionar ${level.singular} e pressionar Enter`}
           className="h-8 text-[13px]"
-          aria-label="Título da subtarefa"
+          aria-label={`Título d${level.article} ${level.singular}`}
         />
       </td>
       <td className="px-2 py-2">
@@ -175,7 +119,7 @@ function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId:
           type="date"
           value={dueDate}
           onChange={(event) => setDueDate(event.target.value)}
-          aria-label="Prazo da nova subtarefa"
+          aria-label={`Prazo d${level.article} ${level.singular}`}
           className="w-[8.5rem] rounded-md border border-input bg-transparent px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </td>
@@ -195,17 +139,24 @@ function SubtaskComposer({ projectId, parentId }: { projectId: string; parentId:
   );
 }
 
-/* ------------------------------------------------------------ Tarefa mãe */
+/* -------------------------------------------------------------------- Linha */
+/**
+ * Uma linha serve aos três níveis — tarefa, subtarefa e item. O que muda é o
+ * recuo, o peso do texto e o ícone; a mecânica (prazo, status, concluir) é a
+ * mesma, porque no banco os três são a mesma tabela.
+ */
 function TaskRow({
   task,
-  subtasks,
+  depth,
+  childrenOf,
   projectId,
   expanded,
   onToggle,
   onOpen,
 }: {
   task: TaskWithRelations;
-  subtasks: TaskWithRelations[];
+  depth: number;
+  childrenOf: Map<string, TaskWithRelations[]>;
   projectId: string;
   expanded: boolean;
   onToggle: () => void;
@@ -215,67 +166,105 @@ function TaskRow({
   const status = TASK_STATUS_META[task.status];
   const priority = PRIORITY_META[task.priority];
 
-  const doneSubtasks = subtasks.filter((item) => item.status === 'concluido').length;
+  const children = childrenOf.get(task.id) ?? [];
+  const doneChildren = children.filter((item) => item.status === 'concluido').length;
+  const childLevel = TASK_LEVELS[depth + 1];
+
+  // Com filhos, o progresso mostrado é a média deles — o mesmo que o banco grava.
+  const progress = children.length
+    ? Math.round(children.reduce((total, item) => total + item.progress, 0) / children.length)
+    : task.progress;
 
   /**
-   * Marcar a mãe marca as filhas junto. É o mesmo caminho que o banco faz ao
-   * contrário (fechou todas as filhas, fecha a mãe); sem isto, uma mãe fechada
-   * à mão com filha aberta seria reaberta na próxima mexida na filha.
+   * Concluir uma linha conclui tudo que está abaixo dela. É o caminho inverso
+   * do gatilho do banco (fechou os filhos, fecha o pai); sem isto, um pai
+   * fechado à mão com filho aberto seria reaberto na próxima mexida no filho.
    */
   function toggleDone(done: boolean) {
     const status = done ? 'concluido' : 'em_desenvolvimento';
     updateTask.mutate({ id: task.id, status });
-    for (const subtask of subtasks) {
-      if ((subtask.status === 'concluido') !== done) {
-        updateTask.mutate({ id: subtask.id, status });
+    for (const descendant of collectDescendants(task.id, childrenOf)) {
+      if ((descendant.status === 'concluido') !== done) {
+        updateTask.mutate({ id: descendant.id, status });
       }
     }
   }
-  // Com subtarefas o progresso mostrado é a média delas; sem elas, o da própria tarefa.
-  const progress = subtasks.length
-    ? Math.round(subtasks.reduce((total, item) => total + item.progress, 0) / subtasks.length)
-    : task.progress;
+
+  const canHaveChildren = depth < MAX_TASK_DEPTH;
 
   return (
-    <tr className="transition-colors hover:bg-secondary/40">
-      <td className="px-2 py-2.5">
+    <tr
+      className={cn(
+        'transition-colors hover:bg-secondary/40',
+        depth === 1 && 'bg-secondary/20 text-[13px]',
+        depth === 2 && 'bg-secondary/30 text-[13px]',
+      )}
+    >
+      <td className="py-2.5 pr-2" style={{ paddingLeft: INDENT[depth] }}>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-expanded={expanded}
-            aria-label={expanded ? `Recolher subtarefas de ${task.title}` : `Abrir subtarefas de ${task.title}`}
-            className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-          </button>
+          {canHaveChildren ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={expanded}
+              aria-label={
+                expanded
+                  ? `Recolher ${childLevel.plural} de ${task.title}`
+                  : `Abrir ${childLevel.plural} de ${task.title}`
+              }
+              className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            </button>
+          ) : (
+            <span className="w-5" aria-hidden />
+          )}
           <Checkbox
             checked={task.status === 'concluido'}
             onCheckedChange={(checked) => toggleDone(checked === true)}
             aria-label={
-              subtasks.length ? `Concluir ${task.title} e suas subtarefas` : `Concluir ${task.title}`
+              children.length
+                ? `Concluir ${task.title} e o que está abaixo dela`
+                : `Concluir ${task.title}`
             }
           />
         </div>
       </td>
+
       <td className="px-2 py-2.5">
-        <button type="button" onClick={onOpen} className="text-left font-medium hover:text-primary">
-          <span className={cn(task.status === 'concluido' && 'text-muted-foreground line-through')}>{task.title}</span>
-        </button>
-        <Badge variant="soft" className={cn('ml-2 text-[10px]', priority.className)} dot={priority.dot}>
-          {priority.label}
-        </Badge>
-        {subtasks.length > 0 && (
-          <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {doneSubtasks}/{subtasks.length} subtarefas
-          </span>
-        )}
+        <span className="flex items-center gap-2">
+          {depth === 1 && <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground/60" aria-hidden />}
+          {depth === 2 && <Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />}
+          <button
+            type="button"
+            onClick={onOpen}
+            className={cn('text-left hover:text-primary', depth === 0 && 'font-medium')}
+          >
+            <span className={cn(task.status === 'concluido' && 'text-muted-foreground line-through')}>
+              {task.title}
+            </span>
+          </button>
+        </span>
+        <span className="ml-6 inline-flex items-center gap-2">
+          {depth === 0 && (
+            <Badge variant="soft" className={cn('text-[10px]', priority.className)} dot={priority.dot}>
+              {priority.label}
+            </Badge>
+          )}
+          {children.length > 0 && (
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {doneChildren}/{children.length} {childLevel.plural}
+            </span>
+          )}
+        </span>
       </td>
+
       <td className="px-4 py-2.5">
-        <Badge variant="soft" className={status.className} dot={status.dot}>
+        <Badge variant="soft" className={cn(depth > 0 && 'text-[10px]', status.className)} dot={status.dot}>
           {status.label}
         </Badge>
       </td>
+
       <td className="px-4 py-2.5">
         {task.assignee ? (
           <span className="flex items-center gap-2">
@@ -283,7 +272,7 @@ function TaskRow({
               userId={task.assignee.id}
               name={task.assignee.full_name}
               src={task.assignee.avatar_url}
-              className="size-6"
+              className={depth === 0 ? 'size-6' : 'size-5'}
             />
             <span className="truncate text-xs">{task.assignee.full_name}</span>
           </span>
@@ -291,6 +280,7 @@ function TaskRow({
           <span className="text-xs text-muted-foreground">—</span>
         )}
       </td>
+
       <td className="px-2 py-2.5">
         <DueDateCell
           task={task}
@@ -298,11 +288,13 @@ function TaskRow({
           onChange={(value) => updateTask.mutate({ id: task.id, due_date: value })}
         />
       </td>
+
       <td className="px-4 py-2.5 text-xs text-muted-foreground">{formatHours(task.estimated_hours)}</td>
+
       <td className="px-4 py-2.5">
         <div
           className="flex items-center gap-2"
-          title={subtasks.length ? 'Média do progresso das subtarefas' : undefined}
+          title={children.length ? `Média do progresso ${childLevel.of}` : undefined}
         >
           <Progress value={progress} className="h-1.5 flex-1" />
           <span className="w-9 text-right text-xs">{formatPercent(progress)}</span>
@@ -336,7 +328,7 @@ export function TaskList({
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const [dialogTask, setDialogTask] = React.useState<TaskWithRelations | null>(null);
 
-  // Subtarefas ficam sob a tarefa mãe; só as principais entram no agrupamento.
+  // Só as tarefas de topo entram no agrupamento; o resto pendura por baixo.
   const { parents, childrenOf } = React.useMemo(() => splitSubtasks(tasks), [tasks]);
   const sorted = React.useMemo(() => sortTasks(parents, sortKey), [parents, sortKey]);
 
@@ -352,6 +344,36 @@ export function TaskList({
       }))
       .filter((group) => group.items.length > 0);
   }, [columns, groupKey, sorted, tasks]);
+
+  /** Desenha a linha e, aberta, os filhos dela — até o terceiro nível. */
+  const renderRows = React.useCallback(
+    (task: TaskWithRelations, depth: number): React.ReactNode => {
+      const isExpanded = expanded[task.id] ?? false;
+      const children = childrenOf.get(task.id) ?? [];
+
+      return (
+        <React.Fragment key={task.id}>
+          <TaskRow
+            task={task}
+            depth={depth}
+            childrenOf={childrenOf}
+            projectId={projectId}
+            expanded={isExpanded}
+            onToggle={() => setExpanded((state) => ({ ...state, [task.id]: !state[task.id] }))}
+            onOpen={() => setDialogTask(task)}
+          />
+
+          {isExpanded && depth < MAX_TASK_DEPTH && (
+            <>
+              {children.map((child) => renderRows(child, depth + 1))}
+              <ChildComposer projectId={projectId} parentId={task.id} depth={depth + 1} />
+            </>
+          )}
+        </React.Fragment>
+      );
+    },
+    [childrenOf, expanded, projectId],
+  );
 
   if (isLoading) return <SkeletonTable rows={8} />;
 
@@ -407,39 +429,7 @@ export function TaskList({
                       <th scope="col" className="w-40 px-4 py-2 font-medium">Progresso</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
-                    {group.items.map((task) => {
-                      const subtasks = childrenOf.get(task.id) ?? [];
-                      const isExpanded = expanded[task.id] ?? false;
-
-                      return (
-                        <React.Fragment key={task.id}>
-                          <TaskRow
-                            task={task}
-                            subtasks={subtasks}
-                            projectId={projectId}
-                            expanded={isExpanded}
-                            onToggle={() => setExpanded((state) => ({ ...state, [task.id]: !state[task.id] }))}
-                            onOpen={() => setDialogTask(task)}
-                          />
-
-                          {isExpanded && (
-                            <>
-                              {subtasks.map((subtask) => (
-                                <SubtaskRow
-                                  key={subtask.id}
-                                  task={subtask}
-                                  projectId={projectId}
-                                  onOpen={() => setDialogTask(subtask)}
-                                />
-                              ))}
-                              <SubtaskComposer projectId={projectId} parentId={task.id} />
-                            </>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
+                  <tbody className="divide-y">{group.items.map((task) => renderRows(task, 0))}</tbody>
                 </table>
               </div>
             )}

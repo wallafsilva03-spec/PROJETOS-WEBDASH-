@@ -15,7 +15,16 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
-import { CalendarDays, Clock, CornerDownRight, Flag, ListTree, Plus } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CornerDownRight,
+  Flag,
+  ListTree,
+  Plus,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +32,7 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskDialog } from '@/components/tasks/task-dialog';
-import { KANBAN_COLUMNS, PRIORITY_META } from '@/lib/constants';
+import { KANBAN_COLUMNS, PRIORITY_META, TASK_STATUS_META } from '@/lib/constants';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -38,23 +47,88 @@ import { useMoveTask, useUpdateTask } from '@/hooks/use-tasks';
 import { useProjectMembers } from '@/hooks/use-projects';
 import type { PriorityLevel, TaskStatus, TaskWithRelations } from '@/types/database';
 
+/* ------------------------------------------------------- Árvore no card */
+/**
+ * Subtarefas (e os itens delas) desenhadas dentro do próprio card, no clique
+ * da setinha. É o que mantém o quadro legível: uma coluna de cards de tarefa
+ * principal, e o detalhe só de quem você abriu.
+ */
+function CardBranch({
+  tasks,
+  childrenOf,
+  depth,
+  onOpenTask,
+}: {
+  tasks: TaskWithRelations[];
+  childrenOf: Map<string, TaskWithRelations[]>;
+  depth: number;
+  onOpenTask: (task: TaskWithRelations) => void;
+}) {
+  return (
+    <ul className={cn('space-y-1', depth > 1 && 'ml-3 border-l pl-2')}>
+      {tasks.map((task) => {
+        const children = childrenOf.get(task.id) ?? [];
+        const meta = TASK_STATUS_META[task.status];
+        const late = task.due_date && task.status !== 'concluido' && new Date(task.due_date) < new Date();
+
+        return (
+          <li key={task.id}>
+            <button
+              type="button"
+              onClick={() => onOpenTask(task)}
+              className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] transition-colors hover:bg-secondary"
+            >
+              <span className={cn('size-1.5 shrink-0 rounded-full', meta.dot)} aria-hidden />
+              <span className={cn('flex-1 truncate', task.status === 'concluido' && 'text-muted-foreground line-through')}>
+                {task.title}
+              </span>
+              {children.length > 0 && (
+                <span className="shrink-0 text-muted-foreground">
+                  {children.filter((item) => item.status === 'concluido').length}/{children.length}
+                </span>
+              )}
+              {task.due_date && (
+                <span className={cn('shrink-0', late ? 'font-medium text-destructive' : 'text-muted-foreground')}>
+                  {formatDate(task.due_date, 'dd/MM')}
+                </span>
+              )}
+            </button>
+
+            {children.length > 0 && (
+              <CardBranch tasks={children} childrenOf={childrenOf} depth={depth + 1} onOpenTask={onOpenTask} />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /* ------------------------------------------------------------------ Card */
 function TaskCard({
   task,
   subtasks = [],
+  childrenOf,
+  expanded,
+  onToggleExpand,
   parentTitle,
   showProject,
   onOpen,
+  onOpenTask,
   dragging,
 }: {
   task: TaskWithRelations;
-  /** Subtarefas da tarefa — viram contador no card da mãe. */
+  /** Subtarefas diretas — viram contador e, abertas, a árvore dentro do card. */
   subtasks?: TaskWithRelations[];
+  childrenOf?: Map<string, TaskWithRelations[]>;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
   /** Preenchido só quando o card é de uma subtarefa. */
   parentTitle?: string;
   /** No quadro que mistura projetos, o card precisa dizer de onde veio. */
   showProject?: boolean;
   onOpen: () => void;
+  onOpenTask?: (task: TaskWithRelations) => void;
   dragging?: boolean;
 }) {
   const priority = PRIORITY_META[task.priority];
@@ -94,12 +168,6 @@ function TaskCard({
               {task.estimated_hours}h
             </span>
           )}
-          {subtasks.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <ListTree className="size-3" aria-hidden />
-              {subtasks.filter((item) => item.status === 'concluido').length}/{subtasks.length}
-            </span>
-          )}
         </div>
 
         {task.progress > 0 && task.status !== 'concluido' && (
@@ -130,6 +198,32 @@ function TaskCard({
           )}
         </div>
       </button>
+
+      {subtasks.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            aria-expanded={Boolean(expanded)}
+            className="mt-2 flex w-full items-center gap-1 rounded px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            <ListTree className="size-3" aria-hidden />
+            {subtasks.filter((item) => item.status === 'concluido').length}/{subtasks.length} subtarefas
+          </button>
+
+          {expanded && childrenOf && (
+            <div className="mt-1 border-t pt-2">
+              <CardBranch
+                tasks={subtasks}
+                childrenOf={childrenOf}
+                depth={1}
+                onOpenTask={onOpenTask ?? (() => undefined)}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -137,15 +231,23 @@ function TaskCard({
 function SortableTaskCard({
   task,
   subtasks,
+  childrenOf,
+  expanded,
+  onToggleExpand,
   parentTitle,
   showProject,
   onOpen,
+  onOpenTask,
 }: {
   task: TaskWithRelations;
   subtasks: TaskWithRelations[];
+  childrenOf: Map<string, TaskWithRelations[]>;
+  expanded: boolean;
+  onToggleExpand: () => void;
   parentTitle?: string;
   showProject?: boolean;
   onOpen: () => void;
+  onOpenTask: (task: TaskWithRelations) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -160,9 +262,13 @@ function SortableTaskCard({
       <TaskCard
         task={task}
         subtasks={subtasks}
+        childrenOf={childrenOf}
+        expanded={expanded}
+        onToggleExpand={onToggleExpand}
         parentTitle={parentTitle}
         showProject={showProject}
         onOpen={onOpen}
+        onOpenTask={onOpenTask}
       />
     </li>
   );
@@ -176,6 +282,9 @@ function Column({
   tasks,
   childrenOf,
   parentTitles,
+  expandedCards,
+  onToggleCard,
+  onOpenSubtask,
   showProject,
   canCreate,
   onOpenTask,
@@ -187,6 +296,9 @@ function Column({
   tasks: TaskWithRelations[];
   childrenOf: Map<string, TaskWithRelations[]>;
   parentTitles: Map<string, string>;
+  expandedCards: Record<string, boolean>;
+  onToggleCard: (taskId: string) => void;
+  onOpenSubtask: (task: TaskWithRelations) => void;
   showProject?: boolean;
   /** Criar direto na coluna só faz sentido quando ela é um status de um projeto. */
   canCreate: boolean;
@@ -231,9 +343,13 @@ function Column({
                 key={task.id}
                 task={task}
                 subtasks={childrenOf.get(task.id) ?? []}
+                childrenOf={childrenOf}
+                expanded={Boolean(expandedCards[task.id])}
+                onToggleExpand={() => onToggleCard(task.id)}
                 parentTitle={task.parent_task_id ? parentTitles.get(task.parent_task_id) : undefined}
                 showProject={showProject}
                 onOpen={() => onOpenTask(task)}
+                onOpenTask={onOpenSubtask}
               />
             ))}
           </ul>
@@ -276,6 +392,7 @@ export function KanbanBoard({
   const updateTask = useUpdateTask(projectId);
   const members = useProjectMembers(projectId ?? '');
   const [activeTask, setActiveTask] = React.useState<TaskWithRelations | null>(null);
+  const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
   const [dialogTask, setDialogTask] = React.useState<TaskWithRelations | null>(null);
   const [creatingStatus, setCreatingStatus] = React.useState<TaskStatus | null>(null);
 
@@ -389,6 +506,11 @@ export function KanbanBoard({
               tasks={grouped.get(column.id) ?? []}
               childrenOf={childrenOf}
               parentTitles={parentTitles}
+              expandedCards={expandedCards}
+              onToggleCard={(taskId) =>
+                setExpandedCards((state) => ({ ...state, [taskId]: !state[taskId] }))
+              }
+              onOpenSubtask={setDialogTask}
               showProject={!projectId}
               canCreate={groupKey === 'status' && Boolean(projectId)}
               onOpenTask={setDialogTask}

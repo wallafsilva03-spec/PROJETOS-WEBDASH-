@@ -49,7 +49,7 @@ export function KanbanView() {
   const [selected, setSelected] = React.useState(ALL);
   const [term, setTerm] = React.useState('');
   const [groupKey, setGroupKey] = React.useState<TaskGroupKey>('status');
-  const [includeSubtasks, setIncludeSubtasks] = React.useState(true);
+  const [includeSubtasks, setIncludeSubtasks] = React.useState(false);
 
   const projectId = selected === ALL ? undefined : selected;
   const { data: stages } = useStages(projectId);
@@ -226,7 +226,7 @@ export function KanbanView() {
                 checked={includeSubtasks}
                 onCheckedChange={(checked) => setIncludeSubtasks(checked === true)}
               />
-              Subtarefas e itens como card
+              Subtarefas como cards separados
             </label>
           </>
         )}

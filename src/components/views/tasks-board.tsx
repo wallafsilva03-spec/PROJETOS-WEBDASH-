@@ -39,7 +39,7 @@ export function TasksBoard({
   const [groupKey, setGroupKey] = React.useState<TaskGroupKey>('status');
   const [sortKey, setSortKey] = React.useState<TaskSortKey>('position');
   const [creating, setCreating] = React.useState(false);
-  const [includeSubtasks, setIncludeSubtasks] = React.useState(true);
+  const [includeSubtasks, setIncludeSubtasks] = React.useState(false);
 
   const members = useProjectMembers(projectId);
 
@@ -111,7 +111,7 @@ export function TasksBoard({
               checked={includeSubtasks}
               onCheckedChange={(checked) => setIncludeSubtasks(checked === true)}
             />
-            Subtarefas e itens como card
+            Subtarefas como cards separados
           </label>
         )}
 
@@ -145,7 +145,7 @@ export function TasksBoard({
       {view === 'kanban' && (
         <p className="text-xs text-muted-foreground">
           {groupKey === 'status'
-            ? 'Cada tarefa cadastrada na lista é um card. Arraste para mudar o status.'
+            ? 'Um card por tarefa principal. Clique na setinha do card para ver as subtarefas dentro dele, e arraste para mudar o status.'
             : `Arrastando um card aqui você troca ${groupKey === 'priority' ? 'a prioridade' : 'o responsável'} da tarefa.`}
         </p>
       )}

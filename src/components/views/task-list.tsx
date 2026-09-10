@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowUpDown, ChevronDown, ChevronRight, CornerDownRight, ListChecks, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, CornerDownRight, ListChecks, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,24 +10,24 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/misc';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TaskDialog } from '@/components/tasks/task-dialog';
 import { PRIORITY_META, TASK_STATUS_META } from '@/lib/constants';
 import { formatHours, formatPercent } from '@/lib/format';
-import { cn, groupBy } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import {
+  buildTaskColumns,
+  isLateTask,
+  sortTasks,
+  splitSubtasks,
+  taskColumnId,
+  type TaskColumn,
+  type TaskGroupKey,
+  type TaskSortKey,
+} from '@/lib/task-grouping';
 import { useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types/database';
-
-type GroupKey = 'status' | 'priority' | 'assignee' | 'none';
-type SortKey = 'position' | 'due_date' | 'priority' | 'title' | 'progress';
-
-const PRIORITY_ORDER = { critica: 4, alta: 3, media: 2, baixa: 1 } as const;
-
-function isLateTask(task: TaskWithRelations) {
-  return Boolean(task.due_date) && task.status !== 'concluido' && new Date(task.due_date as string) < new Date();
-}
 
 /** Célula de prazo editável no próprio grid — é assim que se dá prazo a cada subtarefa. */
 function DueDateCell({
@@ -302,136 +302,64 @@ export function TaskList({
   projectId,
   tasks,
   isLoading,
+  groupKey = 'status',
+  sortKey = 'position',
+  columns,
+  onCreateTask,
 }: {
   projectId: string;
   tasks: TaskWithRelations[];
   isLoading?: boolean;
+  /** Mesmo agrupamento usado pelas colunas do Kanban. */
+  groupKey?: TaskGroupKey;
+  sortKey?: TaskSortKey;
+  /** Grupos na mesma ordem das colunas do Kanban. */
+  columns?: TaskColumn[];
+  onCreateTask?: () => void;
 }) {
-  const [groupKey, setGroupKey] = React.useState<GroupKey>('status');
-  const [sortKey, setSortKey] = React.useState<SortKey>('position');
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const [dialogTask, setDialogTask] = React.useState<TaskWithRelations | null>(null);
-  const [creating, setCreating] = React.useState(false);
 
   // Subtarefas ficam sob a tarefa mãe; só as principais entram no agrupamento.
-  const { parents, childrenOf } = React.useMemo(() => {
-    const byParent = new Map<string, TaskWithRelations[]>();
-    const roots: TaskWithRelations[] = [];
+  const { parents, childrenOf } = React.useMemo(() => splitSubtasks(tasks), [tasks]);
+  const sorted = React.useMemo(() => sortTasks(parents, sortKey), [parents, sortKey]);
 
-    for (const task of tasks) {
-      if (task.parent_task_id) {
-        const siblings = byParent.get(task.parent_task_id) ?? [];
-        siblings.push(task);
-        byParent.set(task.parent_task_id, siblings);
-      } else {
-        roots.push(task);
-      }
-    }
-
-    // Uma subtarefa órfã (mãe filtrada/removida) vira tarefa principal na lista.
-    const ids = new Set(tasks.map((task) => task.id));
-    for (const [parentId, children] of byParent) {
-      if (!ids.has(parentId)) {
-        roots.push(...children);
-        byParent.delete(parentId);
-      }
-    }
-
-    for (const children of byParent.values()) {
-      children.sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || a.position - b.position);
-    }
-
-    return { parents: roots, childrenOf: byParent };
-  }, [tasks]);
-
-  const sorted = React.useMemo(() => {
-    const list = [...parents];
-    list.sort((a, b) => {
-      switch (sortKey) {
-        case 'due_date':
-          return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
-        case 'priority':
-          return PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority];
-        case 'title':
-          return a.title.localeCompare(b.title, 'pt-BR');
-        case 'progress':
-          return b.progress - a.progress;
-        default:
-          return a.position - b.position;
-      }
-    });
-    return list;
-  }, [parents, sortKey]);
-
+  // Os grupos seguem a ordem das colunas do Kanban — é a mesma visão, só mudou o formato.
   const groups = React.useMemo(() => {
-    if (groupKey === 'none') return [{ key: 'Todas as tarefas', items: sorted }];
-
-    const map = groupBy(sorted, (task) => {
-      if (groupKey === 'status') return TASK_STATUS_META[task.status].label;
-      if (groupKey === 'priority') return PRIORITY_META[task.priority].label;
-      return task.assignee?.full_name ?? 'Sem responsável';
-    });
-
-    return Object.entries(map).map(([key, items]) => ({ key, items }));
-  }, [sorted, groupKey]);
+    const list = columns ?? buildTaskColumns(groupKey, tasks);
+    return list
+      .map((column) => ({
+        key: column.id,
+        label: column.label,
+        accent: column.accent,
+        items: sorted.filter((task) => taskColumnId(task, groupKey) === column.id),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [columns, groupKey, sorted, tasks]);
 
   if (isLoading) return <SkeletonTable rows={8} />;
 
   if (!tasks.length) {
     return (
-      <>
-        <EmptyState
-          icon={ListChecks}
-          title="Nenhuma tarefa"
-          description="Crie a primeira tarefa para montar o cronograma do projeto."
-          action={
-            <Button variant="brand" onClick={() => setCreating(true)}>
+      <EmptyState
+        icon={ListChecks}
+        title="Nenhuma tarefa"
+        description="Crie a primeira tarefa para montar o cronograma do projeto."
+        action={
+          onCreateTask && (
+            <Button variant="brand" onClick={onCreateTask}>
               <Plus className="size-4" />
               Nova tarefa
             </Button>
-          }
-        />
-        <TaskDialog projectId={projectId} open={creating} onOpenChange={setCreating} />
-      </>
+          )
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={groupKey} onValueChange={(value) => setGroupKey(value as GroupKey)}>
-          <SelectTrigger className="w-48" aria-label="Agrupar por">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="status">Agrupar por status</SelectItem>
-            <SelectItem value="priority">Agrupar por prioridade</SelectItem>
-            <SelectItem value="assignee">Agrupar por responsável</SelectItem>
-            <SelectItem value="none">Sem agrupamento</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
-          <SelectTrigger className="w-48" aria-label="Ordenar por">
-            <ArrowUpDown className="mr-1 size-3.5 opacity-60" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="position">Ordem do quadro</SelectItem>
-            <SelectItem value="due_date">Prazo</SelectItem>
-            <SelectItem value="priority">Prioridade</SelectItem>
-            <SelectItem value="progress">Progresso</SelectItem>
-            <SelectItem value="title">Título</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button variant="brand" className="ml-auto" onClick={() => setCreating(true)}>
-          <Plus className="size-4" />
-          Nova tarefa
-        </Button>
-      </div>
-
       {groups.map((group) => {
         const isCollapsed = collapsed[group.key];
         return (
@@ -443,7 +371,8 @@ export function TaskList({
               aria-expanded={!isCollapsed}
             >
               {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-              {group.key}
+              <span className={cn('size-2 rounded-full', group.accent)} aria-hidden />
+              {group.label}
               <span className="rounded-full bg-card px-2 text-xs font-medium text-muted-foreground">
                 {group.items.length}
               </span>
@@ -509,7 +438,6 @@ export function TaskList({
         onOpenChange={(open) => !open && setDialogTask(null)}
         task={dialogTask}
       />
-      <TaskDialog projectId={projectId} open={creating} onOpenChange={setCreating} />
     </div>
   );
 }

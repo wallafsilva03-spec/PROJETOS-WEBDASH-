@@ -11,7 +11,6 @@ import {
   History,
   KanbanSquare,
   Layers,
-  ListChecks,
   ListTodo,
   MessageSquare,
   BellRing,
@@ -31,9 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProgressWithDelta } from '@/components/ui/progress';
 import { Skeleton, SkeletonCards } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/empty-state';
-import { KanbanBoard } from '@/components/views/kanban-board';
 import { StagesKanban } from '@/components/views/stages-kanban';
-import { TaskList } from '@/components/views/task-list';
+import { TasksBoard } from '@/components/views/tasks-board';
 import { GanttChart } from '@/components/views/gantt-chart';
 import { TimelineView } from '@/components/views/timeline-view';
 import { CalendarView, type CalendarEvent } from '@/components/views/calendar-view';
@@ -380,11 +378,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           <TabsTrigger value="kanban">
             <KanbanSquare /> Kanban
           </TabsTrigger>
-          <TabsTrigger value="kanban-tarefas">
-            <ListTodo /> Kanban de tarefas
-          </TabsTrigger>
-          <TabsTrigger value="lista">
-            <ListChecks /> Lista
+          <TabsTrigger value="tarefas">
+            <ListTodo /> Tarefas
           </TabsTrigger>
           <TabsTrigger value="etapas">
             <Layers /> Etapas
@@ -430,12 +425,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           />
         </TabsContent>
 
-        <TabsContent value="kanban-tarefas">
-          <KanbanBoard projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
-        </TabsContent>
-
-        <TabsContent value="lista">
-          <TaskList projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
+        <TabsContent value="tarefas">
+          <TasksBoard projectId={projectId} tasks={tasks} isLoading={tasksQuery.isLoading} />
         </TabsContent>
 
         <TabsContent value="etapas">

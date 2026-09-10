@@ -2,7 +2,7 @@ import { KANBAN_COLUMNS, PRIORITY_META, TASK_STATUS_META } from '@/lib/constants
 import type { PriorityLevel, TaskWithRelations } from '@/types/database';
 
 /** Como as tarefas são fatiadas — vale para os grupos da lista e para as colunas do Kanban. */
-export type TaskGroupKey = 'status' | 'priority' | 'assignee' | 'none';
+export type TaskGroupKey = 'status' | 'priority' | 'assignee' | 'parent' | 'none';
 export type TaskSortKey = 'position' | 'due_date' | 'priority' | 'title' | 'progress';
 
 /** Colunas/grupos que não vêm de um id real. */
@@ -24,6 +24,33 @@ export const TASK_LEVELS = [
   // Quarto nível não é criável, mas o rótulo evita um undefined em tela.
   { singular: 'item', plural: 'itens', article: 'o', of: 'dos itens' },
 ] as const;
+
+/**
+ * Para cada tarefa, a tarefa principal no topo da árvore dela.
+ * É o que permite agrupar por tarefa: a subtarefa e o item dela caem na mesma
+ * coluna, mesmo estando a dois níveis de distância.
+ */
+export function buildRootIndex(tasks: TaskWithRelations[]) {
+  const parentOf = new Map<string, string | null>(tasks.map((task) => [task.id, task.parent_task_id]));
+  const rootOf = new Map<string, string>();
+
+  for (const task of tasks) {
+    const seen = new Set<string>([task.id]);
+    let current = task.id;
+
+    // Sobe até o topo; `seen` protege de uma hierarquia circular no banco.
+    while (true) {
+      const parent = parentOf.get(current) ?? null;
+      if (!parent || !parentOf.has(parent) || seen.has(parent)) break;
+      seen.add(parent);
+      current = parent;
+    }
+
+    rootOf.set(task.id, current);
+  }
+
+  return rootOf;
+}
 
 /** Tudo que pendura abaixo de uma tarefa, em qualquer nível. */
 export function collectDescendants(
@@ -114,8 +141,15 @@ export function sortTasks(tasks: TaskWithRelations[], sortKey: TaskSortKey) {
   });
 }
 
-/** Em qual grupo/coluna a tarefa cai. */
-export function taskColumnId(task: TaskWithRelations, groupKey: TaskGroupKey) {
+/**
+ * Em qual grupo/coluna a tarefa cai. Agrupando por tarefa principal é preciso
+ * passar o índice de raízes — sem ele não dá para saber de quem o item é neto.
+ */
+export function taskColumnId(
+  task: TaskWithRelations,
+  groupKey: TaskGroupKey,
+  rootOf?: Map<string, string>,
+) {
   switch (groupKey) {
     case 'status':
       return task.status;
@@ -123,6 +157,8 @@ export function taskColumnId(task: TaskWithRelations, groupKey: TaskGroupKey) {
       return task.priority;
     case 'assignee':
       return task.assignee_id ?? NO_ASSIGNEE;
+    case 'parent':
+      return rootOf?.get(task.id) ?? task.parent_task_id ?? task.id;
     default:
       return ALL_TASKS;
   }
@@ -147,6 +183,18 @@ export function buildTaskColumns(
       label: PRIORITY_META[priority].label,
       accent: PRIORITY_META[priority].dot ?? 'bg-slate-400',
     }));
+  }
+
+  // Uma coluna por tarefa principal; as subtarefas dela são os cards.
+  if (groupKey === 'parent') {
+    return tasks
+      .filter((task) => !task.parent_task_id)
+      .sort((a, b) => a.position - b.position || a.title.localeCompare(b.title, 'pt-BR'))
+      .map((task) => ({
+        id: task.id,
+        label: task.title,
+        accent: TASK_STATUS_META[task.status].dot ?? 'bg-slate-400',
+      }));
   }
 
   if (groupKey === 'assignee') {
@@ -177,6 +225,8 @@ export function taskGroupLabel(task: TaskWithRelations, groupKey: TaskGroupKey) 
       return PRIORITY_META[task.priority].label;
     case 'assignee':
       return task.assignee?.full_name ?? 'Sem responsável';
+    case 'parent':
+      return task.title;
     default:
       return 'Todas as tarefas';
   }

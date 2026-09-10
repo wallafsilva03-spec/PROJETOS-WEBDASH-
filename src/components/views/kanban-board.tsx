@@ -37,6 +37,7 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   NO_ASSIGNEE,
+  buildRootIndex,
   buildTaskColumns,
   splitSubtasks,
   taskColumnId,
@@ -446,10 +447,21 @@ export function KanbanBoard({
   // `includeSubtasks` cada cadastro da lista vira um card por conta própria.
   const { parents, childrenOf } = React.useMemo(() => splitSubtasks(tasks), [tasks]);
 
-  const cards = React.useMemo(
-    () => (includeSubtasks ? tasks : parents),
-    [includeSubtasks, tasks, parents],
-  );
+  const rootOf = React.useMemo(() => buildRootIndex(tasks), [tasks]);
+
+  /**
+   * Agrupando por tarefa principal, quem vira card é a subtarefa: a tarefa
+   * principal já é a coluna, e repeti-la dentro dela não diria nada.
+   */
+  const cards = React.useMemo(() => {
+    if (groupKey === 'parent') {
+      return tasks.filter((task) =>
+        includeSubtasks ? Boolean(task.parent_task_id) : Boolean(task.parent_task_id) && rootOf.get(task.id) === task.parent_task_id,
+      );
+    }
+
+    return includeSubtasks ? tasks : parents;
+  }, [groupKey, includeSubtasks, tasks, parents, rootOf]);
 
   const parentTitles = React.useMemo(
     () => new Map(tasks.map((task) => [task.id, task.title])),
@@ -457,17 +469,17 @@ export function KanbanBoard({
   );
 
   const boardColumns = React.useMemo(
-    () => columns ?? buildTaskColumns(groupKey, cards, members.data ?? []),
-    [columns, groupKey, cards, members.data],
+    () => columns ?? buildTaskColumns(groupKey, groupKey === 'parent' ? tasks : cards, members.data ?? []),
+    [columns, groupKey, cards, tasks, members.data],
   );
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, TaskWithRelations[]>();
     boardColumns.forEach((column) => map.set(column.id, []));
-    cards.forEach((task) => map.get(taskColumnId(task, groupKey))?.push(task));
+    cards.forEach((task) => map.get(taskColumnId(task, groupKey, rootOf))?.push(task));
     map.forEach((list) => list.sort((a, b) => a.position - b.position));
     return map;
-  }, [boardColumns, cards, groupKey]);
+  }, [boardColumns, cards, groupKey, rootOf]);
 
   function onDragStart(event: DragStartEvent) {
     setActiveTask(cards.find((task) => task.id === event.active.id) ?? null);
@@ -483,13 +495,21 @@ export function KanbanBoard({
 
     // O destino pode ser a própria coluna ou um card dentro dela.
     const overTask = cards.find((item) => item.id === over.id);
-    const targetColumn = overTask ? taskColumnId(overTask, groupKey) : (over.id as string);
+    const targetColumn = overTask ? taskColumnId(overTask, groupKey, rootOf) : (over.id as string);
     if (!boardColumns.some((column) => column.id === targetColumn)) return;
 
     // Arrastar move a tarefa no campo que está agrupando o quadro.
     if (groupKey === 'priority') {
       if (task.priority !== targetColumn) {
         updateTask.mutate({ id: task.id, priority: targetColumn as PriorityLevel });
+      }
+      return;
+    }
+
+    // Arrastar entre colunas de tarefa principal é rependurar a subtarefa.
+    if (groupKey === 'parent') {
+      if (targetColumn !== task.id && task.parent_task_id !== targetColumn) {
+        updateTask.mutate({ id: task.id, parent_task_id: targetColumn });
       }
       return;
     }

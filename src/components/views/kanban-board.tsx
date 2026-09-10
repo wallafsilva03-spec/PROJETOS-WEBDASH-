@@ -15,7 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
-import { CalendarDays, Clock, Flag, ListTree, Plus } from 'lucide-react';
+import { CalendarDays, Clock, CornerDownRight, Flag, ListTree, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,12 +42,15 @@ import type { PriorityLevel, TaskStatus, TaskWithRelations } from '@/types/datab
 function TaskCard({
   task,
   subtasks = [],
+  parentTitle,
   onOpen,
   dragging,
 }: {
   task: TaskWithRelations;
-  /** Subtarefas da tarefa — aparecem como contador, não como card solto. */
+  /** Subtarefas da tarefa — viram contador no card da mãe. */
   subtasks?: TaskWithRelations[];
+  /** Preenchido só quando o card é de uma subtarefa. */
+  parentTitle?: string;
   onOpen: () => void;
   dragging?: boolean;
 }) {
@@ -62,6 +65,12 @@ function TaskCard({
       )}
     >
       <button type="button" onClick={onOpen} className="block w-full text-left">
+        {parentTitle && (
+          <p className="mb-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+            <CornerDownRight className="size-3 shrink-0" aria-hidden />
+            {parentTitle}
+          </p>
+        )}
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-3 text-sm font-medium leading-snug">{task.title}</p>
           {task.is_milestone && <Flag className="size-3.5 shrink-0 text-primary" aria-label="Marco" />}
@@ -120,10 +129,12 @@ function TaskCard({
 function SortableTaskCard({
   task,
   subtasks,
+  parentTitle,
   onOpen,
 }: {
   task: TaskWithRelations;
   subtasks: TaskWithRelations[];
+  parentTitle?: string;
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
@@ -136,7 +147,7 @@ function SortableTaskCard({
       {...attributes}
       {...listeners}
     >
-      <TaskCard task={task} subtasks={subtasks} onOpen={onOpen} />
+      <TaskCard task={task} subtasks={subtasks} parentTitle={parentTitle} onOpen={onOpen} />
     </li>
   );
 }
@@ -148,6 +159,7 @@ function Column({
   accent,
   tasks,
   childrenOf,
+  parentTitles,
   canCreate,
   onOpenTask,
   onCreate,
@@ -157,6 +169,7 @@ function Column({
   accent: string;
   tasks: TaskWithRelations[];
   childrenOf: Map<string, TaskWithRelations[]>;
+  parentTitles: Map<string, string>;
   /** Criar direto na coluna só faz sentido quando ela é um status. */
   canCreate: boolean;
   onOpenTask: (task: TaskWithRelations) => void;
@@ -200,6 +213,7 @@ function Column({
                 key={task.id}
                 task={task}
                 subtasks={childrenOf.get(task.id) ?? []}
+                parentTitle={task.parent_task_id ? parentTitles.get(task.parent_task_id) : undefined}
                 onOpen={() => onOpenTask(task)}
               />
             ))}
@@ -227,6 +241,7 @@ export function KanbanBoard({
   isLoading,
   groupKey = 'status',
   columns,
+  includeSubtasks = false,
 }: {
   projectId: string;
   tasks: TaskWithRelations[];
@@ -234,6 +249,8 @@ export function KanbanBoard({
   /** O que vira coluna. É o mesmo agrupamento escolhido na lista. */
   groupKey?: TaskGroupKey;
   columns?: TaskColumn[];
+  /** Ligado, cada subtarefa cadastrada também vira um card próprio. */
+  includeSubtasks?: boolean;
 }) {
   const moveTask = useMoveTask(projectId);
   const updateTask = useUpdateTask(projectId);
@@ -247,24 +264,35 @@ export function KanbanBoard({
     useSensor(KeyboardSensor),
   );
 
-  // Subtarefa não vira card solto: ela conta dentro da tarefa mãe, como no Monday.
+  // Por padrão a subtarefa conta dentro da tarefa mãe, como no Monday. Com
+  // `includeSubtasks` cada cadastro da lista vira um card por conta própria.
   const { parents, childrenOf } = React.useMemo(() => splitSubtasks(tasks), [tasks]);
 
+  const cards = React.useMemo(
+    () => (includeSubtasks ? tasks : parents),
+    [includeSubtasks, tasks, parents],
+  );
+
+  const parentTitles = React.useMemo(
+    () => new Map(tasks.map((task) => [task.id, task.title])),
+    [tasks],
+  );
+
   const boardColumns = React.useMemo(
-    () => columns ?? buildTaskColumns(groupKey, parents, members.data ?? []),
-    [columns, groupKey, parents, members.data],
+    () => columns ?? buildTaskColumns(groupKey, cards, members.data ?? []),
+    [columns, groupKey, cards, members.data],
   );
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, TaskWithRelations[]>();
     boardColumns.forEach((column) => map.set(column.id, []));
-    parents.forEach((task) => map.get(taskColumnId(task, groupKey))?.push(task));
+    cards.forEach((task) => map.get(taskColumnId(task, groupKey))?.push(task));
     map.forEach((list) => list.sort((a, b) => a.position - b.position));
     return map;
-  }, [boardColumns, parents, groupKey]);
+  }, [boardColumns, cards, groupKey]);
 
   function onDragStart(event: DragStartEvent) {
-    setActiveTask(parents.find((task) => task.id === event.active.id) ?? null);
+    setActiveTask(cards.find((task) => task.id === event.active.id) ?? null);
   }
 
   function onDragEnd(event: DragEndEvent) {
@@ -272,11 +300,11 @@ export function KanbanBoard({
     setActiveTask(null);
     if (!over) return;
 
-    const task = parents.find((item) => item.id === active.id);
+    const task = cards.find((item) => item.id === active.id);
     if (!task) return;
 
     // O destino pode ser a própria coluna ou um card dentro dela.
-    const overTask = parents.find((item) => item.id === over.id);
+    const overTask = cards.find((item) => item.id === over.id);
     const targetColumn = overTask ? taskColumnId(overTask, groupKey) : (over.id as string);
     if (!boardColumns.some((column) => column.id === targetColumn)) return;
 
@@ -335,6 +363,7 @@ export function KanbanBoard({
               accent={column.accent}
               tasks={grouped.get(column.id) ?? []}
               childrenOf={childrenOf}
+              parentTitles={parentTitles}
               canCreate={groupKey === 'status'}
               onOpenTask={setDialogTask}
               onCreate={(columnId) => setCreatingStatus(columnId as TaskStatus)}
@@ -348,6 +377,7 @@ export function KanbanBoard({
               <TaskCard
                 task={activeTask}
                 subtasks={childrenOf.get(activeTask.id) ?? []}
+                parentTitle={activeTask.parent_task_id ? parentTitles.get(activeTask.parent_task_id) : undefined}
                 onOpen={() => undefined}
                 dragging
               />

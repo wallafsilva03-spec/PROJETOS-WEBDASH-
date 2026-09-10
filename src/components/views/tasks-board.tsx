@@ -5,10 +5,11 @@ import { ArrowUpDown, KanbanSquare, ListChecks, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/misc';
 import { TaskDialog } from '@/components/tasks/task-dialog';
 import { KanbanBoard } from '@/components/views/kanban-board';
 import { TaskList } from '@/components/views/task-list';
-import { buildTaskColumns, splitSubtasks, type TaskGroupKey, type TaskSortKey } from '@/lib/task-grouping';
+import { buildTaskColumns, type TaskGroupKey, type TaskSortKey } from '@/lib/task-grouping';
 import { cn } from '@/lib/utils';
 import { useProjectMembers } from '@/hooks/use-projects';
 import type { TaskWithRelations } from '@/types/database';
@@ -38,14 +39,17 @@ export function TasksBoard({
   const [groupKey, setGroupKey] = React.useState<TaskGroupKey>('status');
   const [sortKey, setSortKey] = React.useState<TaskSortKey>('position');
   const [creating, setCreating] = React.useState(false);
+  const [includeSubtasks, setIncludeSubtasks] = React.useState(true);
 
   const members = useProjectMembers(projectId);
 
   // Colunas calculadas uma vez e usadas pelos dois formatos, para a ordem bater.
-  const columns = React.useMemo(() => {
-    const { parents } = splitSubtasks(tasks);
-    return buildTaskColumns(groupKey, parents, members.data ?? []);
-  }, [groupKey, tasks, members.data]);
+  // Entram todas as tarefas, subtarefas incluídas: se uma subtarefa é da Ana e
+  // nenhuma tarefa principal é, a coluna da Ana ainda precisa existir.
+  const columns = React.useMemo(
+    () => buildTaskColumns(groupKey, tasks, members.data ?? []),
+    [groupKey, tasks, members.data],
+  );
 
   return (
     <div className="space-y-3">
@@ -101,6 +105,16 @@ export function TasksBoard({
           </Select>
         )}
 
+        {view === 'kanban' && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={includeSubtasks}
+              onCheckedChange={(checked) => setIncludeSubtasks(checked === true)}
+            />
+            Subtarefas como card
+          </label>
+        )}
+
         <Button variant="brand" className="ml-auto" onClick={() => setCreating(true)}>
           <Plus className="size-4" />
           Nova tarefa
@@ -124,12 +138,15 @@ export function TasksBoard({
           isLoading={isLoading}
           groupKey={groupKey}
           columns={columns}
+          includeSubtasks={includeSubtasks}
         />
       )}
 
-      {groupKey !== 'status' && view === 'kanban' && (
+      {view === 'kanban' && (
         <p className="text-xs text-muted-foreground">
-          Arrastando um card aqui você troca {groupKey === 'priority' ? 'a prioridade' : 'o responsável'} da tarefa.
+          {groupKey === 'status'
+            ? 'Cada tarefa cadastrada na lista é um card. Arraste para mudar o status.'
+            : `Arrastando um card aqui você troca ${groupKey === 'priority' ? 'a prioridade' : 'o responsável'} da tarefa.`}
         </p>
       )}
 

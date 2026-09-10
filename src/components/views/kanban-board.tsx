@@ -49,10 +49,76 @@ import type { PriorityLevel, TaskStatus, TaskWithRelations } from '@/types/datab
 
 /* ------------------------------------------------------- Árvore no card */
 /**
- * Subtarefas (e os itens delas) desenhadas dentro do próprio card, no clique
- * da setinha. É o que mantém o quadro legível: uma coluna de cards de tarefa
- * principal, e o detalhe só de quem você abriu.
+ * Uma linha da árvore de dentro do card. Cada linha guarda a própria
+ * abertura: abrir a tarefa principal mostra as subtarefas, e os itens de
+ * cada subtarefa só aparecem quando você clica na setinha dela. Sem isso o
+ * card despejaria a árvore inteira de uma vez.
  */
+function BranchRow({
+  task,
+  childrenOf,
+  depth,
+  onOpenTask,
+}: {
+  task: TaskWithRelations;
+  childrenOf: Map<string, TaskWithRelations[]>;
+  depth: number;
+  onOpenTask: (task: TaskWithRelations) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+
+  const children = childrenOf.get(task.id) ?? [];
+  const meta = TASK_STATUS_META[task.status];
+  const late = task.due_date && task.status !== 'concluido' && new Date(task.due_date) < new Date();
+
+  return (
+    <li>
+      <div className="flex items-center gap-1">
+        {children.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-label={open ? `Ocultar itens de ${task.title}` : `Ver itens de ${task.title}`}
+            className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" aria-hidden />
+        )}
+
+        <button
+          type="button"
+          onClick={() => onOpenTask(task)}
+          className="flex flex-1 items-center gap-1.5 overflow-hidden rounded px-1 py-0.5 text-left text-[11px] transition-colors hover:bg-secondary"
+        >
+          <span className={cn('size-1.5 shrink-0 rounded-full', meta.dot)} aria-hidden />
+          <span
+            className={cn('flex-1 truncate', task.status === 'concluido' && 'text-muted-foreground line-through')}
+          >
+            {task.title}
+          </span>
+          {children.length > 0 && (
+            <span className="shrink-0 text-muted-foreground">
+              {children.filter((item) => item.status === 'concluido').length}/{children.length}
+            </span>
+          )}
+          {task.due_date && (
+            <span className={cn('shrink-0', late ? 'font-medium text-destructive' : 'text-muted-foreground')}>
+              {formatDate(task.due_date, 'dd/MM')}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {open && children.length > 0 && (
+        <CardBranch tasks={children} childrenOf={childrenOf} depth={depth + 1} onOpenTask={onOpenTask} />
+      )}
+    </li>
+  );
+}
+
 function CardBranch({
   tasks,
   childrenOf,
@@ -65,41 +131,16 @@ function CardBranch({
   onOpenTask: (task: TaskWithRelations) => void;
 }) {
   return (
-    <ul className={cn('space-y-1', depth > 1 && 'ml-3 border-l pl-2')}>
-      {tasks.map((task) => {
-        const children = childrenOf.get(task.id) ?? [];
-        const meta = TASK_STATUS_META[task.status];
-        const late = task.due_date && task.status !== 'concluido' && new Date(task.due_date) < new Date();
-
-        return (
-          <li key={task.id}>
-            <button
-              type="button"
-              onClick={() => onOpenTask(task)}
-              className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] transition-colors hover:bg-secondary"
-            >
-              <span className={cn('size-1.5 shrink-0 rounded-full', meta.dot)} aria-hidden />
-              <span className={cn('flex-1 truncate', task.status === 'concluido' && 'text-muted-foreground line-through')}>
-                {task.title}
-              </span>
-              {children.length > 0 && (
-                <span className="shrink-0 text-muted-foreground">
-                  {children.filter((item) => item.status === 'concluido').length}/{children.length}
-                </span>
-              )}
-              {task.due_date && (
-                <span className={cn('shrink-0', late ? 'font-medium text-destructive' : 'text-muted-foreground')}>
-                  {formatDate(task.due_date, 'dd/MM')}
-                </span>
-              )}
-            </button>
-
-            {children.length > 0 && (
-              <CardBranch tasks={children} childrenOf={childrenOf} depth={depth + 1} onOpenTask={onOpenTask} />
-            )}
-          </li>
-        );
-      })}
+    <ul className={cn('space-y-1', depth > 1 && 'ml-4 border-l pl-2')}>
+      {tasks.map((task) => (
+        <BranchRow
+          key={task.id}
+          task={task}
+          childrenOf={childrenOf}
+          depth={depth}
+          onOpenTask={onOpenTask}
+        />
+      ))}
     </ul>
   );
 }

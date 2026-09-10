@@ -300,6 +300,8 @@ export interface Task {
 
 export interface TaskWithRelations extends Task {
   assignee: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
+  /** Projeto da tarefa — o quadro geral mistura vários e precisa identificar. */
+  project?: Pick<Project, 'id' | 'name' | 'code'> | null;
 }
 
 export interface GanttTask {

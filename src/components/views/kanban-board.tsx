@@ -43,6 +43,7 @@ function TaskCard({
   task,
   subtasks = [],
   parentTitle,
+  showProject,
   onOpen,
   dragging,
 }: {
@@ -51,6 +52,8 @@ function TaskCard({
   subtasks?: TaskWithRelations[];
   /** Preenchido só quando o card é de uma subtarefa. */
   parentTitle?: string;
+  /** No quadro que mistura projetos, o card precisa dizer de onde veio. */
+  showProject?: boolean;
   onOpen: () => void;
   dragging?: boolean;
 }) {
@@ -65,6 +68,11 @@ function TaskCard({
       )}
     >
       <button type="button" onClick={onOpen} className="block w-full text-left">
+        {showProject && task.project && (
+          <p className="mb-1 truncate text-[11px] font-medium uppercase tracking-wide text-primary">
+            {task.project.code}
+          </p>
+        )}
         {parentTitle && (
           <p className="mb-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
             <CornerDownRight className="size-3 shrink-0" aria-hidden />
@@ -130,11 +138,13 @@ function SortableTaskCard({
   task,
   subtasks,
   parentTitle,
+  showProject,
   onOpen,
 }: {
   task: TaskWithRelations;
   subtasks: TaskWithRelations[];
   parentTitle?: string;
+  showProject?: boolean;
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
@@ -147,7 +157,13 @@ function SortableTaskCard({
       {...attributes}
       {...listeners}
     >
-      <TaskCard task={task} subtasks={subtasks} parentTitle={parentTitle} onOpen={onOpen} />
+      <TaskCard
+        task={task}
+        subtasks={subtasks}
+        parentTitle={parentTitle}
+        showProject={showProject}
+        onOpen={onOpen}
+      />
     </li>
   );
 }
@@ -160,6 +176,7 @@ function Column({
   tasks,
   childrenOf,
   parentTitles,
+  showProject,
   canCreate,
   onOpenTask,
   onCreate,
@@ -170,7 +187,8 @@ function Column({
   tasks: TaskWithRelations[];
   childrenOf: Map<string, TaskWithRelations[]>;
   parentTitles: Map<string, string>;
-  /** Criar direto na coluna só faz sentido quando ela é um status. */
+  showProject?: boolean;
+  /** Criar direto na coluna só faz sentido quando ela é um status de um projeto. */
   canCreate: boolean;
   onOpenTask: (task: TaskWithRelations) => void;
   onCreate: (columnId: string) => void;
@@ -214,6 +232,7 @@ function Column({
                 task={task}
                 subtasks={childrenOf.get(task.id) ?? []}
                 parentTitle={task.parent_task_id ? parentTitles.get(task.parent_task_id) : undefined}
+                showProject={showProject}
                 onOpen={() => onOpenTask(task)}
               />
             ))}
@@ -243,7 +262,8 @@ export function KanbanBoard({
   columns,
   includeSubtasks = false,
 }: {
-  projectId: string;
+  /** Ausente no quadro geral, que mistura tarefas de vários projetos. */
+  projectId?: string;
   tasks: TaskWithRelations[];
   isLoading?: boolean;
   /** O que vira coluna. É o mesmo agrupamento escolhido na lista. */
@@ -254,7 +274,7 @@ export function KanbanBoard({
 }) {
   const moveTask = useMoveTask(projectId);
   const updateTask = useUpdateTask(projectId);
-  const members = useProjectMembers(projectId);
+  const members = useProjectMembers(projectId ?? '');
   const [activeTask, setActiveTask] = React.useState<TaskWithRelations | null>(null);
   const [dialogTask, setDialogTask] = React.useState<TaskWithRelations | null>(null);
   const [creatingStatus, setCreatingStatus] = React.useState<TaskStatus | null>(null);
@@ -332,7 +352,12 @@ export function KanbanBoard({
 
     if (task.status === targetColumn && task.position === position) return;
 
-    moveTask.mutate({ taskId: task.id, status: targetColumn as TaskStatus, position });
+    moveTask.mutate({
+      taskId: task.id,
+      status: targetColumn as TaskStatus,
+      position,
+      projectId: task.project_id,
+    });
   }
 
   if (isLoading) {
@@ -364,7 +389,8 @@ export function KanbanBoard({
               tasks={grouped.get(column.id) ?? []}
               childrenOf={childrenOf}
               parentTitles={parentTitles}
-              canCreate={groupKey === 'status'}
+              showProject={!projectId}
+              canCreate={groupKey === 'status' && Boolean(projectId)}
               onOpenTask={setDialogTask}
               onCreate={(columnId) => setCreatingStatus(columnId as TaskStatus)}
             />
@@ -378,6 +404,7 @@ export function KanbanBoard({
                 task={activeTask}
                 subtasks={childrenOf.get(activeTask.id) ?? []}
                 parentTitle={activeTask.parent_task_id ? parentTitles.get(activeTask.parent_task_id) : undefined}
+                showProject={!projectId}
                 onOpen={() => undefined}
                 dragging
               />
@@ -386,19 +413,23 @@ export function KanbanBoard({
         </DragOverlay>
       </DndContext>
 
-      <TaskDialog
-        projectId={projectId}
-        open={Boolean(dialogTask)}
-        onOpenChange={(open) => !open && setDialogTask(null)}
-        task={dialogTask}
-      />
+      {dialogTask && (
+        <TaskDialog
+          projectId={dialogTask.project_id}
+          open
+          onOpenChange={(open) => !open && setDialogTask(null)}
+          task={dialogTask}
+        />
+      )}
 
-      <TaskDialog
-        projectId={projectId}
-        open={Boolean(creatingStatus)}
-        onOpenChange={(open) => !open && setCreatingStatus(null)}
-        initialStatus={creatingStatus ?? undefined}
-      />
+      {projectId && (
+        <TaskDialog
+          projectId={projectId}
+          open={Boolean(creatingStatus)}
+          onOpenChange={(open) => !open && setCreatingStatus(null)}
+          initialStatus={creatingStatus ?? undefined}
+        />
+      )}
     </>
   );
 }

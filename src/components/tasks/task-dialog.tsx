@@ -40,6 +40,7 @@ interface TaskDialogProps {
 
 export function TaskDialog({ projectId, open, onOpenChange, task, initialStatus }: TaskDialogProps) {
   const isEditing = Boolean(task);
+  const isSubtask = Boolean(task?.parent_task_id);
   const members = useProjectMembers(projectId);
   const createTask = useCreateTask(projectId);
   const updateTask = useUpdateTask(projectId);
@@ -237,11 +238,16 @@ export function TaskDialog({ projectId, open, onOpenChange, task, initialStatus 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEditing ? task?.title : 'Nova tarefa'}</DialogTitle>
+          <DialogTitle>
+            {isSubtask && <span className="mr-2 align-middle text-xs font-medium text-muted-foreground">Subtarefa</span>}
+            {isEditing ? task?.title : 'Nova tarefa'}
+          </DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Alterações de datas recalculam automaticamente as tarefas dependentes.'
-              : 'Defina prazo e horas para alimentar o Gantt e o workload.'}
+            {isSubtask
+              ? 'O prazo desta subtarefa é independente do prazo da tarefa principal.'
+              : isEditing
+                ? 'Alterações de datas recalculam automaticamente as tarefas dependentes.'
+                : 'Defina prazo e horas para alimentar o Gantt e o workload.'}
           </DialogDescription>
         </DialogHeader>
 

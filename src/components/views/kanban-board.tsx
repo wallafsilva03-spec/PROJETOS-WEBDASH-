@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import {
   NO_ASSIGNEE,
   buildTaskColumns,
+  isLateTask,
   splitSubtasks,
   taskColumnId,
   type TaskColumn,
@@ -69,7 +70,7 @@ function BranchRow({
 
   const children = childrenOf.get(task.id) ?? [];
   const meta = TASK_STATUS_META[task.status];
-  const late = task.due_date && task.status !== 'concluido' && new Date(task.due_date) < new Date();
+  const late = isLateTask(task);
 
   return (
     <li>
@@ -173,7 +174,7 @@ function TaskCard({
   dragging?: boolean;
 }) {
   const priority = PRIORITY_META[task.priority];
-  const isLate = task.due_date && task.status !== 'concluido' && new Date(task.due_date) < new Date();
+  const isLate = isLateTask(task);
 
   return (
     <div

@@ -1,4 +1,5 @@
 import { KANBAN_COLUMNS, PRIORITY_META, TASK_STATUS_META } from '@/lib/constants';
+import { isDateExpired } from '@/lib/format';
 import type { PriorityLevel, TaskWithRelations } from '@/types/database';
 
 /** Como as tarefas são fatiadas — vale para os grupos da lista e para as colunas do Kanban. */
@@ -58,7 +59,7 @@ export interface GroupingMember {
 }
 
 export function isLateTask(task: TaskWithRelations) {
-  return Boolean(task.due_date) && task.status !== 'concluido' && new Date(task.due_date as string) < new Date();
+  return task.status !== 'concluido' && isDateExpired(task.due_date);
 }
 
 /**

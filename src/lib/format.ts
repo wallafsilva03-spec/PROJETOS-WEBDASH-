@@ -1,4 +1,4 @@
-import { format, formatDistanceToNowStrict, isValid, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, formatDistanceToNowStrict, isValid, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -9,6 +9,23 @@ export function toDate(value?: string | Date | null): Date | null {
   if (!value) return null;
   const date = value instanceof Date ? value : parseISO(value);
   return isValid(date) ? date : null;
+}
+
+/**
+ * Dias de calendário até a data informada.
+ *
+ * Datas do banco no formato AAAA-MM-DD representam o dia inteiro. Comparar
+ * diretamente com `new Date()` inclui hora e fuso, fazendo um prazo de hoje
+ * parecer vencido. Aqui hoje sempre vale 0 e só ontem ou antes fica negativo.
+ */
+export function daysUntilDate(value?: string | Date | null): number | null {
+  const date = toDate(value);
+  return date ? differenceInCalendarDays(date, new Date()) : null;
+}
+
+export function isDateExpired(value?: string | Date | null) {
+  const days = daysUntilDate(value);
+  return days !== null && days < 0;
 }
 
 export function formatDate(value?: string | Date | null, pattern = 'dd/MM/yyyy') {

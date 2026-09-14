@@ -31,9 +31,10 @@ import { useDashboardKpis } from '@/hooks/use-analytics';
 import { useProjects } from '@/hooks/use-projects';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { useSession } from '@/hooks/use-session';
-import { formatDate, formatDaysLabel, formatHours, formatNumber, formatPercent } from '@/lib/format';
+import { daysUntilDate, formatDate, formatDaysLabel, formatHours, formatNumber, formatPercent } from '@/lib/format';
 import { PRIORITY_META } from '@/lib/constants';
 import { portfolioHref } from '@/lib/project-filters';
+import { isLateTask } from '@/lib/task-grouping';
 import { cn } from '@/lib/utils';
 
 export function DashboardView() {
@@ -270,12 +271,8 @@ export function DashboardView() {
                 ) : (
                   <ul className="space-y-2">
                     {myTasks.data.slice(0, 6).map((task) => {
-                      const late = task.due_date && new Date(task.due_date) < new Date();
-                      const daysLeft = task.due_date
-                        ? Math.ceil(
-                            (new Date(task.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-                          )
-                        : null;
+                      const late = isLateTask(task);
+                      const daysLeft = daysUntilDate(task.due_date);
 
                       return (
                         <li key={task.id}>

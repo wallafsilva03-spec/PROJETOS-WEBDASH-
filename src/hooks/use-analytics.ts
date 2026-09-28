@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { isSchemaOutdated } from '@/lib/supabase/errors';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
+import { fillProjectDefaults } from '@/lib/project-compat';
+import { buildPortfolio } from '@/lib/static-portfolio';
 import type {
   ActivityFeedItem,
   AuditLogEntry,
@@ -25,9 +27,39 @@ export function useDashboardKpis() {
     queryKey: qk.kpis,
     staleTime: 30_000,
     queryFn: async (): Promise<DashboardKpis> => {
-      const { data, error } = await createClient().from('v_dashboard_kpis').select('*').single();
-      if (error) throw error;
-      return data as DashboardKpis;
+      const supabase = createClient();
+      const [storedKpis, storedProjects] = await Promise.all([
+        supabase.from('v_dashboard_kpis').select('*').single(),
+        supabase.from('v_project_360').select('*').eq('is_archived', false),
+      ]);
+
+      const portfolio = buildPortfolio(
+        storedProjects.error ? [] : (storedProjects.data ?? []).map(fillProjectDefaults),
+      );
+      const previous = (storedKpis.data ?? {}) as Partial<DashboardKpis>;
+      const concluded = portfolio.filter((project) => project.status === 'concluido').length;
+      const active = portfolio.length - concluded - portfolio.filter((project) => project.status === 'cancelado').length;
+
+      return {
+        projetos_ativos: active,
+        projetos_concluidos: concluded,
+        projetos_atrasados: portfolio.filter((project) => project.health === 'atrasado' || project.health === 'critico').length,
+        projetos_em_risco: portfolio.filter((project) => project.health === 'em_risco').length,
+        projetos_proximo_vencimento: portfolio.filter(
+          (project) => project.status !== 'concluido' && !project.prazo_a_definir && project.days_remaining >= 0 && project.days_remaining <= 7,
+        ).length,
+        total_tarefas: previous.total_tarefas ?? 0,
+        tarefas_concluidas: previous.tarefas_concluidas ?? 0,
+        horas_planejadas: previous.horas_planejadas ?? 0,
+        horas_realizadas: previous.horas_realizadas ?? 0,
+        eficiencia_geral: previous.eficiencia_geral ?? null,
+        indicador_geral:
+          portfolio.length > 0
+            ? portfolio.reduce((sum, project) => sum + project.progress, 0) / portfolio.length
+            : 0,
+        tarefas_concluidas_hoje: previous.tarefas_concluidas_hoje ?? 0,
+        usuarios_online: previous.usuarios_online ?? 0,
+      };
     },
   });
 

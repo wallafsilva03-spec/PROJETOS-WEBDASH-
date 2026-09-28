@@ -14,6 +14,7 @@ import { fillProjectDefaults, withoutOptionalColumns } from '@/lib/project-compa
 import { generateProjectCode, withCodeSuffix } from '@/lib/project-code';
 import { qk } from '@/lib/query-keys';
 import { useRealtime } from '@/hooks/use-realtime';
+import { buildPortfolio } from '@/lib/static-portfolio';
 import type {
   HealthStatus,
   PriorityLevel,
@@ -53,29 +54,37 @@ export function useProjects(filters: ProjectFilters = {}) {
     queryKey: qk.projects(filters),
     queryFn: async (): Promise<ProjectOverview[]> => {
       const supabase = createClient();
+      const run = (view: string) => supabase.from(view).select('*').eq('is_archived', false);
 
-      // `view` cai para a antiga enquanto o setup.sql novo não é executado.
-      const run = async (view: string) => {
-        let request = supabase.from(view).select('*');
-
-        if (!filters.includeArchived) request = request.eq('is_archived', false);
-        if (filters.search) request = request.or(`name.ilike.%${filters.search}%,code.ilike.%${filters.search}%`);
-        if (filters.status?.length) request = request.in('status', filters.status);
-        if (filters.priority?.length) request = request.in('priority', filters.priority);
-        if (filters.health?.length) request = request.in('health', filters.health);
-        if (filters.departmentId) request = request.eq('department_id', filters.departmentId);
-        if (filters.clientId) request = request.eq('client_id', filters.clientId);
-        if (filters.ownerId) request = request.eq('owner_id', filters.ownerId);
-
-        const sort = SORT_CONFIG[filters.sort ?? 'due_date'];
-        return request.order(sort.column, { ascending: sort.ascending });
-      };
-
+      // O cadastro validado de 23/09/2026 define o portfólio. A consulta ao
+      // Supabase serve apenas para reaproveitar campos complementares já
+      // existentes; se estiver indisponível, a base oficial continua abrindo.
       let { data, error } = await run('v_project_360');
       if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
 
-      if (error) throw error;
-      return (data ?? []).map(fillProjectDefaults);
+      let list = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults));
+
+      if (!filters.includeArchived) list = list.filter((project) => !project.is_archived);
+      if (filters.search) {
+        const search = filters.search.toLocaleLowerCase('pt-BR');
+        list = list.filter((project) =>
+          `${project.name} ${project.code}`.toLocaleLowerCase('pt-BR').includes(search),
+        );
+      }
+      if (filters.status?.length) list = list.filter((project) => filters.status?.includes(project.status));
+      if (filters.priority?.length) list = list.filter((project) => filters.priority?.includes(project.priority));
+      if (filters.health?.length) list = list.filter((project) => filters.health?.includes(project.health));
+      if (filters.departmentId) list = list.filter((project) => project.department_id === filters.departmentId);
+      if (filters.clientId) list = list.filter((project) => project.client_id === filters.clientId);
+      if (filters.ownerId) list = list.filter((project) => project.owner_id === filters.ownerId);
+
+      const sort = SORT_CONFIG[filters.sort ?? 'due_date'];
+      const direction = sort.ascending ? 1 : -1;
+      return list.sort((a, b) => {
+        const left = a[sort.column as keyof ProjectOverview];
+        const right = b[sort.column as keyof ProjectOverview];
+        return String(left ?? '').localeCompare(String(right ?? ''), 'pt-BR', { numeric: true }) * direction;
+      });
     },
   });
 
@@ -90,13 +99,15 @@ export function useProject(id: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<ProjectOverview> => {
       const supabase = createClient();
-      const run = (view: string) => supabase.from(view).select('*').eq('id', id).single();
+      const run = (view: string) => supabase.from(view).select('*').eq('is_archived', false);
 
       let { data, error } = await run('v_project_360');
       if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
 
-      if (error) throw error;
-      return fillProjectDefaults(data as Record<string, unknown>);
+      const portfolio = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults));
+      const project = portfolio.find((item) => item.id === id);
+      if (!project) throw new Error('Projeto não encontrado na base oficial.');
+      return project;
     },
   });
 

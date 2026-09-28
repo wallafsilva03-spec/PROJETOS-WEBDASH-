@@ -85,6 +85,7 @@ export function TasksBoard({
             <SelectItem value="status">Agrupar por status</SelectItem>
             <SelectItem value="priority">Agrupar por prioridade</SelectItem>
             <SelectItem value="assignee">Agrupar por responsável</SelectItem>
+            <SelectItem value="parent">Agrupar por tarefa principal</SelectItem>
             <SelectItem value="none">Sem agrupamento</SelectItem>
           </SelectContent>
         </Select>
@@ -105,7 +106,7 @@ export function TasksBoard({
           </Select>
         )}
 
-        {view === 'kanban' && (
+        {view === 'kanban' && groupKey !== 'parent' && (
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <Checkbox
               checked={includeSubtasks}
@@ -126,7 +127,9 @@ export function TasksBoard({
           projectId={projectId}
           tasks={tasks}
           isLoading={isLoading}
-          groupKey={groupKey}
+          // Na lista a hierarquia já aparece indentada; agrupar por tarefa
+          // principal ali só criaria um grupo por linha.
+          groupKey={groupKey === 'parent' ? 'none' : groupKey}
           sortKey={sortKey}
           columns={columns}
           onCreateTask={() => setCreating(true)}
@@ -144,9 +147,12 @@ export function TasksBoard({
 
       {view === 'kanban' && (
         <p className="text-xs text-muted-foreground">
-          {groupKey === 'status'
-            ? 'Um card por tarefa principal. Clique na setinha do card para ver as subtarefas dentro dele, e arraste para mudar o status.'
-            : `Arrastando um card aqui você troca ${groupKey === 'priority' ? 'a prioridade' : 'o responsável'} da tarefa.`}
+          {groupKey === 'status' &&
+            'Um card por tarefa principal. Clique na setinha do card para ver as subtarefas dentro dele, e arraste para mudar o status.'}
+          {groupKey === 'parent' &&
+            'Uma coluna por tarefa principal, e as subtarefas dela como cards. Arrastar um card para outra coluna passa a subtarefa para aquela tarefa.'}
+          {groupKey === 'priority' && 'Arrastando um card aqui você troca a prioridade da tarefa.'}
+          {groupKey === 'assignee' && 'Arrastando um card aqui você troca o responsável da tarefa.'}
         </p>
       )}
 

@@ -217,11 +217,17 @@ export function KanbanView() {
                 <SelectItem value="status">Agrupar por status</SelectItem>
                 <SelectItem value="priority">Agrupar por prioridade</SelectItem>
                 <SelectItem value="assignee">Agrupar por responsável</SelectItem>
+                <SelectItem value="parent">Agrupar por tarefa principal</SelectItem>
                 <SelectItem value="none">Sem agrupamento</SelectItem>
               </SelectContent>
             </Select>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <label
+              className={cn(
+                'flex cursor-pointer items-center gap-2 text-sm text-muted-foreground',
+                groupKey === 'parent' && 'hidden',
+              )}
+            >
               <Checkbox
                 checked={includeSubtasks}
                 onCheckedChange={(checked) => setIncludeSubtasks(checked === true)}

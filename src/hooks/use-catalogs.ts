@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { describeDbError, isSchemaOutdated, SETUP_HINT } from '@/lib/supabase/errors';
 import { RESPONSIBLE_PRESETS } from '@/lib/constants';
 import { qk } from '@/lib/query-keys';
+import { PORTFOLIO_UNITS } from '@/lib/static-portfolio';
 import type { Client, Department, Profile, Responsible, Tag } from '@/types/database';
 
 const HOUR = 60 * 60_000;
@@ -21,8 +22,9 @@ export function useDepartments() {
         .select('*')
         .eq('is_active', true)
         .order('name');
-      if (error) throw error;
-      return data as Department[];
+      const saved = error ? [] : (data as Department[]);
+      const units = PORTFOLIO_UNITS as Department[];
+      return [...units, ...saved.filter((item) => !units.some((unit) => unit.name === item.name))];
     },
   });
 }

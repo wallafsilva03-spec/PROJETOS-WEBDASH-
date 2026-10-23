@@ -172,7 +172,8 @@ export function buildPortfolio(existing: ProjectOverview[] = []): ProjectOvervie
       code: record.code || saved.code || fallback.code,
       name: record.name,
       description: saved.description || fallback.description,
-      department_id: fallback.department_id,
+      // Preserva o vínculo real do banco; o ID local não é um UUID.
+      department_id: saved.department_id,
       department_name: fallback.department_name,
       department_color: fallback.department_color,
       status: fallback.status,

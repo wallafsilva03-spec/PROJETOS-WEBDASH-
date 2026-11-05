@@ -14,11 +14,21 @@ const UNIT_META: Record<PortfolioBaseRecord['unit'], { id: string; color: string
 const GENERATED_PROJECT_CODE = /^\d{4}-\d{4}-\d{6}(?:-\d+)?$/;
 const TRACKING_START = Date.parse('2026-11-05T00:00:00-03:00');
 
-export function buildPortfolio(existing: ProjectOverview[] = []): ProjectOverview[] {
+// Projetos históricos que precisam estar acessíveis no acompanhamento.
+const HISTORICAL_PROJECT_CODES = new Set([
+  '2026-0904-080355', // Mapeamento Área de custos e orçamentos
+  '2026-0915-155427', // Mapeamento Calda Pronta
+]);
+
+export function buildPortfolio(
+  existing: ProjectOverview[] = [],
+  { includeHistoricalProjects = false } = {},
+): ProjectOverview[] {
   return existing.filter((project) =>
     !project.is_archived &&
     (!GENERATED_PROJECT_CODE.test(project.code.trim()) ||
-      Date.parse(project.created_at) >= TRACKING_START),
+      Date.parse(project.created_at) >= TRACKING_START ||
+      (includeHistoricalProjects && HISTORICAL_PROJECT_CODES.has(project.code.trim()))),
   );
 }
 

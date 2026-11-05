@@ -62,7 +62,9 @@ export function useProjects(filters: ProjectFilters = {}) {
       let { data, error } = await run('v_project_360');
       if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
 
-      let list = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults));
+      let list = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults), {
+        includeHistoricalProjects: true,
+      });
 
       if (!filters.includeArchived) list = list.filter((project) => !project.is_archived);
       if (filters.search) {
@@ -104,7 +106,9 @@ export function useProject(id: string) {
       let { data, error } = await run('v_project_360');
       if (error && isSchemaOutdated(error)) ({ data, error } = await run('v_project_overview'));
 
-      const portfolio = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults));
+      const portfolio = buildPortfolio(error ? [] : (data ?? []).map(fillProjectDefaults), {
+        includeHistoricalProjects: true,
+      });
       const project = portfolio.find((item) => item.id === id);
       if (!project) throw new Error('Projeto não encontrado na base oficial.');
       return project;

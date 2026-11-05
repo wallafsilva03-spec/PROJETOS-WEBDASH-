@@ -24,7 +24,13 @@ export function useDepartments() {
         .order('name');
       const saved = error ? [] : (data as Department[]);
       const units = PORTFOLIO_UNITS as Department[];
-      return [...units, ...saved.filter((item) => !units.some((unit) => unit.name === item.name))];
+      // O cadastro do banco tem o UUID necessário para salvar projetos.
+      // As opções locais servem apenas quando a unidade ainda não foi cadastrada.
+      const normalize = (name: string) => name.trim().toLocaleUpperCase('pt-BR');
+      return [
+        ...units.map((unit) => saved.find((item) => normalize(item.name) === normalize(unit.name)) ?? unit),
+        ...saved.filter((item) => !units.some((unit) => normalize(unit.name) === normalize(item.name))),
+      ];
     },
   });
 }

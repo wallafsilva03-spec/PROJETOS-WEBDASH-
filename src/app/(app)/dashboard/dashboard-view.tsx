@@ -99,11 +99,11 @@ export function DashboardView() {
             />
             <KpiCard
               index={1}
-              label="Projetos atrasados"
+              label="Projetos críticos ou atrasados"
               value={formatNumber(data?.projetos_atrasados)}
               icon={AlertTriangle}
               tone={data?.projetos_atrasados ? 'danger' : 'green'}
-              hint="Prazo final ultrapassado"
+              hint="Desvio crítico ou prazo vencido"
               href={portfolioHref({ saude: 'em_atraso' })}
             />
             <KpiCard

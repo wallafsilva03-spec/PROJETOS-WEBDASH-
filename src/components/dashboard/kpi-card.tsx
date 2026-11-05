@@ -74,7 +74,7 @@ export function KpiCard({
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
-            <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="break-words text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
             <p className="font-display text-3xl font-semibold tracking-tight">{value}</p>
           </div>
           <span className={cn('relative flex size-10 shrink-0 items-center justify-center rounded-lg', palette.icon)}>
@@ -106,7 +106,7 @@ export function KpiCard({
                 {trend.value.toFixed(1)}%
               </span>
             )}
-            {hint && <span className="truncate text-muted-foreground">{hint}</span>}
+            {hint && <span className="min-w-0 break-words text-muted-foreground">{hint}</span>}
           </div>
         )}
       </Card>

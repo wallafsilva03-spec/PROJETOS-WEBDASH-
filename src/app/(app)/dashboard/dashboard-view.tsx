@@ -48,6 +48,10 @@ function ProjectStatusSummary({ projects }: { projects: ProjectOverview[] }) {
     counts.set(project.status, (counts.get(project.status) ?? 0) + 1);
   }
 
+  const statuses = Object.entries(PROJECT_STATUS_META).filter(
+    ([status]) => status === 'cancelado' || counts.has(status),
+  );
+
   return (
     <Card className="self-start p-4">
       <h2 className="text-base font-semibold">Resumo de projetos</h2>
@@ -60,7 +64,7 @@ function ProjectStatusSummary({ projects }: { projects: ProjectOverview[] }) {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(PROJECT_STATUS_META).map(([status, meta]) => (
+          {statuses.map(([status, meta]) => (
             <tr key={status} className="border-t">
               <th scope="row" className="py-1.5 pr-2 text-left font-normal">
                 <span className="inline-flex items-center gap-2">

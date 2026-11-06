@@ -14,18 +14,28 @@ const UNIT_META: Record<PortfolioBaseRecord['unit'], { id: string; color: string
 const GENERATED_PROJECT_CODE = /^\d{4}-\d{4}-\d{6}(?:-\d+)?$/;
 const TRACKING_START = Date.parse('2026-11-05T00:00:00-03:00');
 
-// Projetos históricos que precisam estar acessíveis no acompanhamento.
+// Projetos com código de data anteriores a 05/11 que constam no relatório-base.
 const HISTORICAL_PROJECT_CODES = new Set([
   '2026-0904-080355', // Mapeamento Área de custos e orçamentos
   '2026-0915-155427', // Mapeamento Calda Pronta
+  '2026-0923-102825',
+  '2026-0821-073641',
+  '2026-0811-154737',
+  '2026-1023-115524',
+  '2026-0914-134616',
+  '2026-0820-120913',
 ]);
+
+// Códigos legados ausentes do fechamento de 05/11, mantidos no cadastro.
+const OUTSIDE_REPORT_BASE = new Set(['PJC-009', 'PJC-012']);
 
 export function buildPortfolio(
   existing: ProjectOverview[] = [],
-  { includeHistoricalProjects = false } = {},
+  { includeHistoricalProjects = true } = {},
 ): ProjectOverview[] {
   return existing.filter((project) =>
     !project.is_archived &&
+    !OUTSIDE_REPORT_BASE.has(project.code.trim().toUpperCase()) &&
     (!GENERATED_PROJECT_CODE.test(project.code.trim()) ||
       Date.parse(project.created_at) >= TRACKING_START ||
       (includeHistoricalProjects && HISTORICAL_PROJECT_CODES.has(project.code.trim()))),

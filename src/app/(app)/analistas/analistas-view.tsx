@@ -235,7 +235,7 @@ export function AnalistasView() {
       return byProject;
     },
   });
-  useRealtime('analyst-assignments', [{ table: 'project_members' }, { table: 'profiles' }], [ANALYST_ASSIGNMENTS_KEY]);
+  useRealtime('analyst-assignments', [{ table: 'project_members' }], [ANALYST_ASSIGNMENTS_KEY]);
 
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState<StatusFilter>(ALL);

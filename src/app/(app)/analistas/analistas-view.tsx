@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import { useRealtime } from '@/hooks/use-realtime';
 import {
   AlertTriangle,
   ChevronDown,
@@ -205,10 +208,34 @@ function AnalystRow({ analyst, departmentId }: { analyst: AnalystSummary; depart
   );
 }
 
+const ANALYST_ASSIGNMENTS_KEY = ['analyst-project-assignments'] as const;
+
+type AnalystAssignment = { project_id: string; profile: { full_name: string } | null };
+
 export function AnalistasView() {
   const projects = useProjects({ sort: 'due_date' });
   const profiles = useProfiles();
   const departments = useDepartments();
+  const assignments = useQuery({
+    queryKey: ANALYST_ASSIGNMENTS_KEY,
+    queryFn: async () => {
+      const { data, error } = await createClient()
+        .from('project_members')
+        .select('project_id, profile:profiles(full_name)')
+        .eq('role_in_project', 'gestor');
+      if (error) throw error;
+
+      const byProject = new Map<string, Set<string>>();
+      for (const { project_id, profile } of data as unknown as AnalystAssignment[]) {
+        if (!profile?.full_name?.trim()) continue;
+        const names = byProject.get(project_id) ?? new Set<string>();
+        names.add(profile.full_name.trim());
+        byProject.set(project_id, names);
+      }
+      return byProject;
+    },
+  });
+  useRealtime('analyst-assignments', [{ table: 'project_members' }, { table: 'profiles' }], [ANALYST_ASSIGNMENTS_KEY]);
 
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState<StatusFilter>(ALL);
@@ -235,8 +262,11 @@ export function AnalistasView() {
   }, [projects.data, status, departmentId]);
 
   const analysts = React.useMemo(
-    () => buildAnalystSummaries(filtered, profiles.data ?? []),
-    [filtered, profiles.data],
+    () => buildAnalystSummaries(filtered.map((project) => {
+      const managers = assignments.data?.get(project.id);
+      return { ...project, owner_name: managers?.size ? null : project.owner_name, responsibles: [...(managers ?? [])] };
+    }), profiles.data ?? []),
+    [filtered, profiles.data, assignments.data],
   );
 
   const visible = React.useMemo(() => {
@@ -248,6 +278,13 @@ export function AnalistasView() {
       return true;
     });
   }, [analysts, debouncedSearch, onlyLate, showIdle]);
+
+  const shared = filtered.filter((project) => {
+    const managers = assignments.data?.get(project.id);
+    return managers && managers.size > 1 &&
+      (!onlyLate || isLate(project)) &&
+      [...managers].some((name) => name.toLowerCase().includes(debouncedSearch.trim().toLowerCase()));
+  });
 
   const summary = React.useMemo(() => {
     const comProjeto = analysts.filter((analyst) => analyst.total > 0);
@@ -267,7 +304,7 @@ export function AnalistasView() {
       <PageHeader
         eyebrow="Administração"
         title="Gestão por analista"
-        description="Quem responde por cada projeto, em que status ele está e quanto tempo já passou do prazo. Um projeto com mais de um responsável aparece na conta de cada um."
+        description="Projetos por analista cadastrado, com situação e prazo. Os projetos conjuntos aparecem na carteira de cada analista e em uma lista própria."
         actions={
           <ExportMenu
             rows={visible}
@@ -286,7 +323,7 @@ export function AnalistasView() {
           value={formatNumber(summary.pessoas)}
           icon={Users}
           tone="brand"
-          hint="Pessoas e áreas com carga hoje"
+          hint="Pessoas com projetos vinculados"
         />
         <KpiCard
           index={1}
@@ -311,7 +348,7 @@ export function AnalistasView() {
           value={formatNumber(summary.semResponsavel)}
           icon={UserCog}
           tone={summary.semResponsavel ? 'warning' : 'green'}
-          hint="Projetos sem dono nem responsável"
+          hint="Projetos sem gestor nem titular"
         />
       </section>
 
@@ -379,9 +416,9 @@ export function AnalistasView() {
             <span className="text-xs text-muted-foreground">{visible.length} responsável(is)</span>
           </div>
 
-          {projects.isError ? (
-            <ErrorState onRetry={() => projects.refetch()} />
-          ) : projects.isLoading ? (
+          {projects.isError || assignments.isError ? (
+            <ErrorState onRetry={() => { void projects.refetch(); void assignments.refetch(); }} />
+          ) : projects.isLoading || assignments.isLoading ? (
             <SkeletonTable rows={6} />
           ) : !visible.length ? (
             <EmptyState
@@ -399,6 +436,43 @@ export function AnalistasView() {
           )}
         </CardContent>
       </Card>
+
+      {assignments.isSuccess && projects.isSuccess && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Projetos conjuntos · {shared.length}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {shared.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-left text-sm">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th scope="col" className="pb-2 pr-4 font-medium">Projeto</th>
+                      <th scope="col" className="pb-2 pr-4 font-medium">Analistas</th>
+                      <th scope="col" className="pb-2 font-medium">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {shared.map((project) => (
+                      <tr key={project.id}>
+                        <td className="py-2 pr-4">
+                          <Link href={`/projetos/${project.id}`} className="font-medium hover:text-primary">
+                            {project.name}
+                            <span className="block text-xs text-muted-foreground">{project.code}</span>
+                          </Link>
+                        </td>
+                        <td className="py-2 pr-4">{[...(assignments.data?.get(project.id) ?? [])].join(', ')}</td>
+                        <td className="py-2">{PROJECT_STATUS_META[project.status].label}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="text-sm text-muted-foreground">Nenhum projeto com mais de um analista para os filtros atuais.</p>}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
 import {
   AlarmClock,
   AlertTriangle,
@@ -32,10 +34,129 @@ import { useProjects } from '@/hooks/use-projects';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { useSession } from '@/hooks/use-session';
 import { daysUntilDate, formatDate, formatDaysLabel, formatHours, formatNumber, formatPercent } from '@/lib/format';
-import { PRIORITY_META } from '@/lib/constants';
+import { PRIORITY_META, PROJECT_STATUS_META } from '@/lib/constants';
 import { portfolioHref } from '@/lib/project-filters';
 import { isLateTask } from '@/lib/task-grouping';
 import { cn } from '@/lib/utils';
+import type { ProjectOverview } from '@/types/database';
+
+type Alignment = { id: number; meeting_date: string; unit: string; topic: string; follow_up: string };
+
+function ProjectStatusSummary({ projects }: { projects: ProjectOverview[] }) {
+  const counts = new Map<string, number>();
+  for (const project of projects) {
+    counts.set(project.status, (counts.get(project.status) ?? 0) + 1);
+  }
+
+  return (
+    <Card className="self-start p-4">
+      <h2 className="text-base font-semibold">Resumo de projetos</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Total do portfólio por situação.</p>
+      <table className="mt-3 w-full text-sm">
+        <thead className="text-muted-foreground">
+          <tr>
+            <th scope="col" className="pb-2 text-left font-medium">Situação</th>
+            <th scope="col" className="pb-2 text-right font-medium">Quantidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(PROJECT_STATUS_META).map(([status, meta]) => (
+            <tr key={status} className="border-t">
+              <th scope="row" className="py-1.5 pr-2 text-left font-normal">
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden className={cn('size-2 shrink-0 rounded-full', meta.dot)} />
+                  {meta.label}
+                </span>
+              </th>
+              <td className="text-right tabular-nums">{formatNumber(counts.get(status) ?? 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t font-semibold">
+            <th scope="row" className="pt-2 text-left">Total de projetos</th>
+            <td className="pt-2 text-right tabular-nums">{formatNumber(projects.length)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </Card>
+  );
+}
+
+function StrategicAlignments() {
+  const [selectedDate, setDate] = React.useState('');
+  const alignments = useQuery({
+    queryKey: ['strategic-alignments'],
+    queryFn: async (): Promise<Alignment[]> => {
+      const { data, error } = await createClient()
+        .from('strategic_alignments')
+        .select('id, meeting_date, unit, topic, follow_up')
+        .order('meeting_date', { ascending: false })
+        .order('id');
+      if (error) throw error;
+      return data as Alignment[];
+    },
+  });
+  const dates = Array.from(new Set(alignments.data?.map((item) => item.meeting_date)));
+  const date = selectedDate || dates[0] || '';
+  const [unit, setUnit] = React.useState('');
+  const topicsForDate = alignments.data?.filter((item) => item.meeting_date === date) ?? [];
+  const units = ['AMLA', 'CEMMA', 'COPLASA'];
+  const groups = Array.from(new Set(topicsForDate.map((item) => item.unit))).filter(
+    (group) => !unit || group === unit || (group === 'CEMMA e COPLASA' && unit !== 'AMLA'),
+  );
+
+  if (alignments.isError) {
+    return <ErrorState description="Não foi possível carregar os alinhamentos." onRetry={() => alignments.refetch()} />;
+  }
+
+  if (alignments.isLoading) return <SkeletonCards count={1} />;
+
+  return (
+    <Card className="min-w-0 p-4">
+      <h2 className="text-base font-semibold">Alinhamentos estratégicos</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Tópicos tratados e encaminhamentos por unidade.</p>
+      {dates.length === 0 && <p className="mt-3 text-sm text-muted-foreground">Nenhum alinhamento disponível para este perfil.</p>}
+      {dates.length > 0 && <div className="my-3 flex flex-wrap gap-3">
+        <label className="grid gap-1 text-xs font-medium">
+          Data da reunião
+          <select className="rounded-md border bg-background px-2 py-1.5 text-sm" value={date} onChange={(event) => setDate(event.target.value)}>
+            {dates.map((item) => <option key={item} value={item}>{formatDate(item)}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs font-medium">
+          Unidade
+          <select className="rounded-md border bg-background px-2 py-1.5 text-sm" value={unit} onChange={(event) => setUnit(event.target.value)}>
+            <option value="">Todas</option>
+            {units.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>}
+      <div className="space-y-3">
+        {groups.map((group) => {
+          const topics = topicsForDate.filter((topic) => topic.unit === group);
+          if (!topics.length) return null;
+
+          return (
+            <details key={group} className="rounded-md border px-3 py-2 text-sm">
+              <summary className="cursor-pointer font-medium">
+                {group === 'CEMMA e COPLASA' ? 'AMN · CEMMA e COPLASA' : group} · {topics.length} tópicos
+              </summary>
+              <ul className="mt-2 divide-y">
+                {topics.map((topic) => (
+                  <li key={topic.id} className="py-2">
+                    <h3 className="font-medium">{topic.topic}</h3>
+                    <p className="mt-0.5 text-muted-foreground">{topic.follow_up}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 export function DashboardView() {
   const { profile, canCreateProject } = useSession();
@@ -77,6 +198,17 @@ export function DashboardView() {
           </>
         }
       />
+
+      <section aria-label="Resumo e alinhamentos" className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        {all.isError ? (
+          <ErrorState description="Não foi possível carregar o resumo de projetos." onRetry={() => all.refetch()} />
+        ) : all.isLoading ? (
+          <SkeletonCards count={1} />
+        ) : (
+          <ProjectStatusSummary projects={portfolio} />
+        )}
+        <StrategicAlignments />
+      </section>
 
       {kpis.isError ? (
         <ErrorState

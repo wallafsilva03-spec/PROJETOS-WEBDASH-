@@ -26,8 +26,8 @@ const HISTORICAL_PROJECT_CODES = new Set([
   '2026-0820-120913',
 ]);
 
-// Códigos ausentes do fechamento de 05/11, mantidos no cadastro.
-const OUTSIDE_REPORT_BASE = new Set(['PJC-009', 'PJC-012', '2026-1106-083856']);
+// Códigos legados fora da base de partida, mantidos no cadastro.
+const OUTSIDE_REPORT_BASE = new Set(['PJC-009', 'PJC-012']);
 
 export function buildPortfolio(
   existing: ProjectOverview[] = [],

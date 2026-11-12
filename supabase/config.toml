@@ -33,3 +33,8 @@ enable_confirmations = false
 
 [realtime]
 enabled = true
+
+[functions.agenda-catalog]
+# The function verifies the token with the separate Agenda Supabase project.
+verify_jwt = false
+entrypoint = "./functions/agenda-catalog/index.js"

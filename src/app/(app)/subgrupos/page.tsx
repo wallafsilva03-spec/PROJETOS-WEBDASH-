@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -12,6 +13,8 @@ export const metadata: Metadata = { title: 'Subgrupos' };
 
 type Demand = {
   position: number;
+  project_id: string | null;
+  project: { name: string } | null;
   committee: string;
   demand: string;
   status: DemandStatus;
@@ -26,31 +29,38 @@ export default async function SubgroupsPage() {
 
   const { data, error } = await supabase
     .from('subgroup_demands')
-    .select('position, committee, demand, status, observation')
+    .select('position, committee, demand, status, observation, project_id, project:projects(name)')
     .order('position')
     .returns<Demand[]>();
 
   if (error) return <ErrorState description="Não foi possível carregar as demandas dos subgrupos." />;
 
-  const committees = new Map<string, Demand[]>();
+  const committees = new Map<string, { title: string; projectId: string | null; entries: Demand[] }>();
   for (const item of data) {
-    const entries = committees.get(item.committee) ?? [];
-    entries.push(item);
-    committees.set(item.committee, entries);
+    const key = item.project_id ?? item.committee;
+    const group = committees.get(key) ?? {
+      title: item.project?.name ?? item.committee,
+      projectId: item.project_id,
+      entries: [],
+    };
+    group.entries.push(item);
+    committees.set(key, group);
   }
 
   return (
     <>
       <PageHeader
         title="Subgrupos"
-        description={`${data.length} demandas de ${committees.size} comitês.`}
+        description={`${data.length} demandas em ${committees.size} comitês ou projetos.`}
       />
       {data.length === 0 && <EmptyState title="Nenhuma demanda cadastrada" />}
       <div className="space-y-4">
-        {Array.from(committees, ([committee, entries]) => (
-          <Card key={committee} className="overflow-hidden">
+        {Array.from(committees, ([key, { title, projectId, entries }]) => (
+          <Card key={key} className="overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-3 sm:px-5">
-              <h2 className="font-semibold">{committee}</h2>
+              <h2 className="font-semibold">
+                {projectId ? <Link className="hover:underline" href={`/projetos/${projectId}`}>{title}</Link> : title}
+              </h2>
               <span className="text-sm text-muted-foreground">
                 {entries.length} {entries.length === 1 ? 'demanda' : 'demandas'}
               </span>

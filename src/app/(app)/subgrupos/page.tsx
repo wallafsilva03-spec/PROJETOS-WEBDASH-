@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { PageHeader } from '@/components/layout/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { createClient } from '@/lib/supabase/server';
+
+import { DemandStatusEditor, type DemandStatus } from './demand-status-editor';
 
 export const metadata: Metadata = { title: 'Subgrupos' };
 
@@ -13,14 +14,9 @@ type Demand = {
   position: number;
   committee: string;
   demand: string;
-  status: string;
+  status: DemandStatus;
   observation: string;
 };
-
-const statusVariants = new Map<string, 'default' | 'warning'>([
-  ['Em andamento', 'default'],
-  ['Em validação/ajuste', 'warning'],
-]);
 
 export default async function SubgroupsPage() {
   const supabase = await createClient();
@@ -63,12 +59,12 @@ export default async function SubgroupsPage() {
               {entries.map((item) => (
                 <li key={item.position} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:px-5">
                   <h3 className="min-w-0 font-medium">{item.demand}</h3>
-                  <Badge
-                    variant={statusVariants.get(item.status) ?? 'secondary'}
-                    className="w-fit self-start"
-                  >
-                    {item.status}
-                  </Badge>
+                  <DemandStatusEditor
+                    key={item.status}
+                    position={item.position}
+                    demand={item.demand}
+                    status={item.status}
+                  />
                   {item.observation && (
                     <p className="whitespace-pre-line text-muted-foreground sm:col-span-2">{item.observation}</p>
                   )}
